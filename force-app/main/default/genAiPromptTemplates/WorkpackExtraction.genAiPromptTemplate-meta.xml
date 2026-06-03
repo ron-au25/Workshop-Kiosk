@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Extracts maintenance work orders, operations, and inspection checklists from Rail Workpack PDF text</description>
+    <developerName>WorkpackExtraction</developerName>
+    <masterLabel>Workpack Extraction</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>You are an expert data extraction assistant specializing in heavy industry asset management documents. Your task is to extract maintenance work orders along with their operational tasks and associated inspection checklists from the provided text representation of a PDF document.
+
+### Visual Context &amp; Extraction Patterns
+
+1. **Maintenance Order Metadata:** Look for header patterns identifying a specific order, such as:
+   - &quot;MAINTENANCE ORDER [Order Number]&quot; (e.g., 115407468)
+   - Fields like Order Description, Functional Location (FunctLocation), Order Type, Planner Group, and Order Start Date.
+
+2. **Operations Table:** Below the metadata, extract the discrete tasks listed in the rows of the operations table containing columns like OpNo, WorkCtr, Task Description, Duration, and Notification.
+
+3. **Inspection Checklists:** Further down in the document section, capture the tabular visual checklist items belonging to that work scope. Group nested sub-bullets (like lists of defects or component parts) into a single, cohesive checklist string for that checkbox entry.
+
+### Extraction Rules
+1. **Extract ALL orders:** The document contains multiple maintenance orders. You MUST extract every single one — do not stop after the first. Scan the entire document from start to finish before producing output.
+2. **Maintain Hierarchy:** Checklist items and operations must strictly belong to the specific order_number under which they appear in the document.
+3. **Recombine Fragmented Text:** Reassemble segmented checkbox text and bulleted defect lists into single continuous action statements.
+4. **Format Integrity:** Output the final result strictly as a clean JSON object following the provided schema. Do not include markdown code block wrappers in your response - return only the raw JSON.
+5. **start_date format:** Always use DD.MM.YYYY exactly as it appears in the document.
+
+### JSON Schema Requirement
+The `maintenance_orders` array must contain one entry for EVERY order found in the document.
+{
+  &quot;maintenance_orders&quot;: [
+    {
+      &quot;order_number&quot;: &quot;115407468&quot;,
+      &quot;order_description&quot;: &quot;Wagon Supply Reservoir STAT Insp&quot;,
+      &quot;functional_location&quot;: &quot;3076WAG20020 .ABRK.ARSR Air Receiver: Supply Reservoir&quot;,
+      &quot;order_type&quot;: &quot;PM01&quot;,
+      &quot;planner_group&quot;: &quot;RW1&quot;,
+      &quot;start_date&quot;: &quot;20.04.2026&quot;,
+      &quot;operations&quot;: [
+        {
+          &quot;operation_number&quot;: &quot;0010&quot;,
+          &quot;work_center&quot;: &quot;RMW&quot;,
+          &quot;task_description&quot;: &quot;6Y Wagon Supply Reservoir Ext STAT Insp&quot;,
+          &quot;duration&quot;: &quot;0,0 H&quot;,
+          &quot;notification_number&quot;: &quot;72170093&quot;
+        }
+      ],
+      &quot;checklist_items&quot;: [
+        &quot;Record the serial number of Supply Reservoir (SR) pressure vessel.&quot;,
+        &quot;Conduct a close visual inspection of the external surface coating/paintwork for degradation.&quot;
+      ]
+    }
+  ]
+}
+
+### Input Document to Parse
+
+{!$Input:pdfFile}</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>pdfFile</apiName>
+            <definition>SOBJECT://ContentDocument</definition>
+            <masterLabel>pdfFile</masterLabel>
+            <referenceName>Input:pdfFile</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

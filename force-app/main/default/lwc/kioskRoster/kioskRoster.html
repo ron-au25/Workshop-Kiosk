@@ -1,0 +1,79 @@
+<template>
+    <div class="roster-wrapper">
+        <div class="roster-header">
+            <h2 class="roster-title">Sign In</h2>
+            <p class="roster-subtitle">Select your name or scan your badge</p>
+        </div>
+
+        <div class="roster-search">
+            <span class="search-icon">🔍</span>
+            <input
+                type="search"
+                class="search-input"
+                placeholder="Search workers…"
+                value={searchTerm}
+                oninput={handleSearch}
+                onkeydown={handleSearchKeydown}
+                aria-label="Search workers"
+            />
+        </div>
+
+        <template lwc:if={isLoading}>
+            <div class="roster-loading">
+                <div class="spinner"></div>
+                <p>Loading workers…</p>
+            </div>
+        </template>
+
+        <template lwc:elseif={hasError}>
+            <div class="roster-error">
+                <span class="error-icon">⚠</span>
+                <p>{errorMessage}</p>
+                <button class="btn-secondary" onclick={loadRoster}>Retry</button>
+            </div>
+        </template>
+
+        <template lwc:elseif={isEmpty}>
+            <div class="roster-empty">
+                <span class="empty-icon">👥</span>
+                <p>No workers found in this territory.</p>
+            </div>
+        </template>
+
+        <template lwc:else>
+            <div class="roster-grid">
+                <template for:each={filteredRoster} for:item="worker">
+                    <button
+                        key={worker.resourceId}
+                        class={worker.tileClass}
+                        onclick={handleTileClick}
+                        data-id={worker.resourceId}
+                        data-name={worker.name}
+                        data-locked={worker.isLocked}
+                        disabled={worker.isLocked}
+                        aria-label={worker.ariaLabel}
+                    >
+                        <div class="tile-avatar">
+                            <template lwc:if={worker.hasPhoto}>
+                                <img src={worker.photoUrl} alt={worker.name} class="avatar-img"/>
+                            </template>
+                            <template lwc:else>
+                                <span class="avatar-initials">{worker.initials}</span>
+                            </template>
+                        </div>
+                        <div class="tile-info">
+                            <span class="tile-name">{worker.name}</span>
+                            <span class="tile-role">{worker.roleLabel}</span>
+                        </div>
+                        <template lwc:if={worker.isLocked}>
+                            <div class="tile-locked-badge">
+                                <span>🔒</span>
+                                <span class="locked-label">Locked</span>
+                            </div>
+                        </template>
+                    </button>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

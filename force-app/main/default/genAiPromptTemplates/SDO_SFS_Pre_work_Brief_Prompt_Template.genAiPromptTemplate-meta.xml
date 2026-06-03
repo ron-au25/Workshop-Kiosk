@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>DqDKd/lw7JbpN3oA3CvMTrpW7fUeotJG9yVyZZgPN68=_1</activeVersionIdentifier>
+    <developerName>SDO_SFS_Pre_work_Brief_Prompt_Template</developerName>
+    <masterLabel>SDO SFS Pre-work Brief Prompt Template</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>{!$Flow:sfdc_fieldservice__GenPreWorkBrief.Prompt}
+</content>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT5</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>flow://sfdc_fieldservice__GenPreWorkBrief</definition>
+            <parameters>
+                <definition>SOBJECT://WorkOrder</definition>
+                <isRequired>true</isRequired>
+                <parameterName>WorkOrder</parameterName>
+                <valueExpression>{!$Input:WorkOrder}</valueExpression>
+            </parameters>
+            <referenceName>Flow:sfdc_fieldservice__GenPreWorkBrief</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>DqDKd/lw7JbpN3oA3CvMTrpW7fUeotJG9yVyZZgPN68=_1</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content>{!$Flow:sfdc_fieldservice__GenPreWorkBrief.Prompt}
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT5</primaryModel>
+        <status>Draft</status>
+        <templateDataProviders>
+            <definition>flow://sfdc_fieldservice__GenPreWorkBrief</definition>
+            <parameters>
+                <definition>SOBJECT://WorkOrder</definition>
+                <isRequired>true</isRequired>
+                <parameterName>WorkOrder</parameterName>
+                <valueExpression>{!$Input:WorkOrder}</valueExpression>
+            </parameters>
+            <referenceName>Flow:sfdc_fieldservice__GenPreWorkBrief</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_2</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__fieldServicePreWorkBrief</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

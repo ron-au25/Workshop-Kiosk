@@ -1,0 +1,16 @@
+<template>
+    <div class="slds-p-around_medium">
+        <p class="slds-m-bottom_medium">
+            This will process the most recently attached PDF and generate child Work Orders, Line Items, and Measure Points.
+        </p>
+        <lightning-button
+            label="Process PDF"
+            variant="brand"
+            onclick={handleClick}
+            disabled={isLoading}>
+        </lightning-button>
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Processing..." size="small" class="slds-m-left_small"></lightning-spinner>
+        </template>
+    </div>
+</template>

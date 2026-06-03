@@ -1,0 +1,81 @@
+<template>
+    <div class="pa-wrapper">
+
+        <template lwc:if={isLoading}>
+            <div class="pa-center">
+                <div class="spinner"></div>
+                <p>Loading document…</p>
+            </div>
+        </template>
+
+        <template lwc:elseif={hasError}>
+            <div class="pa-center">
+                <span style="font-size:40px">⚠</span>
+                <p>{errorMsg}</p>
+            </div>
+        </template>
+
+        <template lwc:else>
+
+            <!-- Toolbar -->
+            <div class="pa-toolbar">
+                <div class="tool-group">
+                    <button class={toolBtnHand} data-tool="hand" onclick={handleToolSelect} title="Navigate / select text">🖐 Navigate</button>
+                </div>
+                <div class="tool-divider"></div>
+                <div class="tool-group">
+                    <button class={toolBtnDraw}      data-tool="draw"      onclick={handleToolSelect} title="Draw">✏️</button>
+                    <button class={toolBtnHighlight} data-tool="highlight" onclick={handleToolSelect} title="Highlight">🖊</button>
+                    <button class={toolBtnText}      data-tool="text"      onclick={handleToolSelect} title="Add text">T</button>
+                    <button class={toolBtnSign}      data-tool="sign"      onclick={handleToolSelect} title="Signature">✍️</button>
+                    <button class={toolBtnEraser}    data-tool="eraser"    onclick={handleToolSelect} title="Eraser">⌫</button>
+                </div>
+                <div class="tool-divider"></div>
+                <div class="tool-group">
+                    <input type="color" class="color-picker" value={strokeColor}
+                        oninput={handleColorChange} onkeydown={handleInputKeydown} title="Colour" />
+                    <button class="size-btn size-s" data-size="3"  onclick={handleSizeSelect} title="Thin"></button>
+                    <button class="size-btn size-m" data-size="6"  onclick={handleSizeSelect} title="Medium"></button>
+                    <button class="size-btn size-l" data-size="12" onclick={handleSizeSelect} title="Thick"></button>
+                </div>
+                <div class="tool-divider"></div>
+                <div class="tool-group">
+                    <button class="tb-btn" onclick={handleUndo} title="Undo last stroke">↩ Undo</button>
+                    <button class="tb-btn" onclick={handleClearPage} title="Clear active page">🗑 Clear</button>
+                </div>
+                <div class="tool-divider"></div>
+                <button class="tb-btn btn-save" onclick={handleSave} disabled={isSaving}>{saveBtnLabel}</button>
+            </div>
+
+            <!-- All pages stacked — scrollable -->
+            <div class="pa-scroll">
+                <div class="pa-pages" data-id="pagesContainer">
+                    <!-- Pages are injected imperatively via _renderAllPages() -->
+                </div>
+
+                <!-- Text input floats over the pages container -->
+                <template lwc:if={showTextInput}>
+                    <div class="text-popup" style={textPopupStyle}>
+                        <textarea
+                            class="text-entry"
+                            value={pendingText}
+                            oninput={handleTextEntry}
+                            onkeydown={handleTextKeydown}
+                            rows="3"
+                            placeholder="Type annotation…"
+                        ></textarea>
+                        <div class="text-popup-actions">
+                            <button class="tb-btn" onclick={handleTextCancel}>Cancel</button>
+                            <button class="tb-btn btn-save" onclick={handleTextCommit}>Place</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <template lwc:if={statusMsg}>
+                <p class={statusClass}>{statusMsg}</p>
+            </template>
+
+        </template>
+    </div>
+</template>

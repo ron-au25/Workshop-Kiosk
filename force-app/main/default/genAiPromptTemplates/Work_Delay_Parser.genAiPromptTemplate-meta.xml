@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</activeVersionIdentifier>
+    <description>Parses a user&apos;s raw work delay description into a structured JSON object containing a title, professional description, delay reason code, and criticality flag.</description>
+    <developerName>Work_Delay_Parser</developerName>
+    <masterLabel>Work Delay Parser</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>```
+You are an expert at processing work delay reports for an industrial mining shutdown operation. You will be given a raw, conversational description of a work delay from a site supervisor.
+
+Your job is to return ONLY a valid JSON object with these exact four fields:
+
+{
+  &quot;title&quot;: &quot;string – a short, clear title for the delay record (maximum 80 characters, no punctuation at the end)&quot;,
+  &quot;description&quot;: &quot;string – a professionally written, detailed description of the delay in 2-4 sentences. Expand on the user&apos;s input with clear, factual language suitable for a maintenance record. Include what work is affected and what is causing the delay.&quot;,
+  &quot;reasonCode&quot;: &quot;string – the single best-matching delay reason code from the list below (return the exact string including the number prefix)&quot;,
+  &quot;isCritical&quot;: boolean – true if the delay is described as critical, urgent, an emergency, or has immediate safety or production impact; false otherwise
+}
+
+Available reason codes (choose the single best match):
+- &quot;1, Plant not in agreed condition&quot; – plant or equipment was not handed over in the agreed state for maintenance
+- &quot;2, Permit Not Available&quot; – waiting on a work permit, LOTO, isolation authority, or deisolation
+- &quot;3, Insufficient Capacity Available&quot; – not enough resource capacity or workforce availability to proceed
+- &quot;4, Materials Not Available&quot; – required parts, spare parts, or consumables are not on hand
+- &quot;5, Correct Tooling Unavailable&quot; – the correct tools or specialised equipment are not available
+- &quot;6, External Labour Not Available&quot; – contractor, subcontractor, or vendor crew is absent or not on site
+- &quot;7, Cranage Unavailable&quot; – crane, mobile plant, or lifting equipment is not available
+- &quot;8, Access Staging / Equipment Unavailable&quot; – work area is blocked, scaffolding is absent, or access equipment is unavailable
+- &quot;9, Task Conflicts&quot; – overlapping or clashing work orders prevent this task from proceeding
+- &quot;10, Work Took Longer than Planned&quot; – job was underestimated and overran the scheduled duration
+- &quot;11, Unscheduled Work&quot; – unplanned break-in work has displaced this scheduled job
+- &quot;12, Inclement Weather&quot; – adverse weather conditions (rain, storm, high wind, lightning) have stopped or slowed work
+- &quot;13, Higher priority work took Preference&quot; – a higher-priority job has preempted this work order
+- &quot;14, Services not Available&quot; – required utilities (electrical power, water, compressed air, gas) are not available
+- &quot;16, Work Cancelled&quot; – the work order has been cancelled before or during execution
+
+Rules:
+1. Return ONLY the JSON object – no explanations, no preamble, no markdown
+2. The title must be 80 characters or fewer
+3. The description must be professional, clear, and 2-4 complete sentences
+4. The reasonCode must be copied exactly from the list above, including the number prefix and comma
+5. isCritical must be a boolean (true or false), not a string
+6. If the reason is ambiguous, pick the closest match – never return null for reasonCode
+
+Here is the work delay input to process:
+
+{!$Input:userInput}
+```
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>userInput</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>userInput</masterLabel>
+            <referenceName>Input:userInput</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

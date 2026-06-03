@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_4</activeVersionIdentifier>
+    <description>Extracts structured data from purchase order OCR text</description>
+    <developerName>Purchase_Order_Parser</developerName>
+    <masterLabel>Purchase Order Parser</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>```
+You are an expert at parsing purchase order documents. You will be given OCR text from a scanned purchase order or invoice.
+
+Extract the following information and return ONLY a valid JSON object with these exact fields:
+
+{
+  &quot;poNumber&quot;: &quot;string - the PO number or order number&quot;,
+  &quot;orderDate&quot;: &quot;string - the order date in YYYY-MM-DD format&quot;,
+  &quot;receiveDate&quot;: &quot;string - the expected receive date in YYYY-MM-DD format&quot;,
+  &quot;supplierName&quot;: &quot;string - the supplier/vendor company name&quot;,
+  &quot;supplierAddress&quot;: &quot;string - the complete supplier address&quot;,
+  &quot;supplierPhone&quot;: &quot;string - the supplier phone number&quot;,
+  &quot;supplierEmail&quot;: &quot;string - the supplier email if available&quot;,
+  &quot;shipToName&quot;: &quot;string - the ship-to company name&quot;,
+  &quot;shipToAddress&quot;: &quot;string - the complete ship-to address&quot;,
+  &quot;billToName&quot;: &quot;string - the bill-to company name if different&quot;,
+  &quot;billToAddress&quot;: &quot;string - the complete bill-to address if different&quot;,
+  &quot;lineItems&quot;: [
+    {
+      &quot;lineNumber&quot;: &quot;number - the line item number&quot;,
+      &quot;productId&quot;: &quot;string - the product/item code&quot;,
+      &quot;description&quot;: &quot;string - the product description&quot;,
+      &quot;quantity&quot;: &quot;number - the quantity&quot;,
+      &quot;unitPrice&quot;: &quot;number - the unit price&quot;,
+      &quot;lineTotal&quot;: &quot;number - the line total amount&quot;
+    }
+  ],
+  &quot;subtotal&quot;: &quot;number - the subtotal amount&quot;,
+  &quot;taxAmount&quot;: &quot;number - the tax amount&quot;,
+  &quot;taxRate&quot;: &quot;number - the tax rate percentage&quot;,
+  &quot;shippingAmount&quot;: &quot;number - the shipping/freight amount&quot;,
+  &quot;insuranceAmount&quot;: &quot;number - the insurance amount&quot;,
+  &quot;discountAmount&quot;: &quot;number - any discount amount&quot;,
+  &quot;totalAmount&quot;: &quot;number - the final total amount&quot;,
+  &quot;notes&quot;: &quot;string - any additional notes or instructions&quot;,
+  &quot;carrier&quot;: &quot;string - the shipping carrier&quot;,
+  &quot;shippingMethod&quot;: &quot;string - the shipping method&quot;
+}
+
+Rules:
+1. Return ONLY the JSON object, no explanations
+2. If a field is not found in the text, use null
+3. For dates, convert to YYYY-MM-DD format
+4. For amounts, use numbers without currency symbols or commas
+5. Extract ALL line items found in the document
+6. Be careful to correctly identify supplier vs ship-to vs bill-to addresses
+7. Look for common labels like &quot;PO NUMBER&quot;, &quot;ORDER DATE&quot;, &quot;SHIP TO&quot;, &quot;SUPPLIER&quot;, &quot;VENDOR&quot;, etc.
+
+Here is the OCR text to parse:
+
+{!$Input:ocrText}
+```
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>ocrText</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>OCR Text</masterLabel>
+            <referenceName>Input:ocrText</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content>```
+You are an expert at parsing purchase order documents. You will be given OCR text from a scanned purchase order or invoice.
+
+Extract the following information and return ONLY a valid JSON object with these exact fields:
+
+{
+  &quot;poNumber&quot;: &quot;string - the PO number or order number&quot;,
+  &quot;orderDate&quot;: &quot;string - the order date in YYYY-MM-DD format&quot;,
+  &quot;receiveDate&quot;: &quot;string - the expected receive date in YYYY-MM-DD format&quot;,
+  &quot;supplierName&quot;: &quot;string - the supplier/vendor company name&quot;,
+  &quot;supplierAddress&quot;: &quot;string - the complete supplier address&quot;,
+  &quot;supplierPhone&quot;: &quot;string - the supplier phone number&quot;,
+  &quot;supplierEmail&quot;: &quot;string - the supplier email if available&quot;,
+  &quot;shipToName&quot;: &quot;string - the ship-to company name&quot;,
+  &quot;shipToAddress&quot;: &quot;string - the complete ship-to address&quot;,
+  &quot;billToName&quot;: &quot;string - the bill-to company name if different&quot;,
+  &quot;billToAddress&quot;: &quot;string - the complete bill-to address if different&quot;,
+  &quot;lineItems&quot;: [
+    {
+      &quot;lineNumber&quot;: &quot;number - the line item number&quot;,
+      &quot;productId&quot;: &quot;string - the product/item code&quot;,
+      &quot;description&quot;: &quot;string - the product description&quot;,
+      &quot;quantity&quot;: &quot;number - the quantity&quot;,
+      &quot;unitPrice&quot;: &quot;number - the unit price&quot;,
+      &quot;lineTotal&quot;: &quot;number - the line total amount&quot;
+    }
+  ],
+  &quot;subtotal&quot;: &quot;number - the subtotal amount&quot;,
+  &quot;taxAmount&quot;: &quot;number - the tax amount&quot;,
+  &quot;taxRate&quot;: &quot;number - the tax rate percentage&quot;,
+  &quot;shippingAmount&quot;: &quot;number - the shipping/freight amount&quot;,
+  &quot;insuranceAmount&quot;: &quot;number - the insurance amount&quot;,
+  &quot;discountAmount&quot;: &quot;number - any discount amount&quot;,
+  &quot;totalAmount&quot;: &quot;number - the final total amount&quot;,
+  &quot;notes&quot;: &quot;string - any additional notes or instructions&quot;,
+  &quot;carrier&quot;: &quot;string - the shipping carrier&quot;,
+  &quot;shippingMethod&quot;: &quot;string - the shipping method&quot;
+}
+
+Rules:
+1. Return ONLY the JSON object, no explanations
+2. If a field is not found in the text, use null
+3. For dates, convert to YYYY-MM-DD format
+4. For amounts, use numbers without currency symbols or commas
+5. Extract ALL line items found in the document
+6. Be careful to correctly identify supplier vs ship-to vs bill-to addresses
+7. Look for common labels like &quot;PO NUMBER&quot;, &quot;ORDER DATE&quot;, &quot;SHIP TO&quot;, &quot;SUPPLIER&quot;, &quot;VENDOR&quot;, etc.
+
+Here is the OCR text to parse:
+
+{!$Input:ocrText}
+```{!$Input:ocrText}
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>ocrText</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>OCR Text</masterLabel>
+            <referenceName>Input:ocrText</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT41Mini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_2</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content>```
+You are an expert at parsing purchase order documents. You will be given OCR text from a scanned purchase order or invoice.
+
+Extract the following information and return ONLY a valid JSON object with these exact fields:
+
+{
+  &quot;poNumber&quot;: &quot;string - the PO number or order number&quot;,
+  &quot;orderDate&quot;: &quot;string - the order date in YYYY-MM-DD format&quot;,
+  &quot;receiveDate&quot;: &quot;string - the expected receive date in YYYY-MM-DD format&quot;,
+  &quot;supplierName&quot;: &quot;string - the supplier/vendor company name&quot;,
+  &quot;supplierAddress&quot;: &quot;string - the complete supplier address&quot;,
+  &quot;supplierPhone&quot;: &quot;string - the supplier phone number&quot;,
+  &quot;supplierEmail&quot;: &quot;string - the supplier email if available&quot;,
+  &quot;shipToName&quot;: &quot;string - the ship-to company name&quot;,
+  &quot;shipToAddress&quot;: &quot;string - the complete ship-to address&quot;,
+  &quot;billToName&quot;: &quot;string - the bill-to company name if different&quot;,
+  &quot;billToAddress&quot;: &quot;string - the complete bill-to address if different&quot;,
+  &quot;lineItems&quot;: [
+    {
+      &quot;lineNumber&quot;: &quot;number - the line item number&quot;,
+      &quot;productId&quot;: &quot;string - the product/item code&quot;,
+      &quot;description&quot;: &quot;string - the product description&quot;,
+      &quot;quantity&quot;: &quot;number - the quantity&quot;,
+      &quot;unitPrice&quot;: &quot;number - the unit price&quot;,
+      &quot;lineTotal&quot;: &quot;number - the line total amount&quot;
+    }
+  ],
+  &quot;subtotal&quot;: &quot;number - the subtotal amount&quot;,
+  &quot;taxAmount&quot;: &quot;number - the tax amount&quot;,
+  &quot;taxRate&quot;: &quot;number - the tax rate percentage&quot;,
+  &quot;shippingAmount&quot;: &quot;number - the shipping/freight amount&quot;,
+  &quot;insuranceAmount&quot;: &quot;number - the insurance amount&quot;,
+  &quot;discountAmount&quot;: &quot;number - any discount amount&quot;,
+  &quot;totalAmount&quot;: &quot;number - the final total amount&quot;,
+  &quot;notes&quot;: &quot;string - any additional notes or instructions&quot;,
+  &quot;carrier&quot;: &quot;string - the shipping carrier&quot;,
+  &quot;shippingMethod&quot;: &quot;string - the shipping method&quot;
+}
+
+Rules:
+1. Return ONLY the JSON object, no explanations
+2. If a field is not found in the text, use null
+3. For dates, convert to YYYY-MM-DD format
+4. For amounts, use numbers without currency symbols or commas
+5. Extract ALL line items found in the document
+6. Be careful to correctly identify supplier vs ship-to vs bill-to addresses
+7. Look for common labels like &quot;PO NUMBER&quot;, &quot;ORDER DATE&quot;, &quot;SHIP TO&quot;, &quot;SUPPLIER&quot;, &quot;VENDOR&quot;, etc.
+
+Here is the OCR text to parse:
+
+{!$Input:ocrText}
+```{!$Input:ocrText}
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>ocrText</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>OCR Text</masterLabel>
+            <referenceName>Input:ocrText</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT41Mini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_3</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content>```
+You are an expert at parsing purchase order documents. You will be given OCR text from a scanned purchase order or invoice.
+
+Extract the following information and return ONLY a valid JSON object with these exact fields:
+
+{
+  &quot;poNumber&quot;: &quot;string - the PO number or order number&quot;,
+  &quot;orderDate&quot;: &quot;string - the order date in YYYY-MM-DD format&quot;,
+  &quot;receiveDate&quot;: &quot;string - the expected receive date in YYYY-MM-DD format&quot;,
+  &quot;supplierName&quot;: &quot;string - the supplier/vendor company name&quot;,
+  &quot;supplierAddress&quot;: &quot;string - the complete supplier address&quot;,
+  &quot;supplierPhone&quot;: &quot;string - the supplier phone number&quot;,
+  &quot;supplierEmail&quot;: &quot;string - the supplier email if available&quot;,
+  &quot;shipToName&quot;: &quot;string - the ship-to company name&quot;,
+  &quot;shipToAddress&quot;: &quot;string - the complete ship-to address&quot;,
+  &quot;billToName&quot;: &quot;string - the bill-to company name if different&quot;,
+  &quot;billToAddress&quot;: &quot;string - the complete bill-to address if different&quot;,
+  &quot;lineItems&quot;: [
+    {
+      &quot;lineNumber&quot;: &quot;number - the line item number&quot;,
+      &quot;productId&quot;: &quot;string - the product/item code&quot;,
+      &quot;description&quot;: &quot;string - the product description&quot;,
+      &quot;quantity&quot;: &quot;number - the quantity&quot;,
+      &quot;unitPrice&quot;: &quot;number - the unit price&quot;,
+      &quot;lineTotal&quot;: &quot;number - the line total amount&quot;
+    }
+  ],
+  &quot;subtotal&quot;: &quot;number - the subtotal amount&quot;,
+  &quot;taxAmount&quot;: &quot;number - the tax amount&quot;,
+  &quot;taxRate&quot;: &quot;number - the tax rate percentage&quot;,
+  &quot;shippingAmount&quot;: &quot;number - the shipping/freight amount&quot;,
+  &quot;insuranceAmount&quot;: &quot;number - the insurance amount&quot;,
+  &quot;discountAmount&quot;: &quot;number - any discount amount&quot;,
+  &quot;totalAmount&quot;: &quot;number - the final total amount&quot;,
+  &quot;notes&quot;: &quot;string - any additional notes or instructions&quot;,
+  &quot;carrier&quot;: &quot;string - the shipping carrier&quot;,
+  &quot;shippingMethod&quot;: &quot;string - the shipping method&quot;
+}
+
+Rules:
+1. Return ONLY the JSON object, no explanations
+2. If a field is not found in the text, use null
+3. For dates, convert to YYYY-MM-DD format
+4. For amounts, use numbers without currency symbols or commas
+5. Extract ALL line items found in the document
+6. Be careful to correctly identify supplier vs ship-to vs bill-to addresses
+7. Look for common labels like &quot;PO NUMBER&quot;, &quot;ORDER DATE&quot;, &quot;SHIP TO&quot;, &quot;SUPPLIER&quot;, &quot;VENDOR&quot;, etc.
+
+Here is the OCR text to parse:
+
+{!$Input:ocrText}
+```
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>ocrText</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>OCR Text</masterLabel>
+            <referenceName>Input:ocrText</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT41Mini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_4</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

@@ -1,0 +1,77 @@
+<template>
+    <div class="login-backdrop">
+        <div class="login-card" role="dialog" aria-labelledby="login-title">
+
+            <!-- Worker identity -->
+            <div class="worker-identity">
+                <div class="worker-avatar">
+                    <template lwc:if={workerPhotoUrl}>
+                        <img src={workerPhotoUrl} alt={workerDisplayName} class="avatar-img"/>
+                    </template>
+                    <template lwc:else>
+                        <span class="avatar-initials">{workerInitials}</span>
+                    </template>
+                </div>
+                <div class="worker-info">
+                    <h2 id="login-title" class="worker-name">{workerDisplayName}</h2>
+                    <template lwc:if={workerRoleLabel}>
+                        <p class="worker-role">{workerRoleLabel}</p>
+                    </template>
+                    <p class="login-instruction">
+                        <template lwc:if={isBarcodePrefilled}>
+                            Badge scanned — enter your PIN
+                        </template>
+                        <template lwc:else>
+                            Enter your 4-digit PIN
+                        </template>
+                    </p>
+                </div>
+            </div>
+
+            <!-- PIN dots -->
+            <div class="pin-dots" aria-label="PIN entry progress">
+                <template for:each={pinDots} for:item="dot">
+                    <div key={dot.index} class={dot.dotClass}></div>
+                </template>
+            </div>
+
+            <!-- Error message -->
+            <template lwc:if={showError}>
+                <div class={errorClass} role="alert">
+                    <span class="error-icon-sm">⚠</span>
+                    {errorMessage}
+                </div>
+            </template>
+
+            <!-- Lockout countdown -->
+            <template lwc:if={isLocked}>
+                <div class="lockout-banner" role="alert">
+                    <span>🔒</span>
+                    <span>Account locked — try again in <strong>{lockoutCountdown}</strong></span>
+                </div>
+            </template>
+
+            <!-- PIN pad -->
+            <div class="pin-pad" role="group" aria-label="PIN pad">
+                <template for:each={padKeys} for:item="key">
+                    <button
+                        key={key.label}
+                        class={key.btnClass}
+                        data-value={key.value}
+                        onclick={handlePadKey}
+                        disabled={isPadDisabled}
+                        aria-label={key.ariaLabel}
+                    >
+                        <span class="key-digit">{key.label}</span>
+                        <span class="key-sub">{key.sub}</span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- Cancel -->
+            <button class="btn-ghost cancel-btn" onclick={handleCancel}>
+                ← Different worker
+            </button>
+        </div>
+    </div>
+</template>

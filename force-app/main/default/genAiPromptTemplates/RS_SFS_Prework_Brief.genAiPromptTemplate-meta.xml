@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</activeVersionIdentifier>
+    <description>create a brief for the work order</description>
+    <developerName>RS_SFS_Prework_Brief</developerName>
+    <masterLabel>RS SFS Prework Brief</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>{!$Flow:sfdc_fieldservice__GenPreWorkBrief.Prompt}
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>flow://sfdc_fieldservice__GenPreWorkBrief</definition>
+            <label>Field Service Mobile: Generate Pre Work Brief</label>
+            <parameters>
+                <definition>SOBJECT://WorkOrder</definition>
+                <isRequired>true</isRequired>
+                <parameterName>WorkOrder</parameterName>
+                <valueExpression>{!$Input:WorkOrder}</valueExpression>
+            </parameters>
+            <referenceName>Flow:sfdc_fieldservice__GenPreWorkBrief</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__fieldServicePreWorkBrief</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

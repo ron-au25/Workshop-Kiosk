@@ -1,0 +1,191 @@
+<template>
+    <div class="tt-wrapper">
+
+        <div class="tt-header">
+            <h2 class="tt-title">Time Tracking</h2>
+            <button class="refresh-btn" onclick={load} title="Refresh">↻</button>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <div class="tt-center">
+                <div class="spinner"></div>
+                <p>Loading time records…</p>
+            </div>
+        </template>
+
+        <template lwc:elseif={hasError}>
+            <div class="tt-center">
+                <span>⚠</span>
+                <p>Failed to load time reports.</p>
+                <button class="btn-secondary" onclick={load}>Retry</button>
+            </div>
+        </template>
+
+        <template lwc:elseif={hasData}>
+
+            <!-- ─── Summary cards ─── -->
+            <div class="summary-row">
+                <div class="summary-card">
+                    <span class="sum-value">{totalRecords}</span>
+                    <span class="sum-label">Records (30 days)</span>
+                </div>
+                <div class="summary-card">
+                    <span class="sum-value accent">{totalHours}</span>
+                    <span class="sum-label">Total Time Recorded</span>
+                </div>
+                <div class="summary-card">
+                    <span class="sum-value warn">{activeCount}</span>
+                    <span class="sum-label">Currently Active</span>
+                </div>
+                <div class="summary-card">
+                    <span class="sum-value danger">{issueCount}</span>
+                    <span class="sum-label">Validation Issues</span>
+                </div>
+            </div>
+
+            <!-- ─── Charts row ─── -->
+            <div class="charts-row">
+
+                <!-- Per-employee bar chart -->
+                <template lwc:if={hasEmpChart}>
+                    <div class="chart-card">
+                        <h3 class="chart-title">Time per Employee (30 days)</h3>
+                        <div class="chart-scroll">
+                            <svg
+                                class="chart-svg"
+                                viewBox="0 0 560 200"
+                                xmlns="http://www.w3.org/2000/svg"
+                                aria-label="Time per employee bar chart"
+                            >
+                                <template for:each={empBarChart.bars} for:item="bar">
+                                    <g key={bar.key}>
+                                        <rect
+                                            x={bar.x} y={bar.y}
+                                            width={bar.w} height={bar.h}
+                                            style={bar.fillStyle}
+                                            rx="3"
+                                        ></rect>
+                                        <text
+                                            x={bar.labelX} y={bar.labelY}
+                                            text-anchor="middle"
+                                            class="chart-label"
+                                        >{bar.label}</text>
+                                        <text
+                                            x={bar.labelX} y={bar.valueY}
+                                            text-anchor="middle"
+                                            class="chart-value"
+                                        >{bar.minutes}</text>
+                                    </g>
+                                </template>
+                            </svg>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Stacked by day chart -->
+                <template lwc:if={hasStackedChart}>
+                    <div class="chart-card chart-wide">
+                        <h3 class="chart-title">Daily Time (Last 30 Days) — stacked by employee</h3>
+                        <!-- Legend -->
+                        <div class="legend-row">
+                            <template for:each={stackedChart.legend} for:item="leg">
+                                <div key={leg.key} class="legend-item">
+                                    <span class="legend-dot" style={leg.dotStyle}></span>
+                                    <span class="legend-name">{leg.name}</span>
+                                </div>
+                            </template>
+                        </div>
+                        <div class="chart-scroll">
+                            <svg
+                                class="chart-svg"
+                                viewBox="0 0 560 200"
+                                xmlns="http://www.w3.org/2000/svg"
+                                aria-label="Daily stacked time chart"
+                            >
+                                <template for:each={stackedChart.bars} for:item="dayBar">
+                                    <g key={dayBar.key}>
+                                        <template for:each={dayBar.segments} for:item="seg">
+                                            <rect
+                                                key={seg.key}
+                                                x={seg.x} y={seg.y}
+                                                width={seg.w} height={seg.h}
+                                                style={seg.fillStyle}
+                                            ></rect>
+                                        </template>
+                                        <template lwc:if={dayBar.showLabel}>
+                                            <text
+                                                x={dayBar.labelX} y={dayBar.labelY}
+                                                text-anchor="middle"
+                                                class="chart-label"
+                                            >{dayBar.label}</text>
+                                        </template>
+                                    </g>
+                                </template>
+                            </svg>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- ─── Filter bar ─── -->
+            <div class="filter-bar">
+                <div class="flag-filters">
+                    <template for:each={flagOptions} for:item="opt">
+                        <button
+                            key={opt.value}
+                            class={opt.btnClass}
+                            data-flag={opt.value}
+                            onclick={handleFlagFilter}
+                        >{opt.label}</button>
+                    </template>
+                </div>
+                <input
+                    type="search"
+                    class="emp-search"
+                    placeholder="Filter by name…"
+                    value={empFilter}
+                    oninput={handleEmpFilter}
+                    aria-label="Filter by employee name"
+                />
+            </div>
+
+            <!-- ─── Detail table ─── -->
+            <template lwc:if={isEmpty}>
+                <div class="tt-center">
+                    <p>No records match the selected filter.</p>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="tbl-wrap">
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Work Order</th>
+                                <th>Start</th>
+                                <th>End</th>
+                                <th>Actual</th>
+                                <th>Planned</th>
+                                <th>Issue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={filteredRows} for:item="row">
+                                <tr key={row.id} class={row.rowClass}>
+                                    <td class="td-name">{row.resourceName}</td>
+                                    <td class="td-wo">{row.workOrderNumber}</td>
+                                    <td class="td-dt">{row.startDisplay}</td>
+                                    <td class="td-dt">{row.endDisplay}</td>
+                                    <td class="td-dur">{row.durationDisplay}</td>
+                                    <td class="td-dur td-planned">{row.plannedDisplay}</td>
+                                    <td class="td-flag">{row.flagLabel}</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+        </template>
+    </div>
+</template>

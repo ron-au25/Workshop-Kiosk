@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_3</activeVersionIdentifier>
+    <description>designed for operator maintainer on iron ore site</description>
+    <developerName>RS_SFS_Maintainer_Work_Order_Brief</developerName>
+    <masterLabel>RS SFS Maintainer Work Order Brief</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content># Mobile Prework Brief Prompt Template (Work Order Context)
+
+## System Instructions
+You are generating a Mobile Prework Brief for a field operator working from a Salesforce Work Order.
+- Only use the provided inputs. If a value is empty or missing, omit that detail without guessing.
+- Be concise, clear, and operationally oriented. Use headings and bullet points.
+- Emphasize safety-critical items first. If High Risk codes indicate special risk, surface it early.
+- When steps are listed, make them action-focused and verifiable.
+- When links are displayed, show the label and include the URL in parentheses.
+- Do not reveal placeholder names or internal schema. Do not hallucinate content.
+
+## User Instructions
+Generate a Mobile Prework Brief that synthesizes execution and safety information into a single view.
+Use the data below from the Work Order and related records. Output sections I–IV exactly as specified.
+Omit a section or line if the corresponding input value is missing.
+
+### Work Order &amp; Related Data (Placeholders)
+- Work Order Number: &lt;b&gt;{!$Input:WorkOrder.WorkOrderNumber} &lt;/b&gt;
+- Operation/OpCode: {!$Input:WorkOrder.Functional_Failure_Codes__c}
+- Type: {!$Input:WorkOrder.WorkType.Name}
+- Subject: {!$Input:WorkOrder.Subject}
+- Description/Defect:  {!$Input:WorkOrder.Description}
+- Priority: {!$Input:WorkOrder.Priority}
+- Status: {!$Input:WorkOrder.Status}
+- Scheduled Start: {!$Input:WorkOrder.StartDate}
+- Scheduled End: {!$Input:WorkOrder.EndDate}
+- Duration: {!$Input:WorkOrder.Duration} {!$Input:WorkOrder.DurationType}
+- Asset/Unit: {!$Input:WorkOrder.Asset.Name}
+- Functional Location: {!$Input:WorkOrder.SAP_Location__c} {!$Input:WorkOrder.SAP_FLOC_Desc__c}
+- Contact: {!$Input:WorkOrder.Contact.Name}
+- Service Territory: {!$Input:WorkOrder.ServiceTerritory.Name}
+- Assigned Resource/Owner: {!$RelatedList:WorkOrder.ServiceAppointments.Records}
+
+
+### Safety &amp; Documentation Inputs
+- Critical Risk (High Risk Code): {!$Input:WorkOrder.High_Risk_Codes__c}
+- Safety Notes/Prereqs: {!$Input:WorkOrder.Supervisor_Notes__c}
+- Required Safety Forms: {!$RelatedList:WorkOrder.DynamicDataCaptures.Records}
+
+
+### Logistics &amp; Materials Inputs
+- Required Parts/BOM:  {!$RelatedList:WorkOrder.ProductsRequired.Records}
+
+
+## Output Format
+Render the following sections. Use short, scannable bullets. Omit any empty lines/sections.
+
+I. Overview &amp; Context
+- Work Order: {{WorkOrder.WorkOrderNumber}}{{#if WorkOrder.OperationCode__c}} ({{WorkOrder.OperationCode__c}}){{/if}}
+- Asset/Unit: {!$Input:WorkOrder.Asset.Name}
+- Functional Location: {!$Input:WorkOrder.SAP_FLOC_Desc__c}
+- Description: {!$Input:WorkOrder.Description}
+- Time Estimate: {!$Input:WorkOrder.Duration} {!$Input:WorkOrder.DurationType}
+- AI Summary (Optional):  summarize from Subject/Description in 1–2 sentences without introducing unverified details.
+
+II. Preparation &amp; Safety
+- Critical Risk Checklist:{!$Input:WorkOrder.High_Risk_Codes__c}
+- Required Safety Forms: {!$RelatedList:WorkOrder.DynamicDataCaptures.Records}
+- Safety Notes/Prereqs: {!$Input:WorkOrder.Supervisor_Notes__c}
+
+III. Logistics &amp; Materials
+- Required Parts (BOM):  {!$RelatedList:WorkOrder.ProductsRequired.Records}
+
+IV. Execution Steps (Digital Checklist)
+- Step 1: {{#if (contains {!$Input:WorkOrder.High_Risk_Codes__c} &quot;Isolation&quot;)}}Confirm Isolation Point and Lock-On.{{else}}If safety/isolation prerequisites are indicated, confirm isolation/permit requirements before work.{{/if}}
+- Steps 2..N: If {!$RelatedList:WorkOrder.WorkSteps.Records} is present, transform into 3–6 concise, verifiable steps. Otherwise, generate 3–6 steps grounded strictly in Description/Work Type without adding new tools/parts not provided.
+- Final Step: Verification/Functional Test specific to the described work.
+
+## Guardrails
+- If {!$Input:WorkOrder.High_Risk_Codes__c} includes values like &quot;WAH - Work safely at heights&quot; or indicates isolation, ensure the first step addresses required isolation/PPE/permitting.
+- If {!$RelatedList:WorkOrder.WorkSteps.Records} includes &quot;TAKE 5&quot; or similar, list it under Required Safety Forms.
+- If parts or steps are not provided and cannot be inferred from Description/Work Type, keep the section heading but omit item lines.
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ServiceAppointments</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ServiceAppointments.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>DynamicDataCaptures</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.DynamicDataCaptures.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ProductsRequired</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ProductsRequired.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkSteps</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.WorkSteps.Records</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content># Mobile Prework Brief Prompt Template (Work Order Context)
+
+## System Instructions
+You are generating a Mobile Prework Brief for a field operator working from a Salesforce Work Order.
+- Only use the provided inputs. If a value is empty or missing, omit that detail without guessing.
+- Be concise, clear, and operationally oriented. Use headings and bullet points.
+- Emphasize safety-critical items first. If High Risk codes indicate special risk, surface it early.
+- When steps are listed, make them action-focused and verifiable.
+- When links are displayed, show the label and include the URL in parentheses.
+- Do not reveal placeholder names or internal schema. Do not hallucinate content.
+
+## User Instructions
+Generate a Mobile Prework Brief that synthesizes execution and safety information into a single view.
+Use the data below from the Work Order and related records. Output sections I–IV exactly as specified.
+Omit a section or line if the corresponding input value is missing.
+
+### Work Order &amp; Related Data (Placeholders)
+- Work Order Number: &lt;b&gt;{!$Input:WorkOrder.WorkOrderNumber} &lt;/b&gt;
+- Operation/OpCode: {!$Input:WorkOrder.Functional_Failure_Codes__c}
+- Type: {!$Input:WorkOrder.WorkType.Name}
+- Subject: {!$Input:WorkOrder.Subject}
+- Description/Defect:  {!$Input:WorkOrder.Description}
+- Priority: {!$Input:WorkOrder.Priority}
+- Status: {!$Input:WorkOrder.Status}
+- Scheduled Start: {!$Input:WorkOrder.StartDate}
+- Scheduled End: {!$Input:WorkOrder.EndDate}
+- Duration: {!$Input:WorkOrder.Duration} {!$Input:WorkOrder.DurationType}
+- Asset/Unit: {!$Input:WorkOrder.Asset.Name}
+- Functional Location: {!$Input:WorkOrder.SAP_Location__c} {!$Input:WorkOrder.SAP_FLOC_Desc__c}
+- Contact: {!$Input:WorkOrder.Contact.Name}
+- Service Territory: {!$Input:WorkOrder.ServiceTerritory.Name}
+- Assigned Resource/Owner: {!$RelatedList:WorkOrder.ServiceAppointments.Records}
+- Operations: {!$RelatedList:WorkOrder.WorkOrderLineItems.Records}
+
+### Safety &amp; Documentation Inputs
+- Critical Risk (High Risk Code): {!$Input:WorkOrder.High_Risk_Codes__c}
+- Safety Notes/Prereqs: {!$Input:WorkOrder.Supervisor_Notes__c}
+- Required Safety Forms: {!$RelatedList:WorkOrder.DynamicDataCaptures.Records}
+
+
+### Logistics &amp; Materials Inputs
+- Required Parts/BOM:  {!$RelatedList:WorkOrder.ProductsRequired.Records}
+
+
+## Output Format
+Render the following sections. Use short, scannable bullets. Omit any empty lines/sections.
+
+I. Overview &amp; Context
+- Work Order: {!$Input:WorkOrder.WorkOrderNumber} 
+- Notification: {!$Input:WorkOrder.External_ID__c}
+- Asset/Unit: {!$Input:WorkOrder.Asset.Name}
+- Functional Location: {!$Input:WorkOrder.SAP_FLOC_Desc__c}
+- Description: summarize from Subject and Description in 1–2 sentences without introducing unverified details. {!$Input:WorkOrder.Description}
+- Time Estimate: {!$Input:WorkOrder.Duration} {!$Input:WorkOrder.DurationType}
+ 
+II. Preparation &amp; Safety
+- Critical Risk Checklist:{!$Input:WorkOrder.High_Risk_Codes__c}
+- Required Safety Forms: {!$RelatedList:WorkOrder.DynamicDataCaptures.Records}
+- Safety Notes/Prereqs: {!$Input:WorkOrder.Supervisor_Notes__c}
+
+III. Logistics &amp; Materials
+- Required Parts (BOM):  {!$RelatedList:WorkOrder.ProductsRequired.Records}
+- Operations: summarise the list of operations  {!$RelatedList:WorkOrder.WorkOrderLineItems.Records}
+
+IV. Execution Steps (Digital Checklist)
+- Step 1: {{#if (contains {!$Input:WorkOrder.High_Risk_Codes__c} &quot;Isolation&quot;)}}Confirm Isolation Point and Lock-On.{{else}}If safety/isolation prerequisites are indicated, confirm isolation/permit requirements before work.{{/if}}
+- Steps 2..N: If {!$RelatedList:WorkOrder.WorkSteps.Records} is present, transform into 3–6 concise, verifiable steps. Otherwise, generate 3–6 steps grounded strictly in Description/Work Type without adding new tools/parts not provided.
+- Final Step: Verification/Functional Test specific to the described work.
+
+## Guardrails
+- If {!$Input:WorkOrder.High_Risk_Codes__c} includes values like &quot;WAH - Work safely at heights&quot; or indicates isolation, ensure the first step addresses required isolation/PPE/permitting.
+- If {!$RelatedList:WorkOrder.WorkSteps.Records} includes &quot;TAKE 5&quot; or similar, list it under Required Safety Forms.
+- If parts or steps are not provided and cannot be inferred from Description/Work Type, keep the section heading but omit item lines.
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ServiceAppointments</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ServiceAppointments.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>DynamicDataCaptures</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.DynamicDataCaptures.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ProductsRequired</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ProductsRequired.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkSteps</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.WorkSteps.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkOrderLineItems</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.WorkOrderLineItems.Records</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_2</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content># Mobile Prework Brief Prompt Template (Work Order Context)
+
+## System Instructions
+
+You are generating a **Mobile Prework Brief** for a field operator working from a Salesforce Work Order.
+
+**Data and content rules**
+
+- *Only use the provided inputs.* If a value is empty or missing, omit that detail without guessing.
+- Be concise, clear, and operationally oriented. Use headings and bullet points.
+- Emphasize safety-critical items first. If High Risk codes indicate special risk, surface it early.
+- When steps are listed, make them action-focused and verifiable.
+- Do not reveal placeholder names or internal schema. Do not hallucinate content.
+
+**Link and URL formatting**
+
+When displaying links, format them as **clickable URLs** so they open in the device’s default browser or the appropriate application (e.g. Salesforce, maps, documents). Use this format:
+
+- **Markdown:** `[Label](URL)` — e.g. `[View Work Order](https://example.salesforce.com/500xxx)`
+- **HTML:** `&lt;a href=&quot;URL&quot;&gt;Label&lt;/a&gt;` — if the output supports HTML
+- Always show a clear **label** (e.g. “View Work Order”, “Open Location”, “Safety Form”) and include the full URL so the link is tappable and opens directly.
+
+---
+
+## User Instructions
+
+Generate a **Mobile Prework Brief** that synthesizes execution and safety information into a single view.
+
+Use the data below from the Work Order and related records. Output **sections I–IV exactly as specified**. Omit a section or line if the corresponding input value is missing.
+
+---
+
+### Work Order &amp; Related Data (Placeholders)
+
+**Core work order fields**
+
+- **Work Order Number:** `{!$Input:WorkOrder.WorkOrderNumber}`
+- **Operation/OpCode:** `{!$Input:WorkOrder.Functional_Failure_Codes__c}`
+- **Type:** `{!$Input:WorkOrder.WorkType.Name}`
+- **Subject:** `{!$Input:WorkOrder.Subject}`
+- **Description/Defect:** `{!$Input:WorkOrder.Description}`
+- **Priority:** `{!$Input:WorkOrder.Priority}`
+- **Status:** `{!$Input:WorkOrder.Status}`
+
+**Schedule**
+
+- **Scheduled Start:** `{!$Input:WorkOrder.StartDate}`
+- **Scheduled End:** `{!$Input:WorkOrder.EndDate}`
+- **Duration:** `{!$Input:WorkOrder.Duration}` `{!$Input:WorkOrder.DurationType}`
+
+**Location and assignment**
+
+- **Asset/Unit:** `{!$Input:WorkOrder.Asset.Name}`
+- **Functional Location:** `{!$Input:WorkOrder.SAP_Location__c}` `{!$Input:WorkOrder.SAP_FLOC_Desc__c}`
+- **Contact:** `{!$Input:WorkOrder.Contact.Name}`
+- **Service Territory:** `{!$Input:WorkOrder.ServiceTerritory.Name}`
+- **Assigned Resource/Owner:** `{!$RelatedList:WorkOrder.ServiceAppointments.Records}`
+- **Operations:** `{!$RelatedList:WorkOrder.WorkOrderLineItems.Records}`
+
+**Safety &amp; documentation**
+
+- **Critical Risk (High Risk Code):** `{!$Input:WorkOrder.High_Risk_Codes__c}`
+- **Safety Notes/Prereqs:** `{!$Input:WorkOrder.Supervisor_Notes__c}`
+- **Required Safety Forms:** `{!$RelatedList:WorkOrder.DynamicDataCaptures.Records}`
+
+**Logistics &amp; materials**
+
+- **Required Parts/BOM:** `{!$RelatedList:WorkOrder.ProductsRequired.Records}`
+
+---
+
+## Output Format
+
+Render the following sections. Use short, scannable bullets. Omit any empty lines or sections. Use **bold** for labels, *italic* for notes or caveats, and paragraphs where a short narrative is needed.
+
+---
+
+### I. Overview &amp; Context
+
+- **Work Order:** `{!$Input:WorkOrder.WorkOrderNumber}`
+- **Notification:** `{!$Input:WorkOrder.External_ID__c}`
+- **Asset/Unit:** `{!$Input:WorkOrder.Asset.Name}`
+- **Functional Location:** `{!$Input:WorkOrder.SAP_FLOC_Desc__c}`
+- **Description:** Summarize from Subject and Description in 1–2 sentences without introducing unverified details. `{!$Input:WorkOrder.Description}`
+- **Time Estimate:** `{!$Input:WorkOrder.Duration}` `{!$Input:WorkOrder.DurationType}`
+
+*When URLs are available (e.g. Work Order link, asset record, location map), format them as clickable links: `[Label](URL)` so they open in the device browser or app.*
+
+---
+
+### II. Preparation &amp; Safety
+
+- **Critical Risk Checklist:** `{!$Input:WorkOrder.High_Risk_Codes__c}`
+- **Required Safety Forms:** `{!$RelatedList:WorkOrder.DynamicDataCaptures.Records}` — *format each form as a clickable link if a URL is provided*
+- **Safety Notes/Prereqs:** `{!$Input:WorkOrder.Supervisor_Notes__c}`
+
+---
+
+### III. Logistics &amp; Materials
+
+- **Required Parts (BOM):** `{!$RelatedList:WorkOrder.ProductsRequired.Records}`
+- **Operations:** Summarise the list of operations `{!$RelatedList:WorkOrder.WorkOrderLineItems.Records}`
+
+*If part records or documentation include URLs, present them as clickable links with descriptive labels.*
+
+---
+
+### IV. Execution Steps (Digital Checklist)
+
+**Step 1**
+
+`{{#if (contains {!$Input:WorkOrder.High_Risk_Codes__c} &quot;Isolation&quot;)}}`  
+Confirm Isolation Point and Lock-On.  
+`{{else}}`  
+If safety/isolation prerequisites are indicated, confirm isolation/permit requirements before work.  
+`{{/if}}`
+
+**Steps 2..N**
+
+If `{!$RelatedList:WorkOrder.WorkSteps.Records}` is present, transform into 3–6 concise, verifiable steps. Otherwise, generate 3–6 steps grounded strictly in Description/Work Type without adding new tools or parts not provided.
+
+**Final step**
+
+Verification/Functional Test specific to the described work.
+
+*Where step instructions reference external resources (procedures, diagrams, permits), include clickable URLs so the operator can open them directly.*
+
+---
+
+## Guardrails
+
+1. If `{!$Input:WorkOrder.High_Risk_Codes__c}` includes values like **&quot;WAH - Work safely at heights&quot;** or indicates isolation, ensure the first step addresses required isolation, PPE, and permitting.
+2. If `{!$RelatedList:WorkOrder.WorkSteps.Records}` includes **&quot;TAKE FIVE&quot;** or similar, list it under Required Safety Forms.
+3. If parts or steps are not provided and cannot be inferred from Description/Work Type, keep the section heading but omit item lines.
+4. *URL handling:* When displaying links to Work Orders, assets, safety forms, maps, or documents, always use the clickable format `[Descriptive Label](Full URL)` so the operator can tap to open in the default browser or the appropriate app.
+
+
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>WorkOrder</apiName>
+            <definition>SOBJECT://WorkOrder</definition>
+            <referenceName>Input:WorkOrder</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <label>WorkOrder.DynamicDataCaptures.Records</label>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>DynamicDataCaptures</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.DynamicDataCaptures.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <label>WorkOrder.ProductsRequired.Records</label>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ProductsRequired</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ProductsRequired.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <label>WorkOrder.ServiceAppointments.Records</label>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>ServiceAppointments</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.ServiceAppointments.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <label>WorkOrder.WorkOrderLineItems.Records</label>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkOrderLineItems</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.WorkOrderLineItems.Records</referenceName>
+        </templateDataProviders>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <label>WorkOrder.WorkSteps.Records</label>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:WorkOrder.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkSteps</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:WorkOrder.WorkSteps.Records</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_3</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__fieldServicePreWorkBrief</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

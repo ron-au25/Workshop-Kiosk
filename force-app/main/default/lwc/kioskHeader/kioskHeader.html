@@ -1,0 +1,31 @@
+<template>
+    <header class="kiosk-header">
+        <div class="header-left">
+            <template lwc:if={isPortrait}>
+                <button class="hamburger" onclick={handleHamburger} aria-label="Open navigation">
+                    <span>☰</span>
+                </button>
+            </template>
+            <div class="header-territory">
+                <span class="territory-label">⚙ {territoryName}</span>
+            </div>
+        </div>
+        <div class="header-centre">
+            <span class="header-clock">{currentTime}</span>
+        </div>
+        <div class="header-right">
+            <template lwc:if={workerName}>
+                <div class="worker-chip">
+                    <span class="chip-dot"></span>
+                    <span class="chip-name">{workerName}</span>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="worker-chip idle">
+                    <span class="chip-dot idle"></span>
+                    <span class="chip-name">No worker signed in</span>
+                </div>
+            </template>
+        </div>
+    </header>
+</template>

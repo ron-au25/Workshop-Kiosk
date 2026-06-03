@@ -1,0 +1,72 @@
+.kiosk-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    padding: 0 24px;
+    background: var(--rt-surface, #0D1319);
+    border-bottom: 1px solid var(--rt-border, #2A3744);
+    flex-shrink: 0;
+    box-sizing: border-box;
+    overflow: visible;
+    min-width: 0;
+}
+
+.header-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex-shrink: 1; }
+.header-centre { display: flex; align-items: center; flex-shrink: 0; }
+.header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-right: 4px; }
+
+.hamburger {
+    background: none;
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 8px;
+    color: var(--rt-text-muted, #A6B2BD);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 20px;
+    transition: background 0.15s;
+}
+.hamburger:hover { background: var(--rt-surface-2, #1B2530); }
+
+.territory-label {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--rt-text, #F2F5F7);
+}
+
+.header-clock {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--rt-text-muted, #A6B2BD);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.worker-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(33,192,122,0.12);
+    border: 1px solid var(--rt-success, #21C07A);
+    border-radius: 20px;
+    padding: 6px 16px;
+    max-width: 220px;
+    overflow: hidden;
+}
+.worker-chip.idle {
+    background: var(--rt-surface-2, #1B2530);
+    border-color: var(--rt-border, #2A3744);
+}
+.chip-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rt-success, #21C07A);
+    flex-shrink: 0;
+}
+.chip-dot.idle { background: var(--rt-text-dim, #6B7A89); }
+.chip-name { font-size: 16px; font-weight: 500; color: var(--rt-text, #F2F5F7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

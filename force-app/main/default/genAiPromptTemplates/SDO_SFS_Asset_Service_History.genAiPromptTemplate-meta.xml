@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>0iiZ68gQS1ZsVl6g9DkFoEoNawX1nEzJjzgSJ7RYWNE=_1</activeVersionIdentifier>
+    <developerName>SDO_SFS_Asset_Service_History</developerName>
+    <masterLabel>SDO SFS Asset Service History</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>Analyze work order history for assets with the same product type. 
+
+Provide insights based on past work orders and asset information. 
+Include these sections: 
+#Common Issues Summarize recurring problems and patterns from the work orders. 
+#Resolution Patterns Analyze work order descriptions to identify successful resolution approaches. 
+#Citations List up to 10 relevant work orders, sorted by recency: - Format: &quot;[WO-12345](/lightning/r/WorkOrder/id): Brief resolution summary&quot; 
+
+[WorkOrder_Data]  
+{!$RelatedList:Asset.WorkOrders.Records}
+[END WorkOrder_Data]
+</content>
+        <inputs>
+            <apiName>Asset</apiName>
+            <definition>SOBJECT://Asset</definition>
+            <masterLabel>Asset</masterLabel>
+            <referenceName>Input:Asset</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <templateDataProviders>
+            <definition>invocable://getRelatedList</definition>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>parentRecordId</parameterName>
+                <valueExpression>{!$Input:Asset.Id}</valueExpression>
+            </parameters>
+            <parameters>
+                <definition>primitive://String</definition>
+                <isRequired>true</isRequired>
+                <parameterName>relatedListName</parameterName>
+                <valueExpression>WorkOrders</valueExpression>
+            </parameters>
+            <referenceName>RelatedList:Asset.WorkOrders.Records</referenceName>
+        </templateDataProviders>
+        <versionIdentifier>0iiZ68gQS1ZsVl6g9DkFoEoNawX1nEzJjzgSJ7RYWNE=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

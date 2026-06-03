@@ -1,0 +1,146 @@
+<template>
+    <div class="wo-wrapper">
+
+        <div class="wo-header">
+            <h2 class="wo-title">Work Orders</h2>
+            <span class="wo-count">{totalLabel}</span>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <span class="filter-label">Status</span>
+                    <div class="segment-control">
+                        <template for:each={statusOptions} for:item="opt">
+                            <button
+                                key={opt.value}
+                                class={opt.btnClass}
+                                data-filter="status"
+                                data-value={opt.value}
+                                onclick={handleFilterClick}
+                            >{opt.label}</button>
+                        </template>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Priority</span>
+                    <div class="segment-control">
+                        <template for:each={priorityOptions} for:item="opt">
+                            <button
+                                key={opt.value}
+                                class={opt.btnClass}
+                                data-filter="priority"
+                                data-value={opt.value}
+                                onclick={handleFilterClick}
+                            >{opt.label}</button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="filter-group filter-date">
+                    <span class="filter-label">From</span>
+                    <div class="date-nav">
+                        <button class="day-nav-btn" onclick={handlePrevDay} title="Previous day">‹</button>
+                        <input type="date" class="date-input" value={dateFrom} onchange={handleDateFrom} />
+                        <button class="day-nav-btn" onclick={handleNextDay} title="Next day">›</button>
+                    </div>
+                </div>
+                <div class="filter-group filter-date">
+                    <span class="filter-label">To</span>
+                    <input type="date" class="date-input" value={dateTo} onchange={handleDateTo} />
+                </div>
+                <div class="filter-group filter-search">
+                    <span class="filter-label">Wagon</span>
+                    <div class="search-wrap">
+                        <span class="search-icon-sm">⊞</span>
+                        <input
+                            type="search"
+                            class="wagon-search"
+                            placeholder="e.g. WG101"
+                            value={wagonSearch}
+                            oninput={handleWagonSearch}
+                            onkeydown={handleWagonKeydown}
+                            aria-label="Search by wagon number"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <div class="wo-loading">
+                <div class="spinner"></div>
+                <p>Loading work orders…</p>
+            </div>
+        </template>
+
+        <template lwc:elseif={hasError}>
+            <div class="wo-error">
+                <span>⚠</span>
+                <p>{errorMessage}</p>
+                <button class="btn-secondary" onclick={loadPage}>Retry</button>
+            </div>
+        </template>
+
+        <template lwc:elseif={isEmpty}>
+            <div class="wo-empty">
+                <span class="empty-icon">🔧</span>
+                <p>No work orders assigned for this date range.</p>
+                <button class="btn-secondary" onclick={clearFilters}>Reset Filters</button>
+            </div>
+        </template>
+
+        <template lwc:else>
+            <div class="wo-grid">
+                <template for:each={workOrders} for:item="wo">
+                    <button
+                        key={wo.id}
+                        class={wo.cardClass}
+                        data-id={wo.id}
+                        onclick={handleCardClick}
+                        aria-label={wo.subjectDisplay}
+                    >
+                        <div class="card-top">
+                            <div class="wagon-badge">
+                                <span class="wagon-num">{wo.wagonDisplay}</span>
+                            </div>
+                            <span class={wo.priorityClass}>{wo.priority}</span>
+                        </div>
+                        <div class="card-mid">
+                            <p class="wo-number">{wo.woNumber}</p>
+                            <p class="wo-subject">{wo.subjectDisplay}</p>
+                            <template lwc:if={wo.workTypeDisplay}>
+                                <span class="wo-type">{wo.workTypeDisplay}</span>
+                            </template>
+                        </div>
+                        <div class="card-meta">
+                            <template lwc:if={wo.sapDisplay}>
+                                <span class="meta-chip">⚙ {wo.sapDisplay}</span>
+                            </template>
+                            <template lwc:if={wo.flocDisplay}>
+                                <span class="meta-chip">📍 {wo.flocDisplay}</span>
+                            </template>
+                            <template lwc:if={wo.extIdDisplay}>
+                                <span class="meta-chip ext-id">{wo.extIdDisplay}</span>
+                            </template>
+                        </div>
+                        <div class="card-bottom">
+                            <span class={wo.statusClass}>{wo.status}</span>
+                            <div class="card-right">
+                                <template lwc:if={wo.schedDisplay}>
+                                    <span class="wo-sched">{wo.schedDisplay}</span>
+                                </template>
+                                <template lwc:if={wo.durationDisplay}>
+                                    <span class="wo-duration">{wo.durationDisplay}</span>
+                                </template>
+                            </div>
+                        </div>
+                    </button>
+                </template>
+            </div>
+
+        </template>
+    </div>
+</template>

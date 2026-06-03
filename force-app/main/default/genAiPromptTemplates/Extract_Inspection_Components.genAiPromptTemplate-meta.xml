@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <activeVersionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</activeVersionIdentifier>
+    <description>extract component names from pdf</description>
+    <developerName>Extract_Inspection_Components</developerName>
+    <masterLabel>Extract_Inspection_Components</masterLabel>
+    <overridable>false</overridable>
+    <templateVersions>
+        <content>You are a technical data extractor specializing in Rio Tinto Maintenance Task documents. 
+
+Input Text: {!$Input:pdfFile.Id}
+
+
+### Task:
+Extract all unique maintenance component names from the provided text. 
+
+### Extraction Rules:
+1. A component name typically starts with an alphanumeric identifier (e.g., 3085CD6C...).
+2. Include the full identifier and the description following it (e.g., &quot;- Photocell: Dumper Ingo Entry&quot;).
+3. CRITICAL: Remove all trailing status markers such as &quot;OK&quot;, &quot;OKM&quot;, &quot;Att. Req&quot;, &quot;[ ]&quot;, &quot;☑&quot;, or &quot;☐&quot;.
+4. Do not include failure modes, safety instructions, or page footers.
+5. If the same component appears multiple times with the exact same name, only list it once.
+
+### Expected Format:
+Return the result as a JSON object with a key named &quot;components&quot; containing an array of strings.
+
+### Example:
+Input: &quot;3085CD6CPLATWK03 .ELEC.POMC - Pos Mntring &amp; Cntrl: Wrk Plat BN61 Outgo OK [ ] Att. Req [ ]&quot;
+Output: &quot;3085CD6CPLATWK03 .ELEC.POMC - Pos Mntring &amp; Cntrl: Wrk Plat BN61 Outgo&quot;
+</content>
+        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>pdfFile</apiName>
+            <definition>SOBJECT://ContentDocument</definition>
+            <masterLabel>pdfFile</masterLabel>
+            <referenceName>Input:pdfFile</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+        <versionIdentifier>s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_1</versionIdentifier>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>

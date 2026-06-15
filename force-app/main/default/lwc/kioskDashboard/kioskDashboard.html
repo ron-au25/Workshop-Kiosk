@@ -149,15 +149,9 @@
                     <template lwc:if={hasCriticalJobs}>
                         <ul class="critical-list">
                             <template for:each={metrics.topCriticalJobs} for:item="job">
-                                <li key={job.subject} class="critical-item">
-                                    <div class="critical-wagon">
-                                        <span class="wagon-icon">🚃</span>
-                                        <span class="wagon-num">{job.wagonNumber}</span>
-                                    </div>
-                                    <div class="critical-info">
-                                        <span class="critical-subject">{job.subject}</span>
-                                        <span class={job.statusClass}>{job.status}</span>
-                                    </div>
+                                <li key={job.woNumber} class="critical-item">
+                                    <span class={job.statusIcon} title={job.statusTitle}></span>
+                                    <span class="critical-label">{job.displayLabel}</span>
                                 </li>
                             </template>
                         </ul>

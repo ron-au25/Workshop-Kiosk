@@ -73,11 +73,23 @@ export default class KioskDashboard extends LightningElement {
         if (!this.metrics) this.isLoading = true;
         this.refreshing = true;
         try {
-            this.metrics = await getDashboardMetrics({
+            const raw = await getDashboardMetrics({
                 token: this.sessionToken,
                 dateFrom: this.dateFrom,
                 dateTo: this.dateTo,
             });
+            if (raw.topCriticalJobs) {
+                raw.topCriticalJobs = raw.topCriticalJobs.map(job => {
+                    const parts = [job.woNumber, job.subject].filter(Boolean);
+                    return {
+                        ...job,
+                        displayLabel: parts.length ? parts.join(' — ') : 'Untitled',
+                        statusIcon: 'status-dot status-' + (job.status || 'new').toLowerCase().replace(/\s+/g, '-'),
+                        statusTitle: job.status || 'New',
+                    };
+                });
+            }
+            this.metrics = raw;
         } catch (e) {
             this.hasError = true;
             this.errorMessage = e.body?.message?.includes('SESSION_EXPIRED')

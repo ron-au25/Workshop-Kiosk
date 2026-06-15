@@ -57,6 +57,7 @@ public with sharing class KioskController {
     }
 
     public class CriticalJob {
+        @AuraEnabled public String woNumber;
         @AuraEnabled public String subject;
         @AuraEnabled public String wagonNumber;
         @AuraEnabled public String status;
@@ -991,7 +992,7 @@ public with sharing class KioskController {
 
         if (!woIds.isEmpty()) {
             List<WorkOrder> workOrders = [
-                SELECT Id, Status, Priority, WorkTypeId, WorkType.Name, DurationInMinutes,
+                SELECT Id, WorkOrderNumber, Status, Priority, WorkTypeId, WorkType.Name, DurationInMinutes,
                        Subject, Wagon_Number__c
                 FROM WorkOrder
                 WHERE Id IN :woIds
@@ -1005,9 +1006,9 @@ public with sharing class KioskController {
                 else if (st == 'Completed') m.completedCount++;
                 if (wo.Priority == 'Critical') {
                     m.criticalCount++;
-                    if (criticals.size() < 3) {
+                    if (criticals.size() < 3 && String.isNotBlank(wo.Subject)) {
                         CriticalJob cj = new CriticalJob();
-                        cj.subject = wo.Subject; cj.wagonNumber = wo.Wagon_Number__c; cj.status = wo.Status;
+                        cj.woNumber = wo.WorkOrderNumber; cj.subject = wo.Subject; cj.wagonNumber = wo.Wagon_Number__c; cj.status = wo.Status;
                         criticals.add(cj);
                     }
                 }

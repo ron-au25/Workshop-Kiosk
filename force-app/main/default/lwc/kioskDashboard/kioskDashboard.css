@@ -164,17 +164,19 @@
 .critical-item {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     background: var(--rt-surface-2, #1B2530);
     border-radius: 10px;
     padding: 14px 16px;
     border-left: 3px solid var(--rt-critical, #FF3B3B);
 }
-.critical-wagon { display: flex; align-items: center; gap: 8px; }
-.wagon-icon { font-size: 24px; }
-.wagon-num { font-size: 20px; font-weight: 700; color: var(--rt-accent, #E25822); min-width: 60px; }
-.critical-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.critical-subject { font-size: 17px; color: var(--rt-text, #F2F5F7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.critical-label { font-size: 17px; color: var(--rt-text, #F2F5F7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.status-new { background: #4A90D9; }
+.status-open { background: #4A90D9; }
+.status-in-progress { background: #F5A623; }
+.status-completed { background: #7ED321; }
+.status-cancelled { background: #9B9B9B; }
 
 /* Notes */
 .notes-card { margin-bottom: 8px; }

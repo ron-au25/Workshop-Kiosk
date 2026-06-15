@@ -93,7 +93,9 @@ export default class WorkshopPortal extends LightningElement {
     handleSupervisorLogin() {
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         const siteBase = pathParts.length > 0 ? '/' + pathParts[0] : '';
-        window.location.href = window.location.origin + siteBase + '/login';
+        const returnPath = window.location.pathname;
+        window.location.href =
+            window.location.origin + siteBase + '/login?startURL=' + encodeURIComponent(returnPath);
     }
 
     handleRetry() {

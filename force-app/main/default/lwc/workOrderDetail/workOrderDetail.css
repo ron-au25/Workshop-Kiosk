@@ -595,3 +595,25 @@
 .op-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .op-desc { font-size: 14px; color: var(--rt-text, #F2F5F7); line-height: 1.4; }
 .op-dur { font-size: 12px; color: var(--rt-text-dim, #6B7A89); font-weight: 500; }
+
+/* ─── Notes history ──────────────────────────────────────────────────────── */
+.notes-history {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--rt-surface-2, #1B2530);
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    color: var(--rt-text, #F2F5F7);
+    max-height: 160px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.notes-empty {
+    color: var(--rt-text-dim, #6B7A89);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 8px;
+}

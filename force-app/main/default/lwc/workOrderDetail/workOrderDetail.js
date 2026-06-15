@@ -58,6 +58,7 @@ const DAMAGE_OPTIONS = [
 
 export default class WorkOrderDetail extends LightningElement {
     @api sessionToken;
+    @api workerName;
     @api
     get workOrderId() { return this._workOrderId; }
     set workOrderId(val) {
@@ -80,7 +81,8 @@ export default class WorkOrderDetail extends LightningElement {
     @track expandedPlanIds = {};
 
     // editable notes/codes
-    @track supervisorNotes = '';
+    @track existingNotes = '';
+    @track newNoteText = '';
     @track causeCodes = '';
     @track workDelayCodes = '';
     @track damageCodes = '';
@@ -95,7 +97,8 @@ export default class WorkOrderDetail extends LightningElement {
         try {
             const d = await getWorkOrderDetail({ token: this.sessionToken, workOrderId: this.workOrderId });
             this.detail = d;
-            this.supervisorNotes = d.supervisorNotes || '';
+            this.existingNotes = d.supervisorNotes || '';
+            this.newNoteText = '';
             this.causeCodes = d.causeCodes || '';
             this.workDelayCodes = d.workDelayCodes || '';
             this.damageCodes = d.damageCodes || '';
@@ -152,8 +155,8 @@ export default class WorkOrderDetail extends LightningElement {
         }
     }
 
-    handleNotesChange(evt) { this.supervisorNotes = evt.target.value; }
-    handleNotesKeydown(evt) { evt.stopPropagation(); }
+    handleNewNoteChange(evt) { this.newNoteText = evt.target.value; }
+    handleNewNoteKeydown(evt) { evt.stopPropagation(); }
     handleCauseChange(evt) { this.causeCodes = evt.target.value; }
     handleDelayChange(evt) { this.workDelayCodes = evt.target.value; }
     handleDamageChange(evt) { this.damageCodes = evt.target.value; }
@@ -161,16 +164,27 @@ export default class WorkOrderDetail extends LightningElement {
     async handleSaveNotes() {
         this.isSaving = true;
         try {
+            let combinedNotes = this.existingNotes;
+            if (this.newNoteText.trim()) {
+                const today = new Date();
+                const dd = String(today.getDate()).padStart(2, '0');
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const yy = String(today.getFullYear()).slice(-2);
+                const entry = `[${this.workerInitials} ${dd}/${mm}/${yy}]: ${this.newNoteText.trim()}`;
+                combinedNotes = this.existingNotes ? `${entry}\n${this.existingNotes}` : entry;
+            }
             await saveWorkOrderNotes({
                 token: this.sessionToken,
                 reqJson: JSON.stringify({
                     workOrderId: this.workOrderId,
-                    supervisorNotes: this.supervisorNotes,
+                    supervisorNotes: combinedNotes,
                     causeCodes: this.causeCodes,
                     workDelayCodes: this.workDelayCodes,
                     damageCodes: this.damageCodes,
                 }),
             });
+            this.existingNotes = combinedNotes;
+            this.newNoteText = '';
             this._showFeedback('Saved successfully.', false);
         } catch (e) {
             const msg = e.body?.message || '';
@@ -256,6 +270,16 @@ export default class WorkOrderDetail extends LightningElement {
         const d = new Date(isoStr);
         return d.toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
     }
+
+    get workerInitials() {
+        if (!this.workerName) return 'XX';
+        const parts = this.workerName.trim().split(' ');
+        return parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : this.workerName.substring(0, 2).toUpperCase();
+    }
+
+    get hasExistingNotes() { return !!this.existingNotes; }
 
     get causeOptions() { return CAUSE_OPTIONS.map(o => ({ ...o, selected: o.value === this.causeCodes })); }
     get delayOptions() { return DELAY_OPTIONS.map(o => ({ ...o, selected: o.value === this.workDelayCodes })); }

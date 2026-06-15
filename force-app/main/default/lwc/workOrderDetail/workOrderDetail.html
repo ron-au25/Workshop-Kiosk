@@ -245,13 +245,20 @@
 
                                 <div class="form-group">
                                     <label class="form-label">Work Notes</label>
+                                    <template lwc:if={hasExistingNotes}>
+                                        <div class="notes-history">{existingNotes}</div>
+                                    </template>
+                                    <template lwc:else>
+                                        <div class="notes-empty">No notes yet.</div>
+                                    </template>
+                                    <label class="form-label">Add Note</label>
                                     <textarea
                                         class="form-textarea"
-                                        rows="4"
-                                        placeholder="Enter notes for this work order…"
-                                        value={supervisorNotes}
-                                        oninput={handleNotesChange}
-                                        onkeydown={handleNotesKeydown}
+                                        rows="3"
+                                        placeholder="Type a new note…"
+                                        value={newNoteText}
+                                        oninput={handleNewNoteChange}
+                                        onkeydown={handleNewNoteKeydown}
                                     ></textarea>
                                 </div>
 

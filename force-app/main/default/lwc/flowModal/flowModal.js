@@ -11,7 +11,8 @@ export default class FlowModal extends LightningModal {
         const params = new URLSearchParams();
         if (this.workStepId) params.set('recordId', this.workStepId);
         params.set('retURL', '/');
-        return `${base}/flow/${this.flowApiName}?${params.toString()}`;
+        const flowPath = (this.flowApiName || '').replace(/_/g, '-');
+        return `${base}/${flowPath}?${params.toString()}`;
     }
 
     handleComplete() {

@@ -1,5 +1,7 @@
 import { LightningElement, api, track } from 'lwc';
 import getTimeReportDashboard from '@salesforce/apex/KioskController.getTimeReportDashboard';
+import updateTimeReport from '@salesforce/apex/KioskController.updateTimeReport';
+import bulkUpdateTimeReportStatus from '@salesforce/apex/KioskController.bulkUpdateTimeReportStatus';
 
 const CHART_W = 560;
 const CHART_H = 200;
@@ -12,11 +14,14 @@ const PALETTE = [
 const FLAG_OPTIONS = [
     { value: 'all',      label: 'All records' },
     { value: 'issues',   label: 'All issues' },
+    { value: 'none',     label: 'No issues' },
     { value: 'SHORT',    label: 'Short (< 10 min)' },
     { value: 'LONG',     label: 'Long (> 6 hours)' },
-    { value: 'VARIANCE', label: 'Duration variance > 50%' },
+    { value: 'VARIANCE', label: 'Variance > 50%' },
     { value: 'ACTIVE',   label: 'Currently active (no clock-out)' },
 ];
+
+const STATUS_OPTIONS = ['New', 'Submitted', 'Approved', 'Rejected'];
 
 function fmtMins(m) {
     if (m == null) return '—';
@@ -33,6 +38,13 @@ function fmtDate(iso) {
     const d = new Date(iso);
     return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short' });
 }
+// ISO datetime -> yyyy-MM-ddThh:mm for datetime-local input (local time)
+function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export default class TimeTrackingDashboard extends LightningElement {
     @api sessionToken;
@@ -41,7 +53,24 @@ export default class TimeTrackingDashboard extends LightningElement {
     @track isLoading = true;
     @track hasError = false;
     @track flagFilter = 'all';
+    @track statusFilter = 'all';
     @track empFilter = '';
+
+    // selection
+    @track selectedIds = [];
+
+    // edit modal
+    @track showEditModal = false;
+    @track isSaving = false;
+    @track editError = '';
+    @track editId = null;
+    @track editStartTime = '';
+    @track editEndTime = '';
+    @track editStatus = 'New';
+    @track editDescription = '';
+    @track editResourceName = '';
+    @track editWorkOrderNumber = '';
+    _editViolationReason = '';
 
     connectedCallback() { this.load(); }
 
@@ -50,6 +79,7 @@ export default class TimeTrackingDashboard extends LightningElement {
         this.hasError = false;
         try {
             this.data = await getTimeReportDashboard({ token: this.sessionToken });
+            this.selectedIds = [];
         } catch (e) {
             this.hasError = true;
         } finally {
@@ -57,7 +87,8 @@ export default class TimeTrackingDashboard extends LightningElement {
         }
     }
 
-    handleFlagFilter(evt) { this.flagFilter = evt.currentTarget.dataset.flag; }
+    handleFlagFilter(evt) { this.flagFilter = evt.currentTarget.dataset.flag; this.selectedIds = []; }
+    handleStatusFilter(evt) { this.statusFilter = evt.currentTarget.dataset.status; this.selectedIds = []; }
     handleEmpFilter(evt) { this.empFilter = evt.target.value; }
 
     // ─── Summary getters ─────────────────────────────────────────────────────
@@ -106,12 +137,10 @@ export default class TimeTrackingDashboard extends LightningElement {
     get stackedChart() {
         const days = this.data?.byDay;
         if (!days || days.length === 0) return null;
-        // Only last 30 days, max 30 bars
         const slice = days.slice(-30);
         const maxDayMin = Math.max(...slice.map(d => d.employees.reduce((s, e) => s + e.minutes, 0)), 1);
         const barW = Math.max(12, Math.floor((CHART_W - BAR_GAP * (slice.length + 1)) / slice.length));
 
-        // Collect all unique employee names with stable colour index
         const allEmps = this.data.byEmployee.map(e => e.name);
 
         const bars = slice.map((day, i) => {
@@ -151,7 +180,7 @@ export default class TimeTrackingDashboard extends LightningElement {
         return { bars, legend, width: CHART_W, height: CHART_H };
     }
 
-    // ─── Filtered table ──────────────────────────────────────────────────────
+    // ─── Filters ──────────────────────────────────────────────────────────────
 
     get flagOptions() {
         return FLAG_OPTIONS.map(o => ({
@@ -160,22 +189,41 @@ export default class TimeTrackingDashboard extends LightningElement {
         }));
     }
 
-    get filteredRows() {
+    get statusFilterOptions() {
+        const opts = [{ value: 'all', label: 'All statuses' }]
+            .concat(STATUS_OPTIONS.map(s => ({ value: s, label: s })));
+        return opts.map(o => ({
+            ...o,
+            btnClass: 'status-filter-btn' + (this.statusFilter === o.value ? ' active' : ''),
+        }));
+    }
+
+    // Rows after flag/status/name filters (without per-row UI enrichment)
+    get _baseRows() {
         if (!this.data?.rows) return [];
         let rows = this.data.rows;
 
         if (this.flagFilter === 'issues') rows = rows.filter(r => r.validationFlag || r.isActive);
+        else if (this.flagFilter === 'none') rows = rows.filter(r => !r.validationFlag && !r.isActive);
         else if (this.flagFilter === 'SHORT') rows = rows.filter(r => r.validationFlag === 'SHORT');
         else if (this.flagFilter === 'LONG') rows = rows.filter(r => r.validationFlag === 'LONG');
         else if (this.flagFilter === 'VARIANCE') rows = rows.filter(r => r.validationFlag === 'VARIANCE');
         else if (this.flagFilter === 'ACTIVE') rows = rows.filter(r => r.isActive);
 
+        if (this.statusFilter !== 'all') {
+            rows = rows.filter(r => (r.status || 'New') === this.statusFilter);
+        }
+
         if (this.empFilter) {
             const term = this.empFilter.toLowerCase();
             rows = rows.filter(r => r.resourceName.toLowerCase().includes(term));
         }
+        return rows;
+    }
 
-        return rows.map(r => {
+    get filteredRows() {
+        const selected = new Set(this.selectedIds);
+        return this._baseRows.map(r => {
             let flagLabel = '';
             let rowClass = 'tbl-row';
             if (r.isActive) { flagLabel = 'Active'; rowClass += ' flag-active'; }
@@ -186,16 +234,165 @@ export default class TimeTrackingDashboard extends LightningElement {
                 flagLabel = `±${pct}% vs planned`;
                 rowClass += ' flag-variance';
             }
+            const status = r.status || 'New';
+            if (selected.has(r.id)) rowClass += ' selected';
             return {
                 ...r,
+                status,
                 startDisplay: fmtDt(r.startTime),
                 endDisplay: r.endTime ? fmtDt(r.endTime) : '—',
                 durationDisplay: fmtMins(r.durationMinutes),
                 plannedDisplay: fmtMins(r.plannedMinutes),
                 flagLabel,
                 rowClass,
+                statusClass: 'status-pill st-' + status.toLowerCase(),
+                isSelected: selected.has(r.id),
             };
         });
+    }
+
+    // ─── Selection ────────────────────────────────────────────────────────────
+
+    get selectedCount() { return this.selectedIds.length; }
+    get hasSelection() { return this.selectedIds.length > 0; }
+    get allSelected() {
+        const rows = this._baseRows;
+        return rows.length > 0 && rows.every(r => this.selectedIds.includes(r.id));
+    }
+    get selectAllLabel() { return this.allSelected ? 'Clear all' : 'Select all'; }
+
+    handleRowSelect(evt) {
+        evt.stopPropagation();   // don't open the edit modal when toggling the checkbox
+        const id = evt.currentTarget.dataset.id;
+        if (this.selectedIds.includes(id)) {
+            this.selectedIds = this.selectedIds.filter(x => x !== id);
+        } else {
+            this.selectedIds = [...this.selectedIds, id];
+        }
+    }
+
+    handleSelectAll() {
+        if (this.allSelected) {
+            this.selectedIds = [];
+        } else {
+            this.selectedIds = this._baseRows.map(r => r.id);
+        }
+    }
+
+    async handleBulkStatus(evt) {
+        const status = evt.currentTarget.dataset.status;
+        if (!this.selectedIds.length) return;
+        this.isSaving = true;
+        try {
+            // For bulk Reject, Apex fills each record's description with its own rule-violation text.
+            const updated = await bulkUpdateTimeReportStatus({
+                token: this.sessionToken,
+                ids: this.selectedIds,
+                status,
+                description: null,
+            });
+            this._applyUpdatedRows(updated);
+            this.selectedIds = [];
+        } catch (e) {
+            // surface minimal error
+            this.hasError = false;
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    // ─── Edit modal ─────────────────────────────────────────────────────────
+
+    handleRowClick(evt) {
+        const id = evt.currentTarget.dataset.id;
+        const r = (this.data?.rows || []).find(x => x.id === id);
+        if (!r) return;
+        this.editId = r.id;
+        this.editResourceName = r.resourceName;
+        this.editWorkOrderNumber = r.workOrderNumber || '—';
+        this.editStartTime = toLocalInput(r.startTime);
+        this.editEndTime = toLocalInput(r.endTime);
+        this.editStatus = r.status || 'New';
+        this.editDescription = r.description || '';
+        this._editViolationReason = r.violationReason || '';
+        this.editError = '';
+        this.showEditModal = true;
+        this._syncDescription = true;   // push preloaded description into the textarea after render
+    }
+
+    handleEditStartChange(evt) { this.editStartTime = evt.target.value; }
+    handleEditEndChange(evt) { this.editEndTime = evt.target.value; }
+    handleEditDescriptionChange(evt) { this.editDescription = evt.target.value; }
+
+    handleEditStatusChange(evt) {
+        const newStatus = evt.target.value;
+        this.editStatus = newStatus;
+        // When switching to Rejected, default the description to the rule-violation text
+        // (only if the user hasn't already typed something).
+        if (newStatus === 'Rejected' && !this.editDescription.trim()) {
+            this.editDescription = this._editViolationReason;
+            // LWC does not reliably reflect a bound `value` onto a <textarea>, so push it into the DOM.
+            this._syncDescription = true;
+        }
+    }
+
+    renderedCallback() {
+        if (this._syncDescription) {
+            this._syncDescription = false;
+            const ta = this.template.querySelector('[data-id="editDescription"]');
+            if (ta) ta.value = this.editDescription;
+        }
+    }
+
+    handleModalKeydown(evt) { evt.stopPropagation(); }
+    handleCloseModal() { this.showEditModal = false; this.editError = ''; }
+
+    async handleSaveEdit() {
+        if (this.editStatus === 'Rejected' && !this.editDescription.trim()) {
+            this.editError = 'A description is required when rejecting a time entry.';
+            return;
+        }
+        this.isSaving = true;
+        this.editError = '';
+        try {
+            const req = {
+                id: this.editId,
+                startTime: this.editStartTime ? new Date(this.editStartTime).toISOString() : null,
+                endTime: this.editEndTime ? new Date(this.editEndTime).toISOString() : null,
+                status: this.editStatus,
+                description: this.editDescription || null,
+            };
+            const updated = await updateTimeReport({ token: this.sessionToken, reqJson: JSON.stringify(req) });
+            this._applyUpdatedRows([updated]);
+            this.showEditModal = false;
+        } catch (e) {
+            const msg = e.body?.message || '';
+            if (msg.includes('REJECT_NEEDS_DESCRIPTION')) {
+                this.editError = 'A description is required when rejecting a time entry.';
+            } else {
+                this.editError = 'Save failed. Please try again.';
+            }
+        } finally {
+            this.isSaving = false;
+        }
+    }
+
+    // Merge server-updated rows back into this.data.rows in place.
+    _applyUpdatedRows(updatedRows) {
+        if (!this.data?.rows || !updatedRows) return;
+        const byId = {};
+        updatedRows.filter(Boolean).forEach(u => { byId[u.id] = u; });
+        this.data = {
+            ...this.data,
+            rows: this.data.rows.map(r => byId[r.id] ? { ...r, ...byId[r.id] } : r),
+        };
+    }
+
+    get statusEditOptions() {
+        return STATUS_OPTIONS.map(s => ({ value: s, label: s, selected: s === this.editStatus }));
+    }
+    get rejectHint() {
+        return this.editStatus === 'Rejected' ? 'Required — defaults to the rule violation.' : '';
     }
 
     get isEmpty() { return !this.isLoading && !this.hasError && this.filteredRows.length === 0; }

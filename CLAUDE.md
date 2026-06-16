@@ -103,3 +103,68 @@ Custom field metadata files are in `force-app/main/default/objects/`.
 ### LWR site
 
 Not yet scaffolded. The `experiences/` folder does not exist. The permission set (`Workshop_Kiosk_Supervisor.permissionset-meta.xml`) is deployed but the site shell is pending.
+
+## Gotchas & lessons learned
+
+Hard-won fixes from past sessions — check here before re-debugging.
+
+### LWC `<textarea value={x}>` does not display a programmatically-set value
+Binding `value={prop}` on a `<textarea>` reliably reflects user typing back to the property, but setting the
+property **in JS** (preloading an edit form, auto-filling a default) does **not** repaint the textarea — it
+stays visually empty even though the property (and any subsequent save) is correct. `<input>` does not have
+this problem, which is why a Subject input preloads fine while Description/Comments textareas look blank.
+
+**Fix**: push the value into the DOM node imperatively after render. Give the textarea a `data-id`, set a
+one-shot flag when you change the value in JS, and sync in `renderedCallback`:
+```js
+// when opening edit form / auto-filling:
+this.editDescription = value; this._syncDesc = true;
+renderedCallback() {
+  if (this._syncDesc) { this._syncDesc = false;
+    const ta = this.template.querySelector('[data-id="editDescription"]');
+    if (ta) ta.value = this.editDescription;
+  }
+}
+```
+Seen in `assetReview` (PM02 task edit) and `timeTrackingDashboard` (reject-reason auto-fill). Plain `<input>`
+fields don't need this.
+
+### Apex dynamic SOQL returns `SObject`, not the concrete type
+`Database.query('SELECT … FROM WorkOrder …')` returns `List<SObject>`. Passing an element to a method typed
+`mapTask(WorkOrder wo)`, or iterating `for (WorkOrder wo : Database.query(...))`, fails to compile
+("Method does not exist or incorrect signature"). **Fix**: cast first —
+`(List<WorkOrder>) Database.query(...)` — then pass/iterate.
+
+### Anonymous Apex chokes on inner-class generics
+In `sf apex run` scripts, `List<KioskController.TimeReportRow> x = ...` and casts like
+`((List<KioskController.SomeInner>) o)[0]` throw `Unexpected token '<'`/`Unexpected token`. **Workaround**:
+for verification scripts, call the method for its side effect and assert via a follow-up SOQL query on the
+record, rather than typing the returned inner-class collection. (Real classes compile fine; this is an
+anonymous-Apex parser limitation.)
+
+### Permission-set object dependencies
+Adding `Asset` read to a permission set fails deploy unless `Account` read is also granted; `Account` read in
+turn requires `Contact` read. Grant the whole chain (`Asset` → `Account` → `Contact`) together.
+
+### `KioskControllerTest` drifted from the controller (now fixed)
+The test from the initial commit called old signatures `getWorkOrders(token, WorkOrderFilter)` and
+`getDashboardMetrics(token)`, but the controller had moved to JSON/param signatures
+(`getWorkOrders(token, String filterJson)`, `getDashboardMetrics(token, dateFrom, dateTo)`). This blocked
+deploying the controller until the call sites were updated (`JSON.serialize(filter)`, `(token, null, null)`).
+**Lesson**: when changing an `@AuraEnabled` signature, grep `KioskControllerTest.cls` for callers in the same change.
+
+### Org schema is far richer than the local repo
+Only a handful of field-meta XML files are tracked locally; the real schema lives in the org. Before assuming
+a field/object/picklist value is missing, run `sf sobject describe -s <Obj> -o ron@rsfieldnov25.demo` against
+the org. Examples that already existed (and did **not** need creating): `Measure_Point__c.Asset__c`,
+`Defect_Location__c`, `Update_Date__c`, `MeasureValue_Type__c='Depth'`, `Measure_Type__c='Scrap'`, the wagon→
+wheelset Asset hierarchy, and the `PM02` WorkType.
+
+### Static-resource images in LWC
+LWC sanitizes `url()` in inline styles, so `style="background-image:url(...)"` from a `@salesforce/resourceUrl`
+import won't render. Use a real `<img src={resourceUrl}>` (see `assetReview` wagon diagram).
+
+### Deploy verification via CLI
+`sf project deploy start … --json` piped to a small python parser gives a clean status; the streaming text
+output spams spinner frames that defeat `grep`. The stale `KioskControllerTest` runs on every full deploy
+(SeeAllData) — deploy targeted paths (`-d <class> -d <lwc>`) for fast iteration, full `force-app` to validate.

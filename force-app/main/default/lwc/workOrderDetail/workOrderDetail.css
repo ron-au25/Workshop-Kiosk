@@ -133,6 +133,55 @@
 }
 @media (max-width: 900px) { .wd-cols { grid-template-columns: 1fr; } }
 
+/* ─── Rail Workpack: Operations/Work Plans sidebar + main ────────────────── */
+.wp-layout {
+    display: flex;
+    gap: 20px;
+    align-items: start;
+}
+.wp-sidebar {
+    position: relative;
+    flex: 0 0 500px;
+    order: 2;                 /* sit to the right of the main content */
+    transition: flex-basis 0.2s ease;
+}
+.wp-sidebar.collapsed {
+    flex-basis: 36px;
+}
+.wp-sidebar-inner {
+    /* leave room on the left for the toggle tab */
+    padding-left: 8px;
+}
+.wp-sidebar-toggle {
+    position: absolute;
+    top: 0;
+    left: -12px;
+    z-index: 2;
+    width: 24px;
+    height: 40px;
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 8px;
+    background: var(--rt-surface-2, #1B2530);
+    color: var(--rt-accent-2, #2E8FE6);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.12s;
+    font-family: inherit;
+}
+.wp-sidebar-toggle:hover { background: var(--rt-surface-3, #243040); }
+.wp-sidebar.collapsed .wp-sidebar-toggle { left: 6px; }
+.wp-main {
+    flex: 1 1 auto;
+    order: 1;
+    min-width: 0;
+}
+@media (max-width: 900px) {
+    .wp-layout { flex-direction: column; }
+    .wp-sidebar, .wp-sidebar.collapsed { flex-basis: auto; width: 100%; }
+    .wp-sidebar-toggle { position: static; width: auto; height: 36px; padding: 0 14px; margin-bottom: 12px; }
+}
+
 /* ─── Section ────────────────────────────────────────────────────────────── */
 .wd-section {
     background: var(--rt-surface, #131A22);
@@ -464,6 +513,26 @@
 }
 .btn-work-execution:hover { background: rgba(46,143,230,0.22); }
 .we-btn-icon { font-size: 28px; }
+
+.btn-wagon-asset {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    height: 72px;
+    background: rgba(46,143,230,0.12);
+    border: 2px solid var(--rt-accent-2, #2E8FE6);
+    border-radius: 12px;
+    color: var(--rt-accent-2, #2E8FE6);
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: inherit;
+}
+.btn-wagon-asset:hover { background: rgba(46,143,230,0.22); }
+.wagon-asset-icon { font-size: 28px; }
 
 /* ─── Shared ─────────────────────────────────────────────────────────────── */
 .btn-secondary {

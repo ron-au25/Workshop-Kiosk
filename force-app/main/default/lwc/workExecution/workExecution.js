@@ -132,6 +132,7 @@ export default class WorkExecution extends LightningElement {
                 reviewNotes: point.reviewNotes,
                 measureValue: null,
                 measureValueType: null,
+                workOrderId: this.workOrderId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
             this.measurePoints = this.measurePoints.map(p => p.id === saved.id ? saved : p);
@@ -157,6 +158,7 @@ export default class WorkExecution extends LightningElement {
                     ? parseFloat(this.editMeasureValue)
                     : null,
                 measureValueType: this.editMeasureType === 'Measure' ? this.editMeasureValueType : null,
+                workOrderId: this.workOrderId,
             };
             const saved = await saveMeasurePoint({
                 token: this.sessionToken,

@@ -45,6 +45,16 @@
             ></c-work-execution>
         </template>
 
+        <!-- Asset Review overlay -->
+        <template lwc:elseif={showAssetReview}>
+            <c-asset-review
+                session-token={sessionToken}
+                work-order-id={workOrderId}
+                worker-name={workerName}
+                onback={handleAssetReviewBack}
+            ></c-asset-review>
+        </template>
+
         <template lwc:elseif={detail}>
             <div class="wd-body">
 
@@ -99,8 +109,110 @@
                     </template>
                 </div>
 
-                <!-- ─── Rail Workpack: clock in + child work order cards ─── -->
+                <!-- ─── Rail Workpack: collapsible Ops/Plans sidebar + main content ─── -->
                 <template lwc:if={isRailWorkpack}>
+                  <div class={wpLayoutClass}>
+
+                    <!-- ░░ Left sidebar: Operations + Work Plans (collapsible) ░░ -->
+                    <aside class={wpSidebarClass}>
+                        <button
+                            class="wp-sidebar-toggle"
+                            onclick={handleToggleWpSidebar}
+                            title={wpSidebarToggleTitle}
+                            aria-label={wpSidebarToggleTitle}
+                        >{wpSidebarToggleIcon}</button>
+
+                        <template lwc:if={wpSidebarExpanded}>
+                            <div class="wp-sidebar-inner">
+                                <!-- Operations (WorkOrderLineItems) -->
+                                <template lwc:if={hasLineItems}>
+                                    <div class="wd-section">
+                                        <h3 class="section-title">Operations</h3>
+                                        <div class="op-list">
+                                            <template for:each={detail.lineItems} for:item="li">
+                                                <div key={li.id} class="op-row">
+                                                    <span class="op-num">{li.subject}</span>
+                                                    <div class="op-body">
+                                                        <span class="op-desc">{li.description}</span>
+                                                        <template lwc:if={li.duration}>
+                                                            <span class="op-dur">{li.duration}h</span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Work Plans -->
+                                <div class="wd-section">
+                                    <h3 class="section-title">Work Plans</h3>
+                                    <template lwc:if={hasPlans}>
+                                        <div class="plan-list">
+                                            <template for:each={workPlansEnriched} for:item="plan">
+                                                <div key={plan.id} class="plan-card">
+                                                    <button
+                                                        class={plan.toggleClass}
+                                                        data-plan-id={plan.id}
+                                                        onclick={handleTogglePlan}
+                                                        aria-expanded={plan.isExpanded}
+                                                    >
+                                                        <span class="plan-order">{plan.executionOrder}</span>
+                                                        <span class="plan-name">{plan.name}</span>
+                                                        <span class="plan-chevron">{plan.chevron}</span>
+                                                    </button>
+                                                    <template lwc:if={plan.isExpanded}>
+                                                        <div class="step-list">
+                                                            <template for:each={plan.steps} for:item="step">
+                                                                <button
+                                                                    key={step.id}
+                                                                    class={step.stepClass}
+                                                                    data-step-id={step.id}
+                                                                    data-action-def={step.actionDefinition}
+                                                                    onclick={handleStepClick}
+                                                                >
+                                                                    <span class="step-num">{step.executionOrder}</span>
+                                                                    <div class="step-body">
+                                                                        <span class="step-name">{step.name}</span>
+                                                                        <template lwc:if={step.description}>
+                                                                            <span class="step-desc">{step.description}</span>
+                                                                        </template>
+                                                                    </div>
+                                                                    <span class="step-status">{step.status}</span>
+                                                                    <template lwc:if={step.hasAction}>
+                                                                        <span class="step-action-icon">▶</span>
+                                                                    </template>
+                                                                </button>
+                                                            </template>
+                                                            <template lwc:if={plan.hasNoSteps}>
+                                                                <p class="no-steps">No steps defined.</p>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template lwc:else>
+                                        <p class="no-plans">No work plans linked to this work order.</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </aside>
+
+                    <!-- ░░ Main content ░░ -->
+                    <div class="wp-main">
+
+                    <!-- Open Wagon Asset -->
+                    <template lwc:if={hasAsset}>
+                        <div class="wd-section">
+                            <button class="btn-wagon-asset" onclick={handleOpenAssetReview}>
+                                <span class="wagon-asset-icon">🚆</span>
+                                <span>Open Wagon Asset</span>
+                            </button>
+                        </div>
+                    </template>
 
                     <!-- Clock in/out -->
                     <div class="wd-section">
@@ -125,6 +237,88 @@
                                 disabled={isClockingIn}
                             >{clockBtnLabel}</button>
                         </template>
+                    </div>
+
+                    <!-- Time report history -->
+                    <template lwc:if={hasTimeReports}>
+                        <div class="wd-section">
+                            <h3 class="section-title">Time History</h3>
+                            <div class="tr-list">
+                                <template for:each={timeReportsEnriched} for:item="tr">
+                                    <div key={tr.id} class={tr.rowClass}>
+                                        <div class="tr-who">{tr.resourceName}</div>
+                                        <div class="tr-times">
+                                            <span class="tr-start">{tr.startDisplay}</span>
+                                            <span class="tr-arrow">→</span>
+                                            <span class="tr-end">{tr.endDisplay}</span>
+                                        </div>
+                                        <span class="tr-dur">{tr.durationDisplay}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Notes + codes -->
+                    <div class="wd-section">
+                        <h3 class="section-title">Notes &amp; Codes</h3>
+
+                        <div class="form-group">
+                            <label class="form-label">Work Notes</label>
+                            <template lwc:if={hasExistingNotes}>
+                                <div class="notes-history">{existingNotes}</div>
+                            </template>
+                            <template lwc:else>
+                                <div class="notes-empty">No notes yet.</div>
+                            </template>
+                            <label class="form-label">Add Note</label>
+                            <textarea
+                                class="form-textarea"
+                                rows="3"
+                                placeholder="Type a new note…"
+                                value={newNoteText}
+                                oninput={handleNewNoteChange}
+                                onkeydown={handleNewNoteKeydown}
+                            ></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Cause Code</label>
+                                <select class="form-select" onchange={handleCauseChange}>
+                                    <template for:each={causeOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Work Delay Code</label>
+                                <select class="form-select" onchange={handleDelayChange}>
+                                    <template for:each={delayOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Damage Code</label>
+                                <select class="form-select" onchange={handleDamageChange}>
+                                    <template for:each={damageOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="save-row">
+                            <button
+                                class="btn-save"
+                                onclick={handleSaveNotes}
+                                disabled={isSaving}
+                            >{saveBtnLabel}</button>
+                            <template lwc:if={hasFeedback}>
+                                <span class={saveFeedbackClass}>{saveFeedback}</span>
+                            </template>
+                        </div>
                     </div>
 
                     <div class="wd-section">
@@ -177,6 +371,9 @@
                             <p class="no-plans">No child work orders yet. Use the "Process Workpack PDF" button to generate them.</p>
                         </template>
                     </div>
+
+                    </div><!-- /wp-main -->
+                  </div><!-- /wp-layout -->
                 </template>
 
                 <!-- ─── Standard WO: two-column layout ─── -->

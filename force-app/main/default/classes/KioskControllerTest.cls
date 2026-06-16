@@ -170,7 +170,7 @@ private class KioskControllerTest {
         KioskController.EmployeeSession session = KioskController.validateEmployee(territoryId, 'TESTPIN05', '5678');
         if (!session.success) return;
         Test.startTest();
-        KioskController.DashboardMetrics metrics = KioskController.getDashboardMetrics(session.token);
+        KioskController.DashboardMetrics metrics = KioskController.getDashboardMetrics(session.token, null, null);
         Test.stopTest();
         System.assertNotEquals(null, metrics);
         System.assert(metrics.openCount >= 0);
@@ -184,7 +184,7 @@ private class KioskControllerTest {
         Test.startTest();
         Boolean threw = false;
         try {
-            KioskController.getDashboardMetrics('badtoken');
+            KioskController.getDashboardMetrics('badtoken', null, null);
         } catch (AuraHandledException e) {
             threw = true;
         }
@@ -204,7 +204,7 @@ private class KioskControllerTest {
         filter.pageSize = 50;
         filter.pageOffset = 0;
         Test.startTest();
-        KioskController.WorkOrderPage page = KioskController.getWorkOrders(session.token, filter);
+        KioskController.WorkOrderPage page = KioskController.getWorkOrders(session.token, JSON.serialize(filter));
         Test.stopTest();
         System.assertNotEquals(null, page);
         System.assert(page.totalCount >= 0);
@@ -220,7 +220,7 @@ private class KioskControllerTest {
         Test.startTest();
         Boolean threw = false;
         try {
-            KioskController.getWorkOrders('badtoken', filter);
+            KioskController.getWorkOrders('badtoken', JSON.serialize(filter));
         } catch (AuraHandledException e) {
             threw = true;
         }

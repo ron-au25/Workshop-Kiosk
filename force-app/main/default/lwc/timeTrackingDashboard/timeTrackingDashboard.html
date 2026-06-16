@@ -149,6 +149,33 @@
                 />
             </div>
 
+            <!-- ─── Status filter ─── -->
+            <div class="filter-bar">
+                <span class="filter-label">Status:</span>
+                <div class="flag-filters">
+                    <template for:each={statusFilterOptions} for:item="opt">
+                        <button
+                            key={opt.value}
+                            class={opt.btnClass}
+                            data-status={opt.value}
+                            onclick={handleStatusFilter}
+                        >{opt.label}</button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ─── Bulk action bar ─── -->
+            <template lwc:if={hasSelection}>
+                <div class="bulk-bar">
+                    <span class="bulk-count">{selectedCount} selected</span>
+                    <div class="bulk-actions">
+                        <button class="bulk-btn approve" data-status="Approved" onclick={handleBulkStatus} disabled={isSaving}>Approve</button>
+                        <button class="bulk-btn submit" data-status="Submitted" onclick={handleBulkStatus} disabled={isSaving}>Submit</button>
+                        <button class="bulk-btn reject" data-status="Rejected" onclick={handleBulkStatus} disabled={isSaving}>Reject</button>
+                    </div>
+                </div>
+            </template>
+
             <!-- ─── Detail table ─── -->
             <template lwc:if={isEmpty}>
                 <div class="tt-center">
@@ -160,24 +187,34 @@
                     <table class="tbl">
                         <thead>
                             <tr>
+                                <th class="th-check">
+                                    <input type="checkbox" checked={allSelected} onchange={handleSelectAll}
+                                        title={selectAllLabel} aria-label="Select all filtered" />
+                                </th>
                                 <th>Employee</th>
                                 <th>Work Order</th>
                                 <th>Start</th>
                                 <th>End</th>
                                 <th>Actual</th>
                                 <th>Planned</th>
+                                <th>Status</th>
                                 <th>Issue</th>
                             </tr>
                         </thead>
                         <tbody>
                             <template for:each={filteredRows} for:item="row">
-                                <tr key={row.id} class={row.rowClass}>
+                                <tr key={row.id} class={row.rowClass} data-id={row.id} onclick={handleRowClick}>
+                                    <td class="td-check" data-id={row.id} onclick={handleRowSelect}>
+                                        <input type="checkbox" checked={row.isSelected} data-id={row.id}
+                                            onclick={handleRowSelect} aria-label="Select row" />
+                                    </td>
                                     <td class="td-name">{row.resourceName}</td>
                                     <td class="td-wo">{row.workOrderNumber}</td>
                                     <td class="td-dt">{row.startDisplay}</td>
                                     <td class="td-dt">{row.endDisplay}</td>
                                     <td class="td-dur">{row.durationDisplay}</td>
                                     <td class="td-dur td-planned">{row.plannedDisplay}</td>
+                                    <td class="td-status"><span class={row.statusClass}>{row.status}</span></td>
                                     <td class="td-flag">{row.flagLabel}</td>
                                 </tr>
                             </template>
@@ -186,6 +223,68 @@
                 </div>
             </template>
 
+        </template>
+
+        <!-- ─── Edit modal ─── -->
+        <template lwc:if={showEditModal}>
+            <div class="modal-backdrop" onclick={handleCloseModal}>
+                <div class="modal-card" onclick={handleModalKeydown}>
+                    <div class="modal-header">
+                        <h3 class="modal-title">Edit Time Entry</h3>
+                        <button class="modal-close" onclick={handleCloseModal} aria-label="Close">✕</button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="modal-meta">
+                            <span class="mm-emp">{editResourceName}</span>
+                            <span class="mm-wo">{editWorkOrderNumber}</span>
+                        </div>
+
+                        <div class="form-row-2">
+                            <div class="form-group">
+                                <label class="form-label">Start Time</label>
+                                <input type="datetime-local" class="form-input"
+                                    value={editStartTime} onchange={handleEditStartChange}
+                                    onkeydown={handleModalKeydown} />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">End Time</label>
+                                <input type="datetime-local" class="form-input"
+                                    value={editEndTime} onchange={handleEditEndChange}
+                                    onkeydown={handleModalKeydown} />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" onchange={handleEditStatusChange} onkeydown={handleModalKeydown}>
+                                <template for:each={statusEditOptions} for:item="opt">
+                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description <span class="reject-hint">{rejectHint}</span></label>
+                            <textarea class="form-textarea" rows="3"
+                                data-id="editDescription"
+                                placeholder="Notes / reason…"
+                                value={editDescription}
+                                oninput={handleEditDescriptionChange}
+                                onkeydown={handleModalKeydown}></textarea>
+                        </div>
+
+                        <template lwc:if={editError}>
+                            <p class="modal-error">{editError}</p>
+                        </template>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn-cancel" onclick={handleCloseModal}>Cancel</button>
+                        <button class="btn-save" onclick={handleSaveEdit} disabled={isSaving}>Save</button>
+                    </div>
+                </div>
+            </div>
         </template>
     </div>
 </template>

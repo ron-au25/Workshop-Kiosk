@@ -110,6 +110,7 @@ public with sharing class KioskController {
         @AuraEnabled public String priority;
         @AuraEnabled public String workTypeName;
         @AuraEnabled public String wagonNumber;
+        @AuraEnabled public String assetId;
         @AuraEnabled public String assetName;
         @AuraEnabled public String flocDesc;
         @AuraEnabled public String sapWorkCenter;
@@ -196,6 +197,17 @@ public with sharing class KioskController {
         @AuraEnabled public Integer plannedMinutes;
         @AuraEnabled public Boolean isActive;
         @AuraEnabled public String validationFlag;  // '', 'SHORT', 'LONG', 'VARIANCE'
+        @AuraEnabled public String status;          // New / Submitted / Approved / Rejected
+        @AuraEnabled public String description;      // Description__c
+        @AuraEnabled public String violationReason;  // human-readable text for the most-specific flag
+    }
+
+    public class TimeReportEditRequest {
+        @AuraEnabled public String id;
+        @AuraEnabled public String startTime;        // ISO datetime
+        @AuraEnabled public String endTime;          // ISO datetime (may be blank = still active)
+        @AuraEnabled public String status;
+        @AuraEnabled public String description;
     }
 
     public class SaveNotesRequest {
@@ -210,12 +222,73 @@ public with sharing class KioskController {
         @AuraEnabled public String id;
         @AuraEnabled public String name;
         @AuraEnabled public String componentName;
-        @AuraEnabled public String measureType;      // Attention Required / Measure / OK
+        @AuraEnabled public String measureType;      // Attention Required / Measure / OK / Scrap
         @AuraEnabled public String comments;
         @AuraEnabled public String reviewNotes;
         @AuraEnabled public Decimal measureValue;
-        @AuraEnabled public String measureValueType; // Temperature / Pressure / Level / Width / Length
+        @AuraEnabled public String measureValueType; // Temperature / Pressure / Level / Width / Length / Depth
         @AuraEnabled public String createdDate;
+        @AuraEnabled public String workOrderId;       // Work_Order__c
+        @AuraEnabled public String assetId;           // Asset__c (wheelset)
+        @AuraEnabled public String defectLocation;    // Defect_Location__c
+        @AuraEnabled public String updateDate;        // Update_Date__c
+    }
+
+    // ─── Asset Review DTOs ─────────────────────────────────────────────────────
+
+    public class WagonDTO {
+        @AuraEnabled public String id;
+        @AuraEnabled public String name;
+        @AuraEnabled public String serialNumber;
+        @AuraEnabled public String status;
+        @AuraEnabled public String warrantyStatus;
+        @AuraEnabled public String floc;
+        @AuraEnabled public String assetType;
+        @AuraEnabled public List<WheelsetDTO> wheelsets;
+    }
+
+    public class WheelsetDTO {
+        @AuraEnabled public String id;
+        @AuraEnabled public String name;
+        @AuraEnabled public String label;          // L1 / L2 / L3 / L4 derived from Name
+        @AuraEnabled public String serialNumber;
+        @AuraEnabled public String status;
+        @AuraEnabled public String warrantyStatus;
+        @AuraEnabled public String installDate;
+        @AuraEnabled public String purchaseDate;
+        @AuraEnabled public String floc;
+        @AuraEnabled public String iconStatus;     // grey / green / red
+    }
+
+    public class TaskWoDTO {
+        @AuraEnabled public String id;
+        @AuraEnabled public String woNumber;
+        @AuraEnabled public String subject;
+        @AuraEnabled public String status;
+        @AuraEnabled public String priority;
+        @AuraEnabled public String description;
+        @AuraEnabled public String causeCodes;
+        @AuraEnabled public String workDelayCodes;
+        @AuraEnabled public String startDate;        // StartDate (datetime ISO)
+        @AuraEnabled public String component;        // SAP_FLOC_Desc__c
+        @AuraEnabled public Decimal durationHours;   // Duration (DurationType = Hours)
+        @AuraEnabled public String comments;         // Comment__c
+    }
+
+    public class CreateTaskRequest {
+        @AuraEnabled public String id;              // set when updating an existing task
+        @AuraEnabled public String workOrderId;     // workpack (parent) WO
+        @AuraEnabled public String assetId;         // selected wheelset asset
+        @AuraEnabled public String subject;
+        @AuraEnabled public String description;
+        @AuraEnabled public String causeCodes;
+        @AuraEnabled public String workDelayCodes;
+        @AuraEnabled public String startDate;       // ISO datetime
+        @AuraEnabled public String component;       // SAP_FLOC_Desc__c
+        @AuraEnabled public Decimal durationHours;
+        @AuraEnabled public String priority;
+        @AuraEnabled public String status;
+        @AuraEnabled public String comments;        // Comment__c
     }
 
     public class WorkOrderAttachment {
@@ -607,6 +680,7 @@ public with sharing class KioskController {
         detail.priority = wo.Priority;
         detail.workTypeName = wo.WorkTypeId != null ? wo.WorkType.Name : null;
         detail.wagonNumber = wo.Wagon_Number__c;
+        detail.assetId = wo.AssetId;
         detail.assetName = wo.Asset != null ? wo.Asset.Name : null;
         detail.flocDesc = wo.SAP_FLOC_Desc__c;
         detail.sapWorkCenter = wo.SAP_Work_Center__c;
@@ -832,7 +906,8 @@ public with sharing class KioskController {
 
         List<Time_Report__c> reports = [
             SELECT Id, Work_Order__c, Work_Order__r.WorkOrderNumber, Work_Order__r.DurationInMinutes,
-                   Resource_Name__c, Start_Time__c, End_Time__c, Duration_in_Minutes__c
+                   Resource_Name__c, Start_Time__c, End_Time__c, Duration_in_Minutes__c,
+                   Status__c, Description__c
             FROM Time_Report__c
             WHERE Start_Time__c >= :fromDt
             WITH SECURITY_ENFORCED
@@ -905,6 +980,9 @@ public with sharing class KioskController {
             row.plannedMinutes = plannedMins;
             row.isActive = active;
             row.validationFlag = flag;
+            row.status = String.isBlank(tr.Status__c) ? 'New' : tr.Status__c;
+            row.description = tr.Description__c;
+            row.violationReason = violationReasonText(flag, active);
             rows.add(row);
         }
 
@@ -950,6 +1028,155 @@ public with sharing class KioskController {
         dash.byDay = byDay;
         dash.rows = rows;
         return dash;
+    }
+
+    // Human-readable text for the single most-specific validation issue on a time report.
+    // Priority high→low: SHORT, LONG, VARIANCE, ACTIVE, none.
+    private static String violationReasonText(String flag, Boolean active) {
+        if (flag == 'SHORT') return 'Duration is under 10 minutes.';
+        if (flag == 'LONG') return 'Duration exceeds 6 hours.';
+        if (flag == 'VARIANCE') return 'Actual duration varies more than 50% from the planned duration.';
+        if (active) return 'Time entry was never clocked out.';
+        return '';
+    }
+
+    // Recompute the most-specific validation flag for a single report (mirrors dashboard logic).
+    private static String computeFlag(Time_Report__c tr) {
+        Boolean active = (tr.End_Time__c == null);
+        if (active) return '';
+        Integer mins = null;
+        if (tr.Duration_in_Minutes__c != null) {
+            mins = (Integer) tr.Duration_in_Minutes__c;
+        } else if (tr.Start_Time__c != null && tr.End_Time__c != null) {
+            mins = (Integer) ((tr.End_Time__c.getTime() - tr.Start_Time__c.getTime()) / 60000);
+        }
+        if (mins == null) return '';
+        if (mins < 10) return 'SHORT';
+        if (mins > 360) return 'LONG';
+        Integer planned = tr.Work_Order__c != null && tr.Work_Order__r.DurationInMinutes != null
+            ? (Integer) tr.Work_Order__r.DurationInMinutes : null;
+        if (planned != null && planned > 0 && Math.abs(mins - planned) * 100.0 / planned > 50) return 'VARIANCE';
+        return '';
+    }
+
+    // Default rejection description for a report = text of its most-specific rule violation.
+    @AuraEnabled(cacheable=false)
+    public static String getRejectionDefault(String token, String timeReportId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        List<Time_Report__c> rs = [
+            SELECT Id, Start_Time__c, End_Time__c, Duration_in_Minutes__c,
+                   Work_Order__c, Work_Order__r.DurationInMinutes
+            FROM Time_Report__c WHERE Id = :timeReportId WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (rs.isEmpty()) return '';
+        Time_Report__c tr = rs[0];
+        return violationReasonText(computeFlag(tr), tr.End_Time__c == null);
+    }
+
+    @AuraEnabled
+    public static TimeReportRow updateTimeReport(String token, String reqJson) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        TimeReportEditRequest req = (TimeReportEditRequest) JSON.deserialize(reqJson, TimeReportEditRequest.class);
+        if (String.isBlank(req.id)) throw new AuraHandledException('MISSING_ID');
+
+        List<Time_Report__c> existing = [
+            SELECT Id FROM Time_Report__c WHERE Id = :req.id WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (existing.isEmpty()) throw new AuraHandledException('NOT_FOUND');
+
+        // Rejected status requires a description (the rule-violation text by default).
+        if (req.status == 'Rejected' && String.isBlank(req.description)) {
+            throw new AuraHandledException('REJECT_NEEDS_DESCRIPTION');
+        }
+
+        Time_Report__c tr = existing[0];
+        if (String.isNotBlank(req.startTime)) {
+            tr.Start_Time__c = (DateTime) JSON.deserialize('"' + req.startTime + '"', DateTime.class);
+        }
+        // Blank end time clears it (back to active); non-blank sets it.
+        tr.End_Time__c = String.isBlank(req.endTime)
+            ? null
+            : (DateTime) JSON.deserialize('"' + req.endTime + '"', DateTime.class);
+        if (String.isNotBlank(req.status)) tr.Status__c = req.status;
+        tr.Description__c = req.description;
+        update tr;
+
+        return reloadTimeReportRow(req.id);
+    }
+
+    @AuraEnabled
+    public static List<TimeReportRow> bulkUpdateTimeReportStatus(String token, List<String> ids, String status, String description) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (ids == null || ids.isEmpty()) throw new AuraHandledException('NO_RECORDS');
+        if (String.isBlank(status)) throw new AuraHandledException('NO_STATUS');
+
+        List<Time_Report__c> toUpdate = [
+            SELECT Id, Status__c, Description__c, Start_Time__c, End_Time__c,
+                   Duration_in_Minutes__c, Work_Order__c, Work_Order__r.DurationInMinutes
+            FROM Time_Report__c WHERE Id IN :ids WITH SECURITY_ENFORCED
+        ];
+        for (Time_Report__c tr : toUpdate) {
+            tr.Status__c = status;
+            if (status == 'Rejected') {
+                // Per-record default: use the explicit description if supplied, else the rule-violation text.
+                String reason = String.isNotBlank(description)
+                    ? description
+                    : violationReasonText(computeFlag(tr), tr.End_Time__c == null);
+                tr.Description__c = reason;
+            }
+        }
+        update toUpdate;
+
+        Set<Id> idSet = new Set<Id>();
+        for (Time_Report__c tr : toUpdate) idSet.add(tr.Id);
+        return reloadTimeReportRows(idSet);
+    }
+
+    private static TimeReportRow reloadTimeReportRow(Id id) {
+        List<TimeReportRow> rows = reloadTimeReportRows(new Set<Id>{ id });
+        return rows.isEmpty() ? null : rows[0];
+    }
+
+    private static List<TimeReportRow> reloadTimeReportRows(Set<Id> ids) {
+        List<TimeReportRow> result = new List<TimeReportRow>();
+        for (Time_Report__c tr : [
+            SELECT Id, Work_Order__c, Work_Order__r.WorkOrderNumber, Work_Order__r.DurationInMinutes,
+                   Resource_Name__c, Start_Time__c, End_Time__c, Duration_in_Minutes__c,
+                   Status__c, Description__c
+            FROM Time_Report__c WHERE Id IN :ids WITH SECURITY_ENFORCED
+        ]) {
+            Boolean active = (tr.End_Time__c == null);
+            Integer mins = null;
+            if (tr.Duration_in_Minutes__c != null) {
+                mins = (Integer) tr.Duration_in_Minutes__c;
+            } else if (!active && tr.Start_Time__c != null && tr.End_Time__c != null) {
+                mins = (Integer) ((tr.End_Time__c.getTime() - tr.Start_Time__c.getTime()) / 60000);
+            }
+            Integer planned = tr.Work_Order__c != null && tr.Work_Order__r.DurationInMinutes != null
+                ? (Integer) tr.Work_Order__r.DurationInMinutes : null;
+            String flag = computeFlag(tr);
+
+            TimeReportRow row = new TimeReportRow();
+            row.id = tr.Id;
+            row.workOrderId = tr.Work_Order__c;
+            row.workOrderNumber = tr.Work_Order__c != null ? tr.Work_Order__r.WorkOrderNumber : null;
+            row.resourceName = String.isBlank(tr.Resource_Name__c) ? 'Unknown' : tr.Resource_Name__c;
+            row.startTime = String.valueOf(tr.Start_Time__c);
+            row.endTime = tr.End_Time__c != null ? String.valueOf(tr.End_Time__c) : null;
+            row.durationMinutes = mins;
+            row.plannedMinutes = planned;
+            row.isActive = active;
+            row.validationFlag = flag;
+            row.status = String.isBlank(tr.Status__c) ? 'New' : tr.Status__c;
+            row.description = tr.Description__c;
+            row.violationReason = violationReasonText(flag, active);
+            result.add(row);
+        }
+        return result;
     }
 
     // ─── Dashboard metrics ────────────────────────────────────────────────────
@@ -1067,6 +1294,26 @@ public with sharing class KioskController {
 
     // ─── Measure points ───────────────────────────────────────────────────────
 
+    // Shared field projection + DTO mapping for Measure_Point__c so every read
+    // returns the same shape (including Asset / Defect Location / Update Date).
+    private static MeasurePointDTO mapMeasurePoint(Measure_Point__c mp) {
+        MeasurePointDTO dto = new MeasurePointDTO();
+        dto.id = mp.Id;
+        dto.name = mp.Name;
+        dto.componentName = mp.Component_Name__c;
+        dto.measureType = mp.Measure_Type__c;
+        dto.comments = mp.Comments__c;
+        dto.reviewNotes = mp.Review_Notes__c;
+        dto.measureValue = mp.Measure_Value__c;
+        dto.measureValueType = mp.MeasureValue_Type__c;
+        dto.createdDate = String.valueOf(mp.CreatedDate);
+        dto.workOrderId = mp.Work_Order__c;
+        dto.assetId = mp.Asset__c;
+        dto.defectLocation = mp.Defect_Location__c;
+        dto.updateDate = mp.Update_Date__c == null ? null : String.valueOf(mp.Update_Date__c);
+        return dto;
+    }
+
     @AuraEnabled(cacheable=false)
     public static List<MeasurePointDTO> getMeasurePoints(String token, String workOrderId) {
         TokenPayload payload = validateToken(token);
@@ -1074,7 +1321,8 @@ public with sharing class KioskController {
 
         List<Measure_Point__c> records = [
             SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
-                   Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate
+                   Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
+                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
             FROM Measure_Point__c
             WHERE Work_Order__c = :workOrderId
             WITH SECURITY_ENFORCED
@@ -1083,17 +1331,29 @@ public with sharing class KioskController {
 
         List<MeasurePointDTO> result = new List<MeasurePointDTO>();
         for (Measure_Point__c mp : records) {
-            MeasurePointDTO dto = new MeasurePointDTO();
-            dto.id = mp.Id;
-            dto.name = mp.Name;
-            dto.componentName = mp.Component_Name__c;
-            dto.measureType = mp.Measure_Type__c;
-            dto.comments = mp.Comments__c;
-            dto.reviewNotes = mp.Review_Notes__c;
-            dto.measureValue = mp.Measure_Value__c;
-            dto.measureValueType = mp.MeasureValue_Type__c;
-            dto.createdDate = String.valueOf(mp.CreatedDate);
-            result.add(dto);
+            result.add(mapMeasurePoint(mp));
+        }
+        return result;
+    }
+
+    @AuraEnabled(cacheable=false)
+    public static List<MeasurePointDTO> getMeasurePointsByAsset(String token, String assetId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        List<Measure_Point__c> records = [
+            SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
+                   Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
+                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
+            FROM Measure_Point__c
+            WHERE Asset__c = :assetId
+            WITH SECURITY_ENFORCED
+            ORDER BY CreatedDate DESC
+        ];
+
+        List<MeasurePointDTO> result = new List<MeasurePointDTO>();
+        for (Measure_Point__c mp : records) {
+            result.add(mapMeasurePoint(mp));
         }
         return result;
     }
@@ -1116,14 +1376,24 @@ public with sharing class KioskController {
         mp.Comments__c = req.comments;
         mp.Review_Notes__c = req.reviewNotes;
         mp.Measure_Value__c = req.measureValue;
-        mp.MeasureValue_Type__c = req.measureValueType;
+        // Default the value type to Depth when capturing a measurement and none was supplied.
+        mp.MeasureValue_Type__c = (req.measureType == 'Measure' && String.isBlank(req.measureValueType))
+            ? 'Depth'
+            : req.measureValueType;
+        mp.Defect_Location__c = req.defectLocation;
+        // Always anchor the point to its work order / asset so kiosk-created points are not orphaned.
+        if (String.isNotBlank(req.workOrderId)) mp.Work_Order__c = req.workOrderId;
+        if (String.isNotBlank(req.assetId)) mp.Asset__c = req.assetId;
+        // Stamp the update date on every save (defaults to now for new and edited points).
+        mp.Update_Date__c = DateTime.now();
 
         upsert mp;
 
         // Re-query to get all fields including system-populated ones
         List<Measure_Point__c> saved = [
             SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
-                   Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate
+                   Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
+                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
             FROM Measure_Point__c
             WHERE Id = :mp.Id
             WITH SECURITY_ENFORCED
@@ -1131,18 +1401,7 @@ public with sharing class KioskController {
         ];
         if (saved.isEmpty()) throw new AuraHandledException('SAVE_FAILED');
 
-        Measure_Point__c s = saved[0];
-        MeasurePointDTO result = new MeasurePointDTO();
-        result.id = s.Id;
-        result.name = s.Name;
-        result.componentName = s.Component_Name__c;
-        result.measureType = s.Measure_Type__c;
-        result.comments = s.Comments__c;
-        result.reviewNotes = s.Review_Notes__c;
-        result.measureValue = s.Measure_Value__c;
-        result.measureValueType = s.MeasureValue_Type__c;
-        result.createdDate = String.valueOf(s.CreatedDate);
-        return result;
+        return mapMeasurePoint(saved[0]);
     }
 
     @AuraEnabled
@@ -1158,6 +1417,236 @@ public with sharing class KioskController {
         if (!toDelete.isEmpty()) {
             delete toDelete;
         }
+    }
+
+    // ─── Asset review (wagon + wheelsets) ──────────────────────────────────────
+
+    @AuraEnabled(cacheable=false)
+    public static WagonDTO getWagonAsset(String token, String workOrderId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        // 1. Resolve the wagon asset from the workpack work order.
+        List<WorkOrder> wos = [
+            SELECT Id, AssetId FROM WorkOrder WHERE Id = :workOrderId
+            WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (wos.isEmpty() || wos[0].AssetId == null) throw new AuraHandledException('NO_ASSET');
+        Id wagonId = wos[0].AssetId;
+
+        List<Asset> wagons = [
+            SELECT Id, Name, SerialNumber, Status, Entitlement_Status__c, FLOC__c, Asset_Type__c
+            FROM Asset WHERE Id = :wagonId
+            WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (wagons.isEmpty()) throw new AuraHandledException('NO_ASSET');
+        Asset wagon = wagons[0];
+
+        // 2. Child wheelsets.
+        List<Asset> children = [
+            SELECT Id, Name, SerialNumber, Status, Entitlement_Status__c,
+                   InstallDate, PurchaseDate, FLOC__c
+            FROM Asset WHERE ParentId = :wagonId
+            WITH SECURITY_ENFORCED
+            ORDER BY Name
+        ];
+
+        // 3. Aggregate measure points per wheelset to compute the at-a-glance status.
+        Set<Id> childIds = new Set<Id>();
+        for (Asset a : children) childIds.add(a.Id);
+
+        Map<Id, Boolean> hasAttention = new Map<Id, Boolean>();
+        Map<Id, Boolean> hasMeasure = new Map<Id, Boolean>();
+        if (!childIds.isEmpty()) {
+            for (Measure_Point__c mp : [
+                SELECT Asset__c, Measure_Type__c, Measure_Value__c, MeasureValue_Type__c
+                FROM Measure_Point__c
+                WHERE Asset__c IN :childIds
+                WITH SECURITY_ENFORCED
+            ]) {
+                if (mp.Measure_Type__c == 'Attention Required' || mp.Measure_Type__c == 'Scrap') {
+                    hasAttention.put(mp.Asset__c, true);
+                }
+                // Green = a real measure has been recorded (value entered or a measure type set).
+                // Empty checklist placeholders (no type/value) stay grey ("no activity recorded").
+                if (mp.Measure_Value__c != null || mp.Measure_Type__c == 'Measure' || mp.Measure_Type__c == 'OK') {
+                    hasMeasure.put(mp.Asset__c, true);
+                }
+            }
+        }
+
+        WagonDTO dto = new WagonDTO();
+        dto.id = wagon.Id;
+        dto.name = wagon.Name;
+        dto.serialNumber = wagon.SerialNumber;
+        dto.status = wagon.Status;
+        dto.warrantyStatus = wagon.Entitlement_Status__c;
+        dto.floc = wagon.FLOC__c;
+        dto.assetType = wagon.Asset_Type__c;
+        dto.wheelsets = new List<WheelsetDTO>();
+
+        for (Asset a : children) {
+            WheelsetDTO w = new WheelsetDTO();
+            w.id = a.Id;
+            w.name = a.Name;
+            w.label = deriveWheelsetLabel(a.Name);
+            w.serialNumber = a.SerialNumber;
+            w.status = a.Status;
+            w.warrantyStatus = a.Entitlement_Status__c;
+            w.installDate = a.InstallDate == null ? null : String.valueOf(a.InstallDate);
+            w.purchaseDate = a.PurchaseDate == null ? null : String.valueOf(a.PurchaseDate);
+            w.floc = a.FLOC__c;
+            if (hasAttention.get(a.Id) == true) {
+                w.iconStatus = 'red';
+            } else if (hasMeasure.get(a.Id) == true) {
+                w.iconStatus = 'green';
+            } else {
+                w.iconStatus = 'grey';
+            }
+            dto.wheelsets.add(w);
+        }
+        return dto;
+    }
+
+    // Derive an L1..L4 short label from an asset name like "20213 Wheelset L1".
+    private static String deriveWheelsetLabel(String assetName) {
+        if (String.isBlank(assetName)) return '';
+        Matcher m = Pattern.compile('(?i)L\\s*([1-4])').matcher(assetName);
+        if (m.find()) return 'L' + m.group(1);
+        return assetName;
+    }
+
+    private static TaskWoDTO mapTask(WorkOrder wo) {
+        TaskWoDTO t = new TaskWoDTO();
+        t.id = wo.Id;
+        t.woNumber = wo.WorkOrderNumber;
+        t.subject = wo.Subject;
+        t.status = wo.Status;
+        t.priority = wo.Priority;
+        t.description = wo.Description;
+        t.causeCodes = wo.Cause_Codes__c;
+        t.workDelayCodes = wo.Work_Delay_Codes__c;
+        t.startDate = wo.StartDate == null ? null : String.valueOf(wo.StartDate);
+        t.component = wo.SAP_FLOC_Desc__c;
+        t.durationHours = wo.DurationType == 'Minutes' && wo.Duration != null ? (wo.Duration / 60).setScale(2) : wo.Duration;
+        t.comments = wo.Comment__c;
+        return t;
+    }
+
+    private static final String TASK_FIELDS =
+        'Id, WorkOrderNumber, Subject, Status, Priority, Description, Cause_Codes__c, ' +
+        'Work_Delay_Codes__c, StartDate, SAP_FLOC_Desc__c, Duration, DurationType, Comment__c';
+
+    @AuraEnabled(cacheable=false)
+    public static List<TaskWoDTO> getAssetTasks(String token, String assetId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        List<TaskWoDTO> result = new List<TaskWoDTO>();
+        List<WorkOrder> rows = (List<WorkOrder>) Database.query(
+            'SELECT ' + TASK_FIELDS + ' FROM WorkOrder ' +
+            'WHERE AssetId = :assetId AND WorkType.Name = \'PM02\' ' +
+            'WITH SECURITY_ENFORCED ORDER BY CreatedDate DESC'
+        );
+        for (WorkOrder wo : rows) {
+            result.add(mapTask(wo));
+        }
+        return result;
+    }
+
+    // Apply the editable fields from a request onto a WorkOrder (shared by create + update).
+    private static void applyTaskFields(WorkOrder wo, CreateTaskRequest req) {
+        if (String.isNotBlank(req.subject)) wo.Subject = req.subject;
+        wo.Description = req.description;
+        wo.Cause_Codes__c = req.causeCodes;
+        wo.Work_Delay_Codes__c = req.workDelayCodes;
+        wo.SAP_FLOC_Desc__c = req.component;
+        wo.Comment__c = req.comments;
+        if (String.isNotBlank(req.priority)) wo.Priority = req.priority;
+        if (String.isNotBlank(req.startDate)) {
+            wo.StartDate = (DateTime) JSON.deserialize('"' + req.startDate + '"', DateTime.class);
+        }
+        if (req.durationHours != null) {
+            wo.Duration = req.durationHours;
+            wo.DurationType = 'Hours';
+        }
+    }
+
+    @AuraEnabled
+    public static TaskWoDTO createAssetTask(String token, String reqJson) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        CreateTaskRequest req = (CreateTaskRequest) JSON.deserialize(reqJson, CreateTaskRequest.class);
+        if (String.isBlank(req.workOrderId)) throw new AuraHandledException('MISSING_WORKPACK');
+
+        // Resolve the PM02 work type.
+        List<WorkType> types = [SELECT Id FROM WorkType WHERE Name = 'PM02' WITH SECURITY_ENFORCED LIMIT 1];
+        if (types.isEmpty()) throw new AuraHandledException('PM02_WORKTYPE_NOT_FOUND');
+
+        // Pull context off the workpack WO (asset fallback + service territory).
+        List<WorkOrder> parents = [
+            SELECT Id, AssetId, ServiceTerritoryId FROM WorkOrder WHERE Id = :req.workOrderId
+            WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (parents.isEmpty()) throw new AuraHandledException('WORKPACK_NOT_FOUND');
+        WorkOrder parent = parents[0];
+
+        WorkOrder wo = new WorkOrder();
+        wo.WorkTypeId = types[0].Id;
+        wo.ParentWorkOrderId = req.workOrderId;
+        wo.AssetId = String.isNotBlank(req.assetId) ? (Id) req.assetId : parent.AssetId;
+        wo.Status = String.isBlank(req.status) ? 'New' : req.status;
+        wo.ServiceTerritoryId = parent.ServiceTerritoryId;
+        wo.Subject = String.isBlank(req.subject) ? 'PM02 Task' : req.subject;
+        applyTaskFields(wo, req);
+        insert wo;
+
+        return mapTask(queryTaskById(wo.Id));
+    }
+
+    @AuraEnabled
+    public static TaskWoDTO updateAssetTask(String token, String reqJson) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        CreateTaskRequest req = (CreateTaskRequest) JSON.deserialize(reqJson, CreateTaskRequest.class);
+        if (String.isBlank(req.id)) throw new AuraHandledException('MISSING_ID');
+
+        List<WorkOrder> existing = [
+            SELECT Id FROM WorkOrder WHERE Id = :req.id WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (existing.isEmpty()) throw new AuraHandledException('TASK_NOT_FOUND');
+
+        WorkOrder wo = existing[0];
+        if (String.isNotBlank(req.status)) wo.Status = req.status;
+        applyTaskFields(wo, req);
+        update wo;
+
+        return mapTask(queryTaskById(req.id));
+    }
+
+    // Query a single PM02 task work order with the full field projection, typed as WorkOrder.
+    private static WorkOrder queryTaskById(Id taskId) {
+        List<WorkOrder> rows = (List<WorkOrder>) Database.query(
+            'SELECT ' + TASK_FIELDS + ' FROM WorkOrder WHERE Id = :taskId WITH SECURITY_ENFORCED LIMIT 1'
+        );
+        return rows[0];
+    }
+
+    @AuraEnabled
+    public static void updateAssetSerial(String token, String assetId, String serialNumber) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(assetId)) throw new AuraHandledException('MISSING_ID');
+
+        List<Asset> assets = [
+            SELECT Id FROM Asset WHERE Id = :assetId WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (assets.isEmpty()) throw new AuraHandledException('NO_ASSET');
+        Asset a = assets[0];
+        a.SerialNumber = serialNumber;
+        update a;
     }
 
     @AuraEnabled(cacheable=false)

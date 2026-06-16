@@ -88,8 +88,17 @@ export default class WorkOrderDetail extends LightningElement {
     @track damageCodes = '';
     @track saveFeedbackIsError = false;
     @track showExecution = false;
+    @track showAssetReview = false;
+    @track wpSidebarCollapsed = false;   // Rail Workpack: Operations + Work Plans sidebar
 
     connectedCallback() { if (this._workOrderId) this.loadDetail(); }
+
+    handleToggleWpSidebar() { this.wpSidebarCollapsed = !this.wpSidebarCollapsed; }
+    get wpSidebarExpanded() { return !this.wpSidebarCollapsed; }
+    get wpSidebarClass() { return 'wp-sidebar' + (this.wpSidebarCollapsed ? ' collapsed' : ''); }
+    get wpLayoutClass() { return 'wp-layout' + (this.wpSidebarCollapsed ? ' sidebar-collapsed' : ''); }
+    get wpSidebarToggleIcon() { return this.wpSidebarCollapsed ? '‹' : '›'; }
+    get wpSidebarToggleTitle() { return this.wpSidebarCollapsed ? 'Show Operations & Work Plans' : 'Hide Operations & Work Plans'; }
 
     async loadDetail() {
         this.isLoading = true;
@@ -124,6 +133,9 @@ export default class WorkOrderDetail extends LightningElement {
 
     handleOpenExecution() { this.showExecution = true; }
     handleExecutionBack() { this.showExecution = false; }
+
+    handleOpenAssetReview() { this.showAssetReview = true; }
+    handleAssetReviewBack() { this.showAssetReview = false; }
 
     async handleClockIn() {
         this.isClockingIn = true;
@@ -337,6 +349,7 @@ export default class WorkOrderDetail extends LightningElement {
 
     get backLabel() { return this.detail?.parentWorkOrderId ? (this.detail.parentWoNumber || 'Work Pack') : 'Work Orders'; }
     get isRailWorkpack() { return this.detail?.workTypeName === 'Rail Workpack'; }
+    get hasAsset() { return !!this.detail?.assetId; }
     get hasChildWorkOrders() { return (this.detail?.childWorkOrders?.length || 0) > 0; }
     get hasLineItems() { return (this.detail?.lineItems?.length || 0) > 0; }
 

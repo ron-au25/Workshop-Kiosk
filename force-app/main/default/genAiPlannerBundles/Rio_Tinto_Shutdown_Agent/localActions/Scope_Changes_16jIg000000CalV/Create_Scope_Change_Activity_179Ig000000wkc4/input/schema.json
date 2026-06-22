@@ -1,0 +1,56 @@
+{
+  "required" : [ "activityType", "description" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "activityType" : {
+      "title" : "Activity Type",
+      "description" : "Break-in or Breakout",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "description" : {
+      "title" : "Description",
+      "description" : "Description of the scope change",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "durationHours" : {
+      "title" : "Duration (Hours)",
+      "description" : "Duration in hours",
+      "lightning:type" : "lightning__numberType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "equipmentLocation" : {
+      "title" : "Equipment Location",
+      "description" : "Location of equipment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "labourCount" : {
+      "title" : "Labour Count",
+      "description" : "Number of workers",
+      "lightning:type" : "lightning__integerType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "reasonCategory" : {
+      "title" : "Reason Category",
+      "description" : "Reason for scope change",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    },
+    "shift" : {
+      "title" : "Shift",
+      "description" : "DS or NS",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

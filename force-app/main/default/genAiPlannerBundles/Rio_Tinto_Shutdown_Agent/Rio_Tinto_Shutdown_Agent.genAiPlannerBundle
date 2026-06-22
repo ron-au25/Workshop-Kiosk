@@ -1,0 +1,1278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPlannerBundle xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <attributeMappings>
+        <attributeName>Work_Delay_Logging_16jIg000000CalV.Create_Work_Delay_Record_179Ig000000wl9f.input_workOrderId</attributeName>
+        <attributeType>CustomPluginFunctionAttribute</attributeType>
+        <mappingTargetName>currentRecordId</mappingTargetName>
+        <mappingType>Variable</mappingType>
+    </attributeMappings>
+    <attributeMappings>
+        <attributeName>Manage_Field_Resource_Delays_and_Adjustments_v2_16jIg000000CalV.Update_Scheduled_End_Time_on_Appointment_v1_179Ig000000wlIt.output_IsOptimizable</attributeName>
+        <attributeType>CustomPluginFunctionAttribute</attributeType>
+        <mappingTargetName>IsOptimizable</mappingTargetName>
+        <mappingType>Variable</mappingType>
+    </attributeMappings>
+    <description>Assists supervisors with creating and managing shift activities including safety interactions, scope changes, job delays, and continuous improvement items</description>
+    <localActionLinks>
+        <genAiFunctionName>AnswerQuestionsWithKnowledge_16jIg000000CalV</genAiFunctionName>
+    </localActionLinks>
+    <localTopicLinks>
+        <genAiPluginName>Activity_Information_Query_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Activity_Investigation_Assistant_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Assign_Activity_to_a_user_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>GeneralFAQ_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Improvements_and_Risks_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Manage_Field_Resource_Delays_and_Adjustments_v2_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>OOTBSingleRecordSummary_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>PostWorkSummary_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Scope_Changes_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>View_Recent_Shutdown_Activities_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Work_Delay_Logging_16jIg000000CalV</genAiPluginName>
+    </localTopicLinks>
+    <localTopicLinks>
+        <genAiPluginName>Asset_Insights</genAiPluginName>
+    </localTopicLinks>
+    <localTopics>
+        <fullName>Asset_Insights</fullName>
+        <aiPluginUtterances>
+            <developerName>au_images</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Images</masterLabel>
+            <utterance>show me the images for this work order</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>au_photos</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Photos</masterLabel>
+            <utterance>any photos or attachments on this wagon?</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>au_status</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Status</masterLabel>
+            <utterance>chart the work orders by status</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>au_timeline</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Timeline</masterLabel>
+            <utterance>show the maintenance timeline for this wagon</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Produces graphical insights (charts, timelines, tables, KPIs, calendars) and image/photo/attachment carousels about wagons, assets, measure points, and work orders for the kiosk.</description>
+        <developerName>Asset_Insights</developerName>
+        <genAiPluginInstructions>
+            <description>Use these actions when the user asks to see, show, chart, graph, visualise, or summarise data such as a maintenance timeline, work orders by status, measure point readings, wagon/wheelset condition, time worked vs planned, measure outcome distribution, cause/damage/delay codes, a shift activity calendar, or IMAGES / PHOTOS / PICTURES / ATTACHMENTS for a work order.</description>
+            <developerName>ai_instr_0</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_0</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>When the user does not name a specific wagon or work order, pass currentRecordId as the workOrderId input so the chart reflects the work order they are currently viewing. If they name a wagon number, pass it as wagonNumber instead.</description>
+            <developerName>ai_instr_1</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_1</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>Each action returns a message field that already contains the formatted answer and an agent-blocks code fence. Relay that message to the user VERBATIM and do not modify, reformat, or remove the agent-blocks fence — the kiosk uses it to render the chart.</description>
+            <developerName>ai_instr_2</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_2</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>For the Asset Maintenance Timeline action, always extract any filters the user asks for and pass them as inputs: a count like "last 5" or "show 10" goes in maxItems; a time window like "last 30 days", "past week" (7), or "last 3 months" (90) goes in dateRangeDays; "only measures" / "just inspections" sets eventType to measure, and "only work orders" / "just jobs" sets eventType to workorder. Re-call the action with the new inputs every time the user changes the filter — never reuse a previous result. If the user gives no filter, leave these blank.</description>
+            <developerName>ai_instr_3</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_3</masterLabel>
+            <sortOrder>3</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>When the user asks for images, photos, pictures, or attachments related to a work order (e.g. "show me the images for this work order", "any photos of this wagon", "show attachments"), call the Work Order Images action with workOrderId = currentRecordId. It scans the work order, its child work orders, line items, and measures for image files and returns an image carousel. Do not say you are unable to retrieve attachments — use this action.</description>
+            <developerName>ai_instr_4</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_4</masterLabel>
+            <sortOrder>4</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>Chart_Asset_Timeline</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Work_Orders_By_Status</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Measure_Point_Graph</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Wagon_Condition</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Time_Worked_Vs_Planned</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Measure_Distribution</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Code_Frequency</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Shift_Calendar</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Work_Order_Images</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>Chart_Asset_Timeline</fullName>
+            <description>Returns a timeline of works done and measures taken for the wagon/asset. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Asset_Timeline</developerName>
+            <invocationTarget>AgentActionAssetTimeline</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Asset_Timeline</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Asset Maintenance Timeline</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Work_Orders_By_Status</fullName>
+            <description>Returns a donut chart and KPIs of work order counts by status. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Work_Orders_By_Status</developerName>
+            <invocationTarget>AgentActionWorkOrdersByStatus</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Work_Orders_By_Status</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Work Orders by Status</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Measure_Point_Graph</fullName>
+            <description>Returns a line chart of measure values over time and an outcome split. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Measure_Point_Graph</developerName>
+            <invocationTarget>AgentActionMeasurePointGraph</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Measure_Point_Graph</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Measure Point Graph</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Wagon_Condition</fullName>
+            <description>Returns a per-wheelset condition bar chart and table. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Wagon_Condition</developerName>
+            <invocationTarget>AgentActionWagonCondition</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Wagon_Condition</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Wagon Condition by Wheelset</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Time_Worked_Vs_Planned</fullName>
+            <description>Returns actual vs planned minutes per work order. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Time_Worked_Vs_Planned</developerName>
+            <invocationTarget>AgentActionTimeWorkedVsPlanned</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Time_Worked_Vs_Planned</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Time Worked vs Planned</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Measure_Distribution</fullName>
+            <description>Returns a donut of OK / Attention Required / Scrap measures. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Measure_Distribution</developerName>
+            <invocationTarget>AgentActionMeasureDistribution</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Measure_Distribution</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Measure Type Distribution</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Code_Frequency</fullName>
+            <description>Returns a bar chart of cause, damage and delay code frequency. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Code_Frequency</developerName>
+            <invocationTarget>AgentActionCodeFrequency</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Code_Frequency</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Cause Damage Delay Codes</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Shift_Calendar</fullName>
+            <description>Returns a calendar of days with work activity. The kiosk renders the returned message as a chart/timeline/table. Relay the message verbatim.</description>
+            <developerName>Chart_Shift_Calendar</developerName>
+            <invocationTarget>AgentActionShiftCalendar</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Shift_Calendar</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Shift Activity Calendar</masterLabel>
+            <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Work_Order_Images</fullName>
+            <description>Returns a carousel of image attachments found across the work order, its child work orders, related work order line items, and related measure points. The kiosk renders the returned message as an image carousel. Relay the message verbatim.</description>
+            <developerName>Chart_Work_Order_Images</developerName>
+            <invocationTarget>AgentActionWorkOrderImages</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Work_Order_Images</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Work Order Images</masterLabel>
+            <progressIndicatorMessage>finding images...</progressIndicatorMessage>
+        </localActions>
+        <localDeveloperName>Asset_Insights</localDeveloperName>
+        <masterLabel>Asset Insights</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>This topic covers read-only graphical/visual answers about assets, wagons, wheelsets, measure points, and work orders — including charts, timelines, tables, calendars, and image/photo/attachment carousels for a work order. It does NOT create or modify records.</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>Manage_Field_Resource_Delays_and_Adjustments_v2_16jIg000000CalV</fullName>
+        <canEscalate>false</canEscalate>
+        <description>Handles inquiries related to managing delays for Field Resource&apos;s appointments.</description>
+        <developerName>Manage_Field_Resource_Delays_and_Adjustments_v2_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Should a user be experiencing a delay for an appointment, start by identifying the appointment record details first. Once the record is identified, always share the Scheduled Start, Scheduled End and Status. Subsequently, the user should be queried regarding the duration of their anticipated delay in minutes.</description>
+            <developerName>instruction_0_1768376354122</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>instruction_0_1768376354122</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>If the value for IsOptimizable is set to FALSE, you should not inquire about adjusting the schedule. If the value for IsOptimizable is TRUE and an overlap exists, then the user should be prompted to determine if the schedule requires adjustment.</description>
+            <developerName>instruction_1_1768376354128</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>instruction_1_1768376354128</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>Upon receiving the message &apos;Resource schedule optimization request submitted successfully&apos;, please inform the user that the schedule update is currently being processed and will be applied shortly.</description>
+            <developerName>instruction_2_1768376354128</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>instruction_2_1768376354128</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>Upon updating the schedule, if the overlapWithAbsence value is TRUE, the user must be notified of a conflict with a planned absence. They are then required to contact the dispatcher to ensure all overlaps are resolved.</description>
+            <developerName>instruction_3_1768376354128</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>instruction_3_1768376354128</masterLabel>
+            <sortOrder>3</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>your first activity is to execute &apos;Find SA from Current record WO&apos; to find the current service appointment.</description>
+            <developerName>instruction_4_1768376354128</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>instruction_4_1768376354128</masterLabel>
+            <sortOrder>4</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>IdentifyObjectByName_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Update_Scheduled_End_Time_on_Appointment_v1_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>GetRecordDetails_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Resolve_Overlaps_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>IdentifyRecordByName_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Find_SA_from_Current_record_WO_179Ig000000wlIt</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>IdentifyObjectByName_179Ig000000wlIt</fullName>
+            <description>Finds the Salesforce object API name by extracting an object name from the user input.</description>
+            <developerName>IdentifyObjectByName_179Ig000000wlIt</developerName>
+            <invocationTarget>identifyObject</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>IdentifyObjectByName</localDeveloperName>
+            <masterLabel>Identify Object by Name</masterLabel>
+            <source>EmployeeCopilot__IdentifyObjectByName</source>
+        </localActions>
+        <localActions>
+            <fullName>Resolve_Overlaps_179Ig000000wlIt</fullName>
+            <description>If there is an overlap with another appointment and the user would like to adjust the schedule, use this action to fix the overlaps for the user.</description>
+            <developerName>Resolve_Overlaps_179Ig000000wlIt</developerName>
+            <invocationTarget>Resource_Schedule_Optimization</invocationTarget>
+            <invocationTargetType>flow</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Resolve_Overlaps</localDeveloperName>
+            <masterLabel>Resolve Overlaps</masterLabel>
+            <progressIndicatorMessage>Fixing overlaps</progressIndicatorMessage>
+            <source>Resolve_Overlaps</source>
+        </localActions>
+        <localActions>
+            <fullName>GetRecordDetails_179Ig000000wlIt</fullName>
+            <description>Generates a text blob containing record details, including object fields and values and records from related lists.</description>
+            <developerName>GetRecordDetails_179Ig000000wlIt</developerName>
+            <invocationTarget>getDataForGrounding</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>GetRecordDetails</localDeveloperName>
+            <masterLabel>Get Record Details</masterLabel>
+            <progressIndicatorMessage>Getting details</progressIndicatorMessage>
+            <source>EmployeeCopilot__GetRecordDetails</source>
+        </localActions>
+        <localActions>
+            <fullName>Update_Scheduled_End_Time_on_Appointment_v1_179Ig000000wlIt</fullName>
+            <description>Once the delayed appointment is identified and the estimated delay is entered, run this action to update the scheduled times and check for conflicts with appointments or absences.</description>
+            <developerName>Update_Scheduled_End_Time_on_Appointment_v1_179Ig000000wlIt</developerName>
+            <invocationTarget>Update_Scheduled_End_Time_on_Appointment</invocationTarget>
+            <invocationTargetType>flow</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Update_Scheduled_End_Time_on_Appointment_v1</localDeveloperName>
+            <mappingAttributes>
+                <label>IsOptimizable</label>
+                <name>output_IsOptimizable</name>
+                <parameterName>IsOptimizable</parameterName>
+                <parameterType>output</parameterType>
+            </mappingAttributes>
+            <masterLabel>Update Scheduled Times on Delayed Appointment</masterLabel>
+            <progressIndicatorMessage>Updating the delayed appointment</progressIndicatorMessage>
+            <source>Update_Scheduled_End_Time_on_Appointment_v1</source>
+        </localActions>
+        <localActions>
+            <fullName>Find_SA_from_Current_record_WO_179Ig000000wlIt</fullName>
+            <description>find the SA from the current record id</description>
+            <developerName>Find_SA_from_Current_record_WO_179Ig000000wlIt</developerName>
+            <invocationTarget>Find_SA_from_Current_record_WO</invocationTarget>
+            <invocationTargetType>flow</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Find_SA_from_Current_record_WO</localDeveloperName>
+            <masterLabel>Find SA from Current record WO</masterLabel>
+            <progressIndicatorMessage>find appointment from record...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>IdentifyRecordByName_179Ig000000wlIt</fullName>
+            <description>Searches for Salesforce CRM records by name and returns a list of matching Salesforce CRM record IDs.</description>
+            <developerName>IdentifyRecordByName_179Ig000000wlIt</developerName>
+            <invocationTarget>identifyRecordByName</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>IdentifyRecordByName</localDeveloperName>
+            <masterLabel>Identify Record by Name</masterLabel>
+            <source>EmployeeCopilot__IdentifyRecordByName</source>
+        </localActions>
+        <localDeveloperName>Manage_Field_Resource_Delays_and_Adjustments_v2</localDeveloperName>
+        <masterLabel>Manage Field Resource Delays and Adjustments</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>You can only assist with managing delays for a Field Resource&apos;s appointments. Your job is to gather necessary details, and ensure appropriate adjustments to the appointment are made whenever there is a delay. You cannot handle adjustments to the schedule where work is done earlier than expected. Examples of user utterances would be &quot;I am running late on this appointment&quot;, &quot;I am delayed by 10 minutes&quot;, &quot;I won&apos;t be able to make it to this appointment&quot;.</scope>
+        <source>Manage_Field_Resource_Delays_and_Adjustments_v2</source>
+    </localTopics>
+    <localTopics>
+        <fullName>Work_Delay_Logging_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>We&apos;re waiting on a permit on WO-00123. Can&apos;t start the pump work.</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>utterance_2</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 2</masterLabel>
+            <utterance>RGENT – crane broke mid-lift on WO-00456. Load is suspended.
+         Safety stop in effect.</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Handles requests to log work delays against the current work order. any delay reported by the user</description>
+        <developerName>Work_Delay_Logging_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>You help site supervisors log work delay records in Salesforce against their current work order.
+
+When a user reports a delay, interruption, or stoppage:
+
+1. you should use currentRecordId as the work order id. If the user has not provided a Work Order ID or number, ask them which work order they are currently working on before proceeding.</description>
+            <developerName>instructions_0_1771375444404</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1771375444404</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>2. Ask the user to describe what is causing the delay if they have not already.  A single sentence is sufficient — the system will expand it automatically.</description>
+            <developerName>instructions_0_1771379034572</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1771379034572</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>3. If the user&apos;s message contains words like &quot;critical&quot;, &quot;urgent&quot;, &quot;emergency&quot;,   or &quot;immediate&quot;, acknowledge that the delay will be flagged as critical.</description>
+            <developerName>instructions_1_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_1_1771379034578</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>4. Summarise what you are about to log and ask for confirmation:
+   &quot;I&apos;ll log a work delay against [Work Order]. Here&apos;s what I have:
+    - Work Order: [work order number]
+    - Delay: [what the user said]
+    - Reason: [the reason code]
+    [- CRITICAL flag: Yes  ← only if urgent/critical language was used]
+   Shall I log this now?&quot;</description>
+            <developerName>instructions_2_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_2_1771379034578</masterLabel>
+            <sortOrder>3</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>5. Once the user confirms, call the Create_Work_Delay_Record action with:
+   - workOrderId: the Work Order Salesforce record ID (18-char)
+   - userInput: the user&apos;s exact words describing the delay (pass the raw text)</description>
+            <developerName>instructions_3_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_3_1771379034578</masterLabel>
+            <sortOrder>4</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>6. After the action completes, relay the confirmation message back to the user  verbatim. It will include the record title, reason code, and critical status.</description>
+            <developerName>instructions_4_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_4_1771379034578</masterLabel>
+            <sortOrder>5</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>7. If the action returns success = false, tell the user the error message and   offer to try again or escalate to a supervisor.</description>
+            <developerName>instructions_5_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_5_1771379034578</masterLabel>
+            <sortOrder>6</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>8. If the llmWarning output is populated, mention to the user that the AI   assistant was temporarily unavailable but the record was still created   using automatic classification.</description>
+            <developerName>instructions_6_1771379034578</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_6_1771379034578</masterLabel>
+            <sortOrder>7</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>Create_Work_Delay_Record_179Ig000000wl9f</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>Create_Work_Delay_Record_179Ig000000wl9f</fullName>
+            <description>Creates a Work_Delay__c record for the given Work Order. Pass the user&apos;s raw description in userInput and let the LLM generate the title, description, reason code, and critical flag automatically. Alternatively, pass explicit reasonCode and description fields directly.</description>
+            <developerName>Create_Work_Delay_Record_179Ig000000wl9f</developerName>
+            <invocationTarget>WorkDelayPlanner</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Create_Work_Delay_Record</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Create Work Delay Record</masterLabel>
+            <progressIndicatorMessage>creating work delay...</progressIndicatorMessage>
+        </localActions>
+        <localDeveloperName>Work_Delay_Logging</localDeveloperName>
+        <masterLabel>Work Delay Logging</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>This topic covers creating Work_Delay__c records when a user reports that work has been interrupted, slowed, or stopped. It does NOT cover scope changes, safety incidents, or other activity categories.</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>OOTBSingleRecordSummary_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>utterance1</masterLabel>
+            <utterance>Give me a quick summary of this record.</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>utterance2</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>utterance2</masterLabel>
+            <utterance>Provide an overview of this record.</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>utterance3</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>utterance3</masterLabel>
+            <utterance>Share highlights for this record.</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>This topic is to help the user generate an out of the box summary for a SINGLE record. Use this topic when the user is requesting to summarize a single record without any additional instructions or specific filtering instructions.</description>
+        <developerName>OOTBSingleRecordSummary_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Always try to ask clarifying questions when trying to resolve the record</description>
+            <developerName>Instruction1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>SummarizeRecord_179Ig000000wlIF</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>QueryRecords_179Ig000000wlIF</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>IdentifyRecordByName_179Ig000000wlIF</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>IdentifyObjectByName_179Ig000000wlIF</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>QueryRecordsWithAggregate_179Ig000000wlIF</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>QueryRecordsWithAggregate_179Ig000000wlIF</fullName>
+            <description>Answers aggregation questions (such as count, sum, max, min, or average) about Salesforce CRM data based on the user input and specific conditions, such as field values. For example &apos;Find the number of open opportunities created in the last 5 days.&apos;</description>
+            <developerName>QueryRecordsWithAggregate_179Ig000000wlIF</developerName>
+            <invocationTarget>queryRecordsWithAggregate</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>QueryRecordsWithAggregate</localDeveloperName>
+            <masterLabel>Query Records with Aggregate</masterLabel>
+            <source>EmployeeCopilot__QueryRecordsWithAggregate</source>
+        </localActions>
+        <localActions>
+            <fullName>IdentifyObjectByName_179Ig000000wlIF</fullName>
+            <description>Finds the Salesforce object API name by extracting an object name from the user input.</description>
+            <developerName>IdentifyObjectByName_179Ig000000wlIF</developerName>
+            <invocationTarget>identifyObject</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>IdentifyObjectByName</localDeveloperName>
+            <masterLabel>Identify Object by Name</masterLabel>
+            <source>EmployeeCopilot__IdentifyObjectByName</source>
+        </localActions>
+        <localActions>
+            <fullName>IdentifyRecordByName_179Ig000000wlIF</fullName>
+            <description>Searches for Salesforce CRM records by name and returns a list of matching Salesforce CRM record IDs.</description>
+            <developerName>IdentifyRecordByName_179Ig000000wlIF</developerName>
+            <invocationTarget>identifyRecordByName</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>IdentifyRecordByName</localDeveloperName>
+            <masterLabel>Identify Record by Name</masterLabel>
+            <source>EmployeeCopilot__IdentifyRecordByName</source>
+        </localActions>
+        <localActions>
+            <fullName>QueryRecords_179Ig000000wlIF</fullName>
+            <description>Finds and retrieves Salesforce CRM records based on user input and specific conditions, such as field values. This action automatically identifies the correct records and object type. e.g. &apos;Find all open opportunities created in the last 5 days sorted by created date.&apos;</description>
+            <developerName>QueryRecords_179Ig000000wlIF</developerName>
+            <invocationTarget>queryRecords</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>QueryRecords</localDeveloperName>
+            <masterLabel>Query Records</masterLabel>
+            <source>EmployeeCopilot__QueryRecords</source>
+        </localActions>
+        <localActions>
+            <fullName>SummarizeRecord_179Ig000000wlIF</fullName>
+            <description>Summarizes a single Salesforce CRM record. You must call summarizeRecord only if the user explicitly asks for a summary (e.g: &apos;Summary&apos;, &apos;Recap&apos;, &apos;Highlights&apos;). This action should be called only when there isn&apos;t a more specific summarization action.</description>
+            <developerName>SummarizeRecord_179Ig000000wlIF</developerName>
+            <invocationTarget>getRecordSummarizationPrompt</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>SummarizeRecord</localDeveloperName>
+            <masterLabel>Summarize Record</masterLabel>
+            <progressIndicatorMessage>Summarizing</progressIndicatorMessage>
+            <source>EmployeeCopilot__SummarizeRecord</source>
+        </localActions>
+        <localDeveloperName>OOTBSingleRecordSummary</localDeveloperName>
+        <masterLabel>Single Record Summary</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Your job is to provide a rich summary of a Salesforce CRM record</scope>
+        <source>EmployeeCopilot__OOTBSingleRecordSummary</source>
+    </localTopics>
+    <localTopics>
+        <fullName>GeneralFAQ_16jIg000000CalV</fullName>
+        <canEscalate>false</canEscalate>
+        <description>This topic is for helping answer customer&apos;s questions by searching through the knowledge articles and providing information from those articles. The questions can be about the company and its products, policies or business procedures</description>
+        <developerName>GeneralFAQ_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>If the customer&apos;s question is too vague or general, ask for more details and clarification to give a better answer.</description>
+            <developerName>requestmoredetails</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>request-more-details</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>If you are unable to help the customer even after asking clarifying questions, ask if they want to escalate this issue to a live agent.</description>
+            <developerName>unabletohelpafterclarifying</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>unable-to-help-after-clarifying</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>If you are unable to answer customer&apos;s questions, ask if they want to escalate this issue to a live agent.</description>
+            <developerName>unabletoanswerquestions</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>unable-to-answer-questions</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>Never provide generic information, advice or troubleshooting steps, unless retrieved from searching knowledge articles.</description>
+            <developerName>avoidgenericinformation</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>avoid-generic-information</masterLabel>
+            <sortOrder>3</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>Include sources in your response when available from the knowledge articles, otherwise proceed without them.</description>
+            <developerName>includearticlesources</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>include-article-sources</masterLabel>
+            <sortOrder>4</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>AnswerQuestionsWithKnowledge_179Ig000000wl5S</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>AnswerQuestionsWithKnowledge_179Ig000000wl5S</fullName>
+            <description>Answers questions about company policies and procedures, troubleshooting steps, or product information. For example: “What is your return policy?” “How do I fix an issue?” or “What features does a product have?”</description>
+            <developerName>AnswerQuestionsWithKnowledge_179Ig000000wl5S</developerName>
+            <invocationTarget>streamKnowledgeSearch</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>AnswerQuestionsWithKnowledge</localDeveloperName>
+            <masterLabel>Answer Questions with Knowledge</masterLabel>
+            <progressIndicatorMessage>Getting answers</progressIndicatorMessage>
+            <source>EmployeeCopilot__AnswerQuestionsWithKnowledge</source>
+        </localActions>
+        <localDeveloperName>GeneralFAQ</localDeveloperName>
+        <masterLabel>General FAQ</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Your job is solely to help with issues and answer questions about the company, its products, procedures, or policies by searching knowledge articles.</scope>
+        <source>SvcCopilotTmpl__GeneralFAQ</source>
+    </localTopics>
+    <localTopics>
+        <fullName>PostWorkSummary_16jIg000000CalV</fullName>
+        <canEscalate>false</canEscalate>
+        <description>This topic helps the user complete their work by creating a summary of the work order, supporting multiple refinements of the Work Order Summary, and saving the summary to the PostWorkSummary field on the WorkOrder record.
+Use this topic when:
+- A user needs to summarize a completed work order.
+- A user wants to refine an existing work summary.
+- The final summary needs to be saved to the Work Order record.
+
+Examples of when to use this topic:
+- &quot;Summarize Work Order 3000123&quot;
+- “I completed work order 1234567, I did the work and explained it to the customer”
+- “Finished work order 1234567, I replaced the broken pipe and cleaned the area”
+
+Do NOT use this topic for:
+- Creating new work orders
+- Scheduling appointments
+- Updating customer information unrelated to the work summary</description>
+        <developerName>PostWorkSummary_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>First, always use the SummarizeRecord action to create a summary of the work order record.
+
+Then, integrate the user input in the summary. Include it in the text and don’t give it a title.
+
+Keep the structure and spacing of the summary.
+
+Don’t tell the user that you are integrating the input, just do it.
+
+During the process, show the refined summary before asking if they want to save it.
+
+Pass it as an input for the ExtractFieldsAndValuesFromUserInput action with the following user input: Add the following text to the Post-Work Summary field: {summary}.
+
+Example:
+
+User input: I replaced the fuser unit, completed work order 3000123
+
+recordSummary: {summary}
+
+{Separate with a line}
+
+Would you like to save the summary? Please add more details if needed.
+
+User input: Save
+
+ExtractFieldsAndValuesFromUserInput user input: add the following text to the Post-Work Summary field: {summary}</description>
+            <developerName>Instruction1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>IdentifyRecordByName_179Ig000000wlIG</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>RefinePostWorkSummary_179Ig000000wlIG</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>ExtractFieldsAndValuesFromUserInput_179Ig000000wlIG</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>SummarizeRecord_179Ig000000wlIG</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>UpdateRecordFields_179Ig000000wlIG</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>ExtractFieldsAndValuesFromUserInput_179Ig000000wlIG</fullName>
+            <description>Extracts Salesforce CRM record fields and their corresponding field values from the user input. This action must run before updateRecord to convert user input to a Salesforce sObject.</description>
+            <developerName>ExtractFieldsAndValuesFromUserInput_179Ig000000wlIG</developerName>
+            <invocationTarget>getRecordFieldsAndValues</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>ExtractFieldsAndValuesFromUserInput</localDeveloperName>
+            <masterLabel>Extract Fields And Values From User Input</masterLabel>
+            <progressIndicatorMessage>Preparing your changes</progressIndicatorMessage>
+            <source>EmployeeCopilot__ExtractFieldsAndValuesFromUserInput</source>
+        </localActions>
+        <localActions>
+            <fullName>RefinePostWorkSummary_179Ig000000wlIG</fullName>
+            <description>Refines and adds information to a summary of a single Salesforce work order record, based on user utterance. For refinement requests, use the recordId from the summary of the work order that’s passed in.</description>
+            <developerName>RefinePostWorkSummary_179Ig000000wlIG</developerName>
+            <invocationTarget>summaryRefinement</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>RefinePostWorkSummary</localDeveloperName>
+            <masterLabel>Refine Post-Work Summary for Field Service</masterLabel>
+            <progressIndicatorMessage>Refining the summary</progressIndicatorMessage>
+            <source>sfdc_fieldservice__RefinePostWorkSummary</source>
+        </localActions>
+        <localActions>
+            <fullName>IdentifyRecordByName_179Ig000000wlIG</fullName>
+            <description>Searches for Salesforce CRM records by name and returns a list of matching Salesforce CRM record IDs.</description>
+            <developerName>IdentifyRecordByName_179Ig000000wlIG</developerName>
+            <invocationTarget>identifyRecordByName</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>IdentifyRecordByName</localDeveloperName>
+            <masterLabel>Identify Record by Name</masterLabel>
+            <source>EmployeeCopilot__IdentifyRecordByName</source>
+        </localActions>
+        <localActions>
+            <fullName>UpdateRecordFields_179Ig000000wlIG</fullName>
+            <description>Updates fields on a Salesforce CRM record. The action ExtractFieldsAndValuesFromUserInput must be called prior to this action to extract the record&apos;s fields and values.</description>
+            <developerName>UpdateRecordFields_179Ig000000wlIG</developerName>
+            <invocationTarget>einsteinCopilotUpdateRecord</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>true</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>UpdateRecordFields</localDeveloperName>
+            <masterLabel>Update Record</masterLabel>
+            <progressIndicatorMessage>Making updates</progressIndicatorMessage>
+            <source>EmployeeCopilot__UpdateRecordFields</source>
+        </localActions>
+        <localActions>
+            <fullName>SummarizeRecord_179Ig000000wlIG</fullName>
+            <description>Summarizes a single Salesforce CRM record. You must call summarizeRecord only if the user explicitly asks for a summary (e.g: &apos;Summary&apos;, &apos;Recap&apos;, &apos;Highlights&apos;). This action should be called only when there isn&apos;t a more specific summarization action.</description>
+            <developerName>SummarizeRecord_179Ig000000wlIG</developerName>
+            <invocationTarget>getRecordSummarizationPrompt</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>SummarizeRecord</localDeveloperName>
+            <masterLabel>Summarize Record</masterLabel>
+            <progressIndicatorMessage>Summarizing</progressIndicatorMessage>
+            <source>EmployeeCopilot__SummarizeRecord</source>
+        </localActions>
+        <localDeveloperName>PostWorkSummary</localDeveloperName>
+        <masterLabel>Post-Work Summary for Field Service</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>You are an assistant to a field service technician. Your job is to help complete the work order by:
+- Summarizing the work order
+- Refining the summary according to the user’s inputs
+- Saving the final summary to the Work Order record in the PostWorkSummary field</scope>
+        <source>runtime_service_fieldService__PostWorkSummary</source>
+    </localTopics>
+    <localTopics>
+        <fullName>Scope_Changes_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>- &quot;Log a break-in for urgent conveyor repair&quot;
+- &quot;Create a breakout for the pump maintenance&quot;
+- &quot;Need to add urgent work in Building A&quot;
+- &quot;Remove work from plan due to resource constraints&quot;</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Creates break-in or breakout activity for scope management</description>
+        <developerName>Scope_Changes_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Use this for break-ins (urgent work additions) and breakouts (removing work from plan). Extract equipment location, shift, duration, labour count, and reason from user input.</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>Create_Scope_Change_Activity_179Ig000000wkc4</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>Create_Scope_Change_Activity_179Ig000000wkc4</fullName>
+            <description>Creates break-in or breakout activity for scope management</description>
+            <developerName>Create_Scope_Change_Activity_179Ig000000wkc4</developerName>
+            <invocationTarget>ScopeManagementPlanner</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>false</isIncludeInProgressIndicator>
+            <localDeveloperName>Create_Scope_Change_Activity</localDeveloperName>
+            <masterLabel>Create Scope Change Activity</masterLabel>
+        </localActions>
+        <localDeveloperName>Scope_Changes</localDeveloperName>
+        <masterLabel>Scope Changes</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Creates break-in or breakout activity for scope management</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>View_Recent_Shutdown_Activities_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>- &quot;Show me recent activities&quot;
+- &quot;What open activities do we have?&quot;
+- &quot;Show me completed activities&quot;
+- &quot;List overdue items&quot;
+- &quot;What activities have been logged today?&quot;</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Display recent shutdown activities with optional status filter</description>
+        <developerName>View_Recent_Shutdown_Activities_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Use this when users ask to see recent activities, check what&apos;s been logged, review open items, or filter by status (Open, Completed, Overdue, or All)</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>View_Recent_Shutdown_Activities_179Ig000000wkcE</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>View_Recent_Shutdown_Activities_179Ig000000wkcE</fullName>
+            <description>Display recent shutdown activities with optional status filter</description>
+            <developerName>View_Recent_Shutdown_Activities_179Ig000000wkcE</developerName>
+            <invocationTarget>ShutdownActivityController</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>View_Recent_Shutdown_Activities</localDeveloperName>
+            <masterLabel>View Recent Shutdown Activities</masterLabel>
+            <progressIndicatorMessage>activities...</progressIndicatorMessage>
+        </localActions>
+        <localDeveloperName>View_Recent_Shutdown_Activities</localDeveloperName>
+        <masterLabel>View Recent Shutdown Activities</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Display recent shutdown activities with optional status filter</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>Activity_Investigation_Assistant_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>investigate this activity</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>your job is to assist the user to investigate the activity and assist with actioning a response</description>
+        <developerName>Activity_Investigation_Assistant_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>when user asks to investigate the activity, provide the following response: &quot;Maintenance for the [Drive A Gearbox CV536 (RHS)] conveyor gearbox is currently behind schedule. This asset is a high-criticality component on the site watchlist with a history of recurring issues, including a temporary &apos;kidney loop&apos; filtration fix applied two months ago. Given its status as a potential production bottleneck, I recommend escalating this to a Critical Work Order. To facilitate immediate action, I can re-optimize the current schedule by deferring lower-priority routine tasks.&quot;</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>when user request to reoptimise the schedule, respond with acknowledgement that the optimisation process has initiated</description>
+            <developerName>instructions_0_1777244813282</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1777244813282</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localDeveloperName>Activity_Investigation_Assistant</localDeveloperName>
+        <masterLabel>Activity Investigation Assistant</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>assist the user to investigate the activity and assist with actioning a response</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>Improvements_and_Risks_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>- &quot;Log a risk about equipment failure&quot;
+- &quot;Capture an opportunity to improve efficiency&quot;
+- &quot;What we did well: great team coordination&quot;
+- &quot;What we can do better: material planning&quot;</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Creates risk, opportunity, or continuous improvement activity</description>
+        <developerName>Improvements_and_Risks_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Use this for logging risks, opportunities, and continuous improvement items. Determine if it&apos;s a risk or opportunity, and for improvements whether it&apos;s what went well or can be better.</description>
+            <developerName>instructions_0_1767747317142</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1767747317142</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>if the user reports a Risk, set the following, and execute &quot;Create Continuous Improvement Activity&quot; action
+- set activitySubcategory to &quot;Risk Identification&quot; 
+- set riskOpportunityType to &quot;Risk&quot;. 
+- extract Equipment location from any location reference. specify &quot;Critical&quot; if the user reports a critical failure or urgency. Also include number of resources and time (hours) to repair
+- extract description from the user input including any labour and time references
+- set Shift to &quot;DS&quot; for day reference (like dayshift, day, morning, sun), set Shift to &quot;NS&quot; for night reference (like night shift, night, moon)
+- use the user input to identify one of the following risk factors: {Fall from height, Lifting operations, Entanglement and crushing, Energised equipment, Mobile equipment, Confined space, Hot work, Hazardous substances, Extreme environment, Contact with electricity, Vehicle impact on person, Falling objects}. you must use one of these options to set the Critical Risk parameter.</description>
+            <developerName>instructions_0_1767748033634</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1767748033634</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>If the user reports on a good positive improvement set the following, and execute &quot;Create Continuous Improvement Activity&quot; action
+- set activitySubcategory to &quot;Continuous Improvement&quot; 
+- set ImprovementType to &quot;What we did well&quot;. 
+- extract Equipment location from any location reference. specify &quot;Critical&quot; if the user reports a critical failure or urgency. Also include number of resources and time (hours) to repair
+- extract description from the user input including any labour and time references
+- set Shift to &quot;DS&quot; for day reference (like dayshift, day, morning, sun), set Shift to &quot;NS&quot; for night reference (like night shift, night, moon)</description>
+            <developerName>instructions_0_1772595875392</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1772595875392</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>If the user reports on a negative or opportunity for improvement  or how we can do better set the following, and execute &quot;Create Continuous Improvement Activity&quot; action
+- set activitySubcategory to &quot;Continuous Improvement&quot; 
+- set ImprovementType to &quot;What we can do better&quot;. 
+- extract Equipment location from any location reference. specify &quot;Critical&quot; if the user reports a critical failure or urgency. Also include number of resources and time (hours) to repair
+- extract description from the user input including any labour and time references
+- set Shift to &quot;DS&quot; for day reference (like dayshift, day, morning, sun), set Shift to &quot;NS&quot; for night reference (like night shift, night, moon)</description>
+            <developerName>instructions_1_1767748033640</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_1_1767748033640</masterLabel>
+            <sortOrder>3</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>if the user has general or administrative report then set the following and use &quot;Create Operational Tracking Activity&quot; action
+- set activitySubcategory to &quot;Meeting Action&quot; 
+- set ImprovementType to &quot;What we did well&quot;. 
+- extract Equipment location from any location reference. specify &quot;Critical&quot; if the user reports a critical failure or urgency. Also include number of resources and time (hours) to repair
+- extract Description from the user input including any labour and time references
+- set Shift to &quot;DS&quot; for day reference (like dayshift, day, morning, sun), set Shift to &quot;NS&quot; for night reference (like night shift, night, moon)
+- extract the amount of number of people required for labour for labour Count
+- extract number of hours required into duration hours</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>4</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>Create_Operational_Tracking_Activity_179Ig000000wkc9</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Create_Continuous_Improvement_Activity_179Ig000000wkc9</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>Create_Operational_Tracking_Activity_179Ig000000wkc9</fullName>
+            <description>Creates job delay, startup watchlist, or commissioning issue activity</description>
+            <developerName>Create_Operational_Tracking_Activity_179Ig000000wkc9</developerName>
+            <invocationTarget>OperationalTrackingPlanner</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Create_Operational_Tracking_Activity</localDeveloperName>
+            <masterLabel>Create Operational Tracking Activity</masterLabel>
+            <progressIndicatorMessage>create activity</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Create_Continuous_Improvement_Activity_179Ig000000wkc9</fullName>
+            <description>Creates risk, opportunity, or continuous improvement activity</description>
+            <developerName>Create_Continuous_Improvement_Activity_179Ig000000wkc9</developerName>
+            <invocationTarget>ContinuousImprovementPlanner</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Create_Continuous_Improvement_Activity</localDeveloperName>
+            <masterLabel>Create Continuous Improvement Activity</masterLabel>
+            <progressIndicatorMessage>create activity</progressIndicatorMessage>
+        </localActions>
+        <localDeveloperName>Improvements_and_Risks</localDeveloperName>
+        <masterLabel>Improvements and Risks</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>Creates risk, opportunity, or continuous improvement activity</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>Activity_Information_Query_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Utterance 1</masterLabel>
+            <utterance>&quot;What can you help me with?&quot;
+ &quot;What types of activities can I log?&quot;
+ &quot;Show me available categories&quot;
+ &quot;What activities are available?&quot;</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Returns list of all activity types that can be logged</description>
+        <developerName>Activity_Information_Query_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>Use this when users ask what activities they can log or need help understanding available options</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>Get_Activity_Types_2_179Ig000000wkbz</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>Get_Activity_Types_2_179Ig000000wkbz</fullName>
+            <description>Returns list of all activity types that can be logged</description>
+            <developerName>Get_Activity_Types_2_179Ig000000wkbz</developerName>
+            <invocationTarget>ActivityInformationPlanner</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Get_Activity_Types_2</localDeveloperName>
+            <masterLabel>Get Activity Types v2</masterLabel>
+            <progressIndicatorMessage>listing...</progressIndicatorMessage>
+        </localActions>
+        <localDeveloperName>Activity_Information_Query</localDeveloperName>
+        <masterLabel>Activity Information Query</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>list all activity types that can be logged</scope>
+    </localTopics>
+    <localTopics>
+        <fullName>Assign_Activity_to_a_user_16jIg000000CalV</fullName>
+        <aiPluginUtterances>
+            <developerName>utterance_0_1773215992390</developerName>
+            <language>en_US</language>
+            <masterLabel>utterance_0_1773215992390</masterLabel>
+            <utterance>assign activity to me</utterance>
+        </aiPluginUtterances>
+        <canEscalate>false</canEscalate>
+        <description>Assist users in locating specific shutdown activity records and assigning them to designated users within the system.</description>
+        <developerName>Assign_Activity_to_a_user_16jIg000000CalV</developerName>
+        <genAiPluginInstructions>
+            <description>identify the specific shutdown activity record by the user criteria such as date, activity subtype, status and subject. always order the list by descending activity number.
+show the user the list of activities and include the activity number, subcategory, date, subject</description>
+            <developerName>instructions_0_1773216296217</developerName>
+            <language>en_US</language>
+            <masterLabel>instructions_0_1773216296217</masterLabel>
+            <sortOrder>0</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>when the user asks to assign the activity, you need to identify the User record by the given user name.
+when the user asks to assign to themselves (or myself), you need to ask for the user name.
+update the shutdown activity records by setting the assigned supervisor field to the specified user.</description>
+            <developerName>instruction_1</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 1</masterLabel>
+            <sortOrder>1</sortOrder>
+        </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>if the user identifies more than one record , then you need to execute &apos;update record&apos; for each record in the list.</description>
+            <developerName>instruction_2</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Instruction 2</masterLabel>
+            <sortOrder>2</sortOrder>
+        </genAiPluginInstructions>
+        <language>en_US</language>
+        <localActionLinks>
+            <functionName>UpdateRecordFields_179Ig000000wlRJ</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>QueryRecords_179Ig000000wlRJ</functionName>
+        </localActionLinks>
+        <localActions>
+            <fullName>QueryRecords_179Ig000000wlRJ</fullName>
+            <description>Finds and retrieves Salesforce CRM records based on user input and specific conditions, such as field values. This action automatically identifies the correct records and object type. e.g. &apos;Find all open opportunities created in the last 5 days sorted by created date.&apos;</description>
+            <developerName>QueryRecords_179Ig000000wlRJ</developerName>
+            <invocationTarget>queryRecords</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>QueryRecords</localDeveloperName>
+            <masterLabel>Query Records</masterLabel>
+            <source>EmployeeCopilot__QueryRecords</source>
+        </localActions>
+        <localActions>
+            <fullName>UpdateRecordFields_179Ig000000wlRJ</fullName>
+            <description>Updates fields on a Salesforce CRM record. The action ExtractFieldsAndValuesFromUserInput must be called prior to this action to extract the record&apos;s fields and values.</description>
+            <developerName>UpdateRecordFields_179Ig000000wlRJ</developerName>
+            <invocationTarget>einsteinCopilotUpdateRecord</invocationTarget>
+            <invocationTargetType>standardInvocableAction</invocationTargetType>
+            <isConfirmationRequired>true</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>UpdateRecordFields</localDeveloperName>
+            <masterLabel>Update Record</masterLabel>
+            <progressIndicatorMessage>Making updates</progressIndicatorMessage>
+            <source>EmployeeCopilot__UpdateRecordFields</source>
+        </localActions>
+        <localDeveloperName>Assign_Activity_to_a_user</localDeveloperName>
+        <masterLabel>Assign Activity to a user</masterLabel>
+        <pluginType>Topic</pluginType>
+        <scope>your job is to update shutdown activity records and assign to designated users</scope>
+    </localTopics>
+    <masterLabel>Rio Tinto Shutdown Agent</masterLabel>
+    <plannerActions>
+        <fullName>AnswerQuestionsWithKnowledge_16jIg000000CalV</fullName>
+        <description>Answers questions about company policies and procedures, troubleshooting steps, or product information. For example: “What is your return policy?” “How do I fix an issue?” or “What features does a product have?”</description>
+        <developerName>AnswerQuestionsWithKnowledge_16jIg000000CalV</developerName>
+        <invocationTarget>streamKnowledgeSearch</invocationTarget>
+        <invocationTargetType>standardInvocableAction</invocationTargetType>
+        <isConfirmationRequired>false</isConfirmationRequired>
+        <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+        <localDeveloperName>AnswerQuestionsWithKnowledge</localDeveloperName>
+        <masterLabel>Answer Questions with Knowledge</masterLabel>
+        <progressIndicatorMessage>Getting answers</progressIndicatorMessage>
+        <source>EmployeeCopilot__AnswerQuestionsWithKnowledge</source>
+    </plannerActions>
+    <plannerSurfaces>
+        <adaptiveResponseAllowed>true</adaptiveResponseAllowed>
+        <callRecordingAllowed>false</callRecordingAllowed>
+        <surface>SurfaceAction__Messaging</surface>
+        <surfaceType>Messaging</surfaceType>
+    </plannerSurfaces>
+    <plannerSurfaces>
+        <adaptiveResponseAllowed>true</adaptiveResponseAllowed>
+        <callRecordingAllowed>false</callRecordingAllowed>
+        <outboundRouteConfigs>
+            <escalationMessage>I&apos;m transferring you now to human support, please hold.</escalationMessage>
+            <outboundRouteName>SDO_SFS_Route_to_Messaging_Queue</outboundRouteName>
+            <outboundRouteType>OmniChannelFlow</outboundRouteType>
+        </outboundRouteConfigs>
+        <surface>SurfaceAction__NextGenChat</surface>
+        <surfaceType>NextGenChat</surfaceType>
+    </plannerSurfaces>
+    <plannerType>AiCopilot__ReAct</plannerType>
+    <ruleExpressionAssignments>
+        <ruleExpressionName>SupervisorOnly</ruleExpressionName>
+        <targetName>Activity_Information_Query_16jIg000000CalV</targetName>
+        <targetType>Plugin</targetType>
+    </ruleExpressionAssignments>
+    <ruleExpressionAssignments>
+        <ruleExpressionName>SupervisorOnly</ruleExpressionName>
+        <targetName>Work_Delay_Logging_16jIg000000CalV</targetName>
+        <targetType>Plugin</targetType>
+    </ruleExpressionAssignments>
+    <ruleExpressions>
+        <conditions>
+            <leftOperand>VerifiedCustomerId</leftOperand>
+            <leftOperandType>Variable</leftOperandType>
+            <operator>notEqual</operator>
+            <rightOperandValue>123</rightOperandValue>
+        </conditions>
+        <expressionLabel>SupervisorOnly</expressionLabel>
+        <expressionName>SupervisorOnly</expressionName>
+        <expressionType>sel</expressionType>
+    </ruleExpressions>
+</GenAiPlannerBundle>

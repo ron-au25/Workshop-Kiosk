@@ -1,0 +1,187 @@
+<template>
+    <template lwc:if={hasBlocks}>
+        <div class="rb-wrap">
+            <template for:each={view} for:item="b">
+                <div key={b.key} class="rb-block">
+                    <template lwc:if={b.title}>
+                        <div class="rb-title">{b.title}</div>
+                    </template>
+
+                    <!-- KPI cards -->
+                    <template lwc:if={b.isKpi}>
+                        <div class="rb-kpi-row">
+                            <template for:each={b.kpiItems} for:item="k">
+                                <div key={k.key} class="rb-kpi">
+                                    <div class="rb-kpi-value" style={k.accentStyle}>
+                                        {k.value}<span class="rb-kpi-unit">{k.unit}</span>
+                                    </div>
+                                    <div class="rb-kpi-label">{k.label}</div>
+                                    <div class="rb-kpi-bar" style={k.accentBg}></div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Table -->
+                    <template lwc:elseif={b.isTable}>
+                        <div class="rb-controls">
+                            <input type="search" class="rb-filter-input" placeholder="Filter rows…"
+                                   value={b.searchValue} data-bi={b.idx}
+                                   oninput={handleSearch} onkeydown={stopKeydown} />
+                            <span class="rb-count">{b.rowCount} rows</span>
+                        </div>
+                        <div class="rb-table-scroll">
+                            <table class="rb-table">
+                                <thead>
+                                    <tr>
+                                        <template for:each={b.tableColumns} for:item="c">
+                                            <th key={c.key} class="rb-th-sort" data-bi={b.idx} data-col={c.idx}
+                                                onclick={handleSort}>{c.label}{c.sortIcon}</th>
+                                        </template>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={b.tableRows} for:item="r">
+                                        <tr key={r.key}>
+                                            <template for:each={r.cells} for:item="cell">
+                                                <td key={cell.key}>{cell.value}</td>
+                                            </template>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+                    <!-- Timeline -->
+                    <template lwc:elseif={b.isTimeline}>
+                        <div class="rb-controls">
+                            <select class="rb-filter-select" data-bi={b.idx} onchange={handleTimelineType}>
+                                <template for:each={b.tlTypeOptions} for:item="opt">
+                                    <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
+                                </template>
+                            </select>
+                            <input type="number" min="1" class="rb-filter-num" placeholder="Last N"
+                                   value={b.tlMax} data-bi={b.idx}
+                                   oninput={handleTimelineMax} onkeydown={stopKeydown} />
+                            <input type="search" class="rb-filter-input" placeholder="Search…"
+                                   value={b.searchValue} data-bi={b.idx}
+                                   oninput={handleSearch} onkeydown={stopKeydown} />
+                            <span class="rb-count">{b.eventCount}</span>
+                            <button class="rb-clear" data-bi={b.idx} onclick={handleClearFilters} title="Reset filters">↺</button>
+                        </div>
+                        <div class="rb-timeline">
+                            <template for:each={b.timelineEvents} for:item="e">
+                                <div key={e.key} class="rb-tl-item">
+                                    <span class="rb-tl-dot" style={e.dotStyle}></span>
+                                    <div class="rb-tl-content">
+                                        <div class="rb-tl-head">
+                                            <span class="rb-tl-title">{e.title}</span>
+                                            <template lwc:if={e.hasStatus}>
+                                                <span class="rb-tl-status">{e.status}</span>
+                                            </template>
+                                        </div>
+                                        <template lwc:if={e.date}>
+                                            <div class="rb-tl-date">{e.date}</div>
+                                        </template>
+                                        <template lwc:if={e.hasDesc}>
+                                            <div class="rb-tl-desc">{e.description}</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Chart -->
+                    <template lwc:elseif={b.isChart}>
+                        <svg class="rb-chart" viewBox={b.viewBox} width="100%" preserveAspectRatio="xMidYMid meet">
+                            <template lwc:if={b.isBar}>
+                                <template for:each={b.bars} for:item="bar">
+                                    <rect key={bar.key} x={bar.x} y={bar.y} width={bar.w} height={bar.h}
+                                          rx="3" style={bar.fillStyle}></rect>
+                                    <text key={bar.key} x={bar.labelX} y={bar.labelY} class="rb-axis-label"
+                                          text-anchor="middle">{bar.label}</text>
+                                </template>
+                            </template>
+                            <template lwc:elseif={b.isLine}>
+                                <polyline points={b.polyline} class="rb-line" style={b.lineStyle}></polyline>
+                                <template for:each={b.linePoints} for:item="p">
+                                    <circle key={p.key} cx={p.x} cy={p.y} r="4" style={b.dotStyle}></circle>
+                                    <text key={p.key} x={p.labelX} y={p.labelY} class="rb-axis-label"
+                                          text-anchor="middle">{p.label}</text>
+                                </template>
+                            </template>
+                            <template lwc:elseif={b.isPie}>
+                                <template for:each={b.slices} for:item="s">
+                                    <path key={s.key} d={s.d} style={s.fillStyle}></path>
+                                </template>
+                            </template>
+                        </svg>
+                        <!-- legend (click to toggle a series on/off) -->
+                        <div class="rb-legend">
+                            <template for:each={b.legend} for:item="lg">
+                                <span key={lg.key} class={lg.cssClass} data-bi={b.idx} data-label={lg.label}
+                                      onclick={handleLegendToggle}>
+                                    <span class="rb-legend-swatch" style={lg.swatchStyle}></span>{lg.label}
+                                </span>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- Calendar -->
+                    <template lwc:elseif={b.isCalendar}>
+                        <div class="rb-cal">
+                            <div class="rb-cal-month">{b.calMonthName}</div>
+                            <div class="rb-cal-grid">
+                                <template for:each={b.calWeekdays} for:item="w">
+                                    <div key={w.key} class="rb-cal-wd">{w.label}</div>
+                                </template>
+                                <template for:each={b.calCells} for:item="cell">
+                                    <div key={cell.key} class="rb-cal-cell">
+                                        <template lwc:if={cell.blank}></template>
+                                        <template lwc:else>
+                                            <div class="rb-cal-day">{cell.day}</div>
+                                            <template lwc:if={cell.hasEvents}>
+                                                <template for:each={cell.events} for:item="ev">
+                                                    <div key={ev.key} class="rb-cal-ev" title={ev.label}>{ev.label}</div>
+                                                </template>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Carousel -->
+                    <template lwc:elseif={b.isCarousel}>
+                        <div class="rb-controls">
+                            <input type="search" class="rb-filter-input" placeholder="Filter cards…"
+                                   value={b.searchValue} data-bi={b.idx}
+                                   oninput={handleSearch} onkeydown={stopKeydown} />
+                        </div>
+                        <div class="rb-carousel">
+                            <template for:each={b.carouselCards} for:item="c">
+                                <div key={c.key} class="rb-card">
+                                    <template lwc:if={c.hasImage}>
+                                        <img src={c.imageUrl} alt={c.title} class="rb-card-img" />
+                                    </template>
+                                    <div class="rb-card-body">
+                                        <div class="rb-card-title">{c.title}</div>
+                                        <template lwc:if={c.hasSubtitle}>
+                                            <div class="rb-card-sub">{c.subtitle}</div>
+                                        </template>
+                                        <template lwc:if={c.hasCaption}>
+                                            <div class="rb-card-cap">{c.caption}</div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </template>
+</template>

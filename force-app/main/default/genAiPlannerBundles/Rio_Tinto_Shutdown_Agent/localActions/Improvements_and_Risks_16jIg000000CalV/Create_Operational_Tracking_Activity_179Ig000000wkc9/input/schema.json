@@ -1,0 +1,56 @@
+{
+  "required" : [ "activitySubcategory", "description", "durationHours", "equipmentLocation", "labourCount", "reasonCategory", "shift" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "activitySubcategory" : {
+      "title" : "Activity Subcategory",
+      "description" : "Job Delay, Startup Watchlist, or Commissioning Issue",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "description" : {
+      "title" : "Description",
+      "description" : "Description of the operational issue",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "durationHours" : {
+      "title" : "Duration (Hours)",
+      "description" : "Duration in hours",
+      "lightning:type" : "lightning__numberType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "equipmentLocation" : {
+      "title" : "Equipment Location",
+      "description" : "Location of equipment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "labourCount" : {
+      "title" : "Labour Count",
+      "description" : "Number of workers",
+      "lightning:type" : "lightning__integerType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "reasonCategory" : {
+      "title" : "Reason Category",
+      "description" : "Reason for delay or issue",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "shift" : {
+      "title" : "Shift",
+      "description" : "DS or NS",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

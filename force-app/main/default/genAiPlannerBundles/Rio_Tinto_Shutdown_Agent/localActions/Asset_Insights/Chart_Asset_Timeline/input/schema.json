@@ -1,0 +1,13 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "workOrderId" : { "title" : "Work Order Id", "description" : "Current work order Salesforce id. Pass currentRecordId when the user does not name a wagon or work order.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "assetId" : { "title" : "Asset Id", "description" : "Optional wagon or wheelset Asset id.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "wagonNumber" : { "title" : "Wagon Number", "description" : "Optional wagon number to target.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "maxItems" : { "title" : "Max Items", "description" : "Maximum number of timeline entries to return. Set this from the user's request, e.g. 'last 5' or 'show 10' becomes 5 or 10. Leave blank for no limit.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "dateRangeDays" : { "title" : "Date Range Days", "description" : "Look-back window in days. Set from phrases like 'last 30 days' becomes 30, 'past week' becomes 7, 'last 3 months' becomes 90. Leave blank for all time.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "eventType" : { "title" : "Event Type Filter", "description" : "Filter the timeline. Set to 'measure' when the user wants only measures or inspection readings, or 'workorder' when they want only work orders. Leave blank to show both.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "month" : { "title" : "Month", "description" : "Optional calendar month as YYYY-MM.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false }
+  },
+  "lightning:type" : "lightning__objectType"
+}

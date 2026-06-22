@@ -7,6 +7,16 @@
         <apexClass>KioskController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>KioskAgentforceController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+
+    <!-- Allows the supervisor to use the Agentforce_API named credential (Agent API callouts) -->
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>Agentforce_API-KioskAgentPrincipal</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
 
     <objectPermissions>
         <allowCreate>false</allowCreate>

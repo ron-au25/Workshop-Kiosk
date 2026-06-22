@@ -1,0 +1,7 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "message" : { "title" : "Message", "description" : "Prose plus an agent-blocks carousel rendered by the kiosk. Relay verbatim.", "lightning:type" : "lightning__richTextType", "copilotAction:isDisplayable" : true, "copilotAction:isUsedByPlanner" : true }
+  },
+  "lightning:type" : "lightning__objectType"
+}

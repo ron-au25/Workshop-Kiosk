@@ -1,0 +1,14 @@
+{
+  "required" : [ "statusFilter" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "statusFilter" : {
+      "title" : "Status Filter",
+      "description" : "Filter: Open, Completed, Overdue, or All (default)",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

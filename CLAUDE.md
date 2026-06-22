@@ -118,6 +118,21 @@ Screen flows are launched via a pub/sub bridge rather than a direct LWC import:
 
 **Deployment order**: deploy the message channel first (`messageChannels/`), then `aura/flowHost`, then the LWCs that publish to it.
 
+### Agentforce assistant (chat on the kiosk)
+
+The `agentforceChat` LWC talks to the **`Rio_Tinto_Shutdown_Agent`** ("Supervisor Agent", Bot id `0XxIg0000008SDSKA2`) through the **Agent API**, mediated by `KioskAgentforceController`:
+
+- **Runs as the supervisor** (a real SF user), not the worker. Workers aren't SF users, so the standard drop-in Agentforce/Embedded-Messaging components can't scope to them — the call is server-side from Apex instead.
+- **Auth**: `KioskAgentforceController` calls out via the `Agentforce_API` Named Credential (OAuth client-credentials → External Client App "Workshop Client App", run-as supervisor). The token must be **JWT** and the EC scope field must be **empty**; `bypassUser:false`. Full setup + the 5 gotchas are in `Workshop Files/Agentforce Kiosk - Setup Guide.md`.
+- **Endpoints**: `POST /einstein/ai-agent/v1/agents/{agentId}/sessions`, `POST .../sessions/{id}/messages`, `DELETE .../sessions/{id}`. Host `https://api.salesforce.com`.
+- **Current work order context**: `sendMessage(token, text, seq, workOrderId)` resolves the WO (number/subject/status/wagon) and injects it into every message + as `Current_Work_Order` variables, so "this work order" works and follows the user as they switch orders.
+
+**Rich responses (`agent-blocks`)**: agent replies can carry a fenced ` ```agent-blocks {"blocks":[...]} ``` `. `RenderBlocks.cls` extracts it (or heuristically parses markdown tables / activity lists), `KioskAgentforceController` returns it as `AgentReply.blocksJson`, and `agentRichBlocks` renders KPI/table/timeline/chart(bar/line/pie/donut, inline SVG)/calendar/carousel. Schema: `Workshop Files/Agentforce Rich Blocks - Schema.md`.
+
+**Agent chart actions**: `KioskBlocks.cls` holds the logic for 8 visualizations; 8 thin `AgentAction*` classes expose them as `@InvocableMethod`s (one invocable per class — a Salesforce limit). They're wired into the **Asset Insights** topic in `genAiPlannerBundles/Rio_Tinto_Shutdown_Agent/...`, each `invocationTargetType=apex` with `localActions/Asset_Insights/<Action>/{input,output}/schema.json`. The actions build blocks deterministically (numbers computed in Apex) and return them in the displayable `message` output.
+
+**Deploying the agent bundle**: the agent can't be updated while **Active** — `sf agent deactivate --api-name Rio_Tinto_Shutdown_Agent` → `sf project deploy start -d <bundle>` → `sf agent activate ...`. This briefly interrupts live agent users.
+
 ## Gotchas & lessons learned
 
 Hard-won fixes from past sessions — check here before re-debugging.
@@ -182,3 +197,29 @@ import won't render. Use a real `<img src={resourceUrl}>` (see `assetReview` wag
 `sf project deploy start … --json` piped to a small python parser gives a clean status; the streaming text
 output spams spinner frames that defeat `grep`. The stale `KioskControllerTest` runs on every full deploy
 (SeeAllData) — deploy targeted paths (`-d <class> -d <lwc>`) for fast iteration, full `force-app` to validate.
+
+### Apex reserved/case-insensitive identifier clashes
+Apex is case-insensitive, so a local variable named `json` collides with the `System.JSON` class →
+`Method does not exist … from the type String` on `JSON.serialize`/`deserializeUntyped`. Likewise `desc`
+is reserved (`Identifier name is reserved: desc`) and `inner` is reserved. Don't name vars `json`, `desc`,
+or `inner` — use `rawJson`/`fenced`, `descr`, `body`. (Hit while building `RenderBlocks`/`KioskBlocks`.)
+
+### One `@InvocableMethod` per Apex class
+Salesforce allows only a single `@InvocableMethod` per class. To expose N agent actions, put the logic in
+one helper class (`KioskBlocks`) and create N thin wrapper classes each with one `@InvocableMethod`
+delegating to it (`AgentAction*`). Share the `@InvocableVariable` request/response types across wrappers.
+
+### Agent (GenAiPlannerBundle) wiring
+- Each action needs its OWN `<localActionLinks><functionName>…</functionName></localActionLinks>` — you
+  cannot list multiple `<functionName>` in one `<localActionLinks>` (deploy error: "Element functionName is
+  duplicated"). Apex actions use `<invocationTargetType>apex</invocationTargetType>` +
+  `<invocationTarget>ClassName</invocationTarget>`, with `localActions/<Topic>/<Action>/{input,output}/schema.json`.
+- The bundle can't deploy while the agent is **Active** ("Cannot update record as Agent is Active") —
+  `sf agent deactivate` → deploy → `sf agent activate`.
+
+### Agent API gotchas (token won't reach the agent)
+Empty HTTP 404 from `api.salesforce.com` = the OAuth token isn't a JWT (enable "Issue JWT access tokens"
+on the External Client App). `invalid_request: scope parameter not supported` = clear the External
+Credential's Scope field. `invalid_app_access` = set Permitted Users + Run-As on the ECA Policies tab.
+`Invalid user ID on start session` = use `bypassUser:false`. Full list in
+`Workshop Files/Agentforce Kiosk - Setup Guide.md`.

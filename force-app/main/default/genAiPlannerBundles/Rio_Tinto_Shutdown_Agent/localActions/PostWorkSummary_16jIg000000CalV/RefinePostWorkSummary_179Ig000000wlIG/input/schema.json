@@ -1,0 +1,29 @@
+{
+  "required" : [ "recordSummary", "refinementInstructions", "recordId" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "recordSummary" : {
+      "title" : "Record Summary",
+      "description" : "The rich text summary that was created for the specific work order record by the SummarizeRecord agent action in the plan. SummarizeRecord must be executed before executing this action.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "refinementInstructions" : {
+      "title" : "Refinement Instructions",
+      "description" : "Additional instructions provided by the user that must be added to the summary.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "recordId" : {
+      "title" : "Work Order ID",
+      "description" : "The ID of the work order that the summary needs to be refined for. Use any previous utterance in the conversation or the user utterance and record summary to call the IdentifyRecordByName action to find the ID.",
+      "lightning:type" : "lightning__recordIdType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}

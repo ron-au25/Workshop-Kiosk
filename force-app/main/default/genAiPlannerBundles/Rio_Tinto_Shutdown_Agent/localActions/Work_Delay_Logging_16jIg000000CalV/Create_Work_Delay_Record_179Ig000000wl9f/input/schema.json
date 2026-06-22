@@ -1,0 +1,42 @@
+{
+  "required" : [ "userInput", "workOrderId" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "description" : {
+      "title" : "Description",
+      "description" : "Optional. Explicit delay description. Only used when userInput is blank.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "isCritical" : {
+      "title" : "Is Critical",
+      "description" : "Optional. Explicit critical flag. Only used when userInput is blank. The LLM detects this automatically when userInput is provided.",
+      "lightning:type" : "lightning__booleanType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "reasonCode" : {
+      "title" : "Delay Reason Code",
+      "description" : "Optional. Explicit Delay_Reason__c picklist value. Only used when userInput is blank. Values: \"1, Plant not in agreed condition\" | \"2, Permit Not Available\" | \"3, Insufficient Capacity Available\" | \"4, Materials Not Available\" | \"5, Correct Tooling Unavailable\" | \"6, External Labour Not Available\" | \"7, Cranage Unavailable\" | \"8, Access Staging / Equipment Unavailable\" | \"9, Task Conflicts\" | \"10, Work Took Longer than Planned\" | \"11, Unscheduled Work\" | \"12, Inclement Weather\" | \"13, Higher priority work took Preference\" | \"14, Services not Available\" | \"16, Work Cancelled\"",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "userInput" : {
+      "title" : "User Input",
+      "description" : "The user's raw natural-language description of the delay (e.g. \"Crane is down, can't lift the vessel. Urgent.\"). When provided, the LLM generates the title, description, reason code, and critical flag automatically.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "workOrderId" : {
+      "title" : "Work Order ID",
+      "description" : "Salesforce record ID of the Work Order experiencing the delay. Ask the user which work order they are working on if not already known.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

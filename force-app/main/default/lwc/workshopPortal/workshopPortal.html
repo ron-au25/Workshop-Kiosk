@@ -133,6 +133,12 @@
                 </main>
             </div>
 
+            <!-- Agentforce assistant (runs as the supervisor); floats over all in-app screens -->
+            <c-agentforce-chat
+                supervisor-name={supervisorName}
+                work-order-id={selectedWorkOrderId}
+            ></c-agentforce-chat>
+
             <template lwc:if={showIdleWarning}>
                 <div class="idle-overlay" role="alertdialog" aria-label="Session timeout warning">
                     <div class="idle-card">

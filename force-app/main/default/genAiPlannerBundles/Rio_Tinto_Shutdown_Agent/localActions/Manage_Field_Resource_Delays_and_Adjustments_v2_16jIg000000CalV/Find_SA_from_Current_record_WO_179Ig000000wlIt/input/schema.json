@@ -1,0 +1,28 @@
+{
+  "required" : [ "CurrentRecordId", "currentObjectApiName" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "CurrentRecordId" : {
+      "title" : "CurrentRecordId",
+      "description" : "The current record that the user is using. work order or service appointment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "ServiceResourceID" : {
+      "title" : "ServiceResourceID",
+      "description" : "Salesforce ID of the Service Resource whose schedule needs to be optimized",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "currentObjectApiName" : {
+      "title" : "currentObjectApiName",
+      "description" : "the current object API Name",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

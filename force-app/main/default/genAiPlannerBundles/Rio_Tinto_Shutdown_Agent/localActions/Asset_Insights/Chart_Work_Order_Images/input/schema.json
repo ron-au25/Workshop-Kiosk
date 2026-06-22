@@ -1,0 +1,7 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "workOrderId" : { "title" : "Work Order Id", "description" : "Work order whose hierarchy (itself, child work orders, line items, measures) is scanned for image attachments. Pass currentRecordId when the user does not name one.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false }
+  },
+  "lightning:type" : "lightning__objectType"
+}

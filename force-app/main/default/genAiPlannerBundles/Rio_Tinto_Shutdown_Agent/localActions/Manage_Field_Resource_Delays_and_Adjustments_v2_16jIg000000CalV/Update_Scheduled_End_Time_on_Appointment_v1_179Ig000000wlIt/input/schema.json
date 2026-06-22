@@ -1,0 +1,23 @@
+{
+  "required" : [ "DelayedServiceAppointmentID", "TimeDelayInMins" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "DelayedServiceAppointmentID" : {
+      "title" : "DelayedServiceAppointmentID",
+      "description" : "Salesforce ID/Record Id of the Service Appointment record that has been delayed",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "TimeDelayInMins" : {
+      "title" : "TimeDelayInMins",
+      "description" : "Total time delay in minutes",
+      "multipleOf" : 1.0E-34,
+      "lightning:type" : "lightning__numberType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : true
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}

@@ -1,0 +1,87 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "description" : {
+      "title" : "Description",
+      "description" : "The description that was saved to the Work Delay record.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "isCritical" : {
+      "title" : "Is Critical",
+      "description" : "True if the delay was flagged as critical.",
+      "lightning:type" : "lightning__booleanType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "llmUsed" : {
+      "title" : "LLM Used",
+      "description" : "True if the Prompt Template was successfully used to parse the input.",
+      "lightning:type" : "lightning__booleanType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "llmWarning" : {
+      "title" : "LLM Warning",
+      "description" : "Populated when LLM parsing was attempted but failed, and keyword fallback was used instead.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "message" : {
+      "title" : "Message",
+      "description" : "Human-readable confirmation or error message to relay back to the user.",
+      "lightning:type" : "lightning__richTextType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : true,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "reasonCode" : {
+      "title" : "Reason Code Used",
+      "description" : "The Delay_Reason__c picklist value applied to the record.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : true,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "success" : {
+      "title" : "Success",
+      "description" : "True if the Work Delay was created successfully.",
+      "lightning:type" : "lightning__booleanType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "workDelayId" : {
+      "title" : "Work Delay ID",
+      "description" : "Salesforce record ID of the created Work_Delay__c record.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "workDelayName" : {
+      "title" : "Work Delay Name",
+      "description" : "Short title (Name__c) given to the Work Delay record.",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : true,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

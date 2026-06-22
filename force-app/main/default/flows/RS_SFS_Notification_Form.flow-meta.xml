@@ -201,6 +201,72 @@
             <stringValue>5</stringValue>
         </value>
     </choices>
+    <choices>
+        <name>prioImmediate</name>
+        <choiceIcon>
+            <iconName>utility:warning</iconName>
+        </choiceIcon>
+        <choiceText>Immediate</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Immediate</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>prioCurrentWeek</name>
+        <choiceIcon>
+            <iconName>utility:clock</iconName>
+        </choiceIcon>
+        <choiceText>Current Schd Week</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Current Schd Week</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>prioNextWeek</name>
+        <choiceIcon>
+            <iconName>utility:date_input</iconName>
+        </choiceIcon>
+        <choiceText>Next Schd Week</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Next Schd Week</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>prio2ndWeek</name>
+        <choiceIcon>
+            <iconName>utility:event</iconName>
+        </choiceIcon>
+        <choiceText>2nd Schd Week</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>2nd Schd Week</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>prio3rdWeek</name>
+        <choiceIcon>
+            <iconName>utility:events</iconName>
+        </choiceIcon>
+        <choiceText>3rd Schd Week</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>3rd Schd Week</stringValue>
+        </value>
+    </choices>
+    <choices>
+        <name>prioFutureWork</name>
+        <choiceIcon>
+            <iconName>utility:forward</iconName>
+        </choiceIcon>
+        <choiceText>Future Work</choiceText>
+        <dataType>String</dataType>
+        <value>
+            <stringValue>Future Work</stringValue>
+        </value>
+    </choices>
     <customProperties>
         <name>ScreenProgressIndicator</name>
         <value>
@@ -583,6 +649,7 @@
                     <dataType>String</dataType>
                     <fieldText>Notification Title</fieldText>
                     <fieldType>InputField</fieldType>
+                    <helpText>&lt;p&gt;A short, specific summary of the issue (e.g. &quot;Bogie 2 brake cylinder leaking&quot;). This becomes the Case subject.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -600,6 +667,7 @@
                     <dataType>String</dataType>
                     <fieldText>Functional Location</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;The asset / functional location (FLOC) where the fault was found. The list is filtered to assets on this work order&apos;s account.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -619,6 +687,7 @@
                     </defaultValue>
                     <fieldText>Reference Notification Number</fieldText>
                     <fieldType>InputField</fieldType>
+                    <helpText>&lt;p&gt;Pre-filled from the work order. Update only if this notification relates to a different SAP reference.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -641,6 +710,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -706,6 +781,7 @@
                     <dataType>String</dataType>
                     <fieldText>Functional Failure</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;How the asset failed to perform its function (e.g. will not start, runs hot, leaks). Select the closest SAP failure code.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -723,6 +799,7 @@
                     <dataType>String</dataType>
                     <fieldText>Main Work Center</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;The work center responsible for carrying out this work. Defaults to the team that owns the asset.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -745,6 +822,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -762,10 +845,16 @@
                 <fieldType>Region</fieldType>
                 <fields>
                     <name>Notification_Priority1</name>
-                    <choiceReferences>notiPriority</choiceReferences>
+                    <choiceReferences>prioImmediate</choiceReferences>
+                    <choiceReferences>prioCurrentWeek</choiceReferences>
+                    <choiceReferences>prioNextWeek</choiceReferences>
+                    <choiceReferences>prio2ndWeek</choiceReferences>
+                    <choiceReferences>prio3rdWeek</choiceReferences>
+                    <choiceReferences>prioFutureWork</choiceReferences>
                     <extensionName>flowruntime:visualPicker</extensionName>
                     <fieldText>Notification Priority</fieldText>
                     <fieldType>ComponentChoice</fieldType>
+                    <helpText>&lt;p&gt;How soon this notification needs to be actioned. Choose &lt;strong&gt;Immediate&lt;/strong&gt; only for safety-critical or breakdown situations; otherwise pick the scheduling window that best fits the work.&lt;/p&gt;</helpText>
                     <inputParameters>
                         <name>visualPickerSize</name>
                         <value>
@@ -788,6 +877,7 @@
                     <name>Detailed_description1</name>
                     <fieldText>Detailed description</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;Describe what happened, what you observed, and any immediate action taken. The more detail, the faster the planner can scope the work.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -803,6 +893,7 @@
                     <name>System_condition1</name>
                     <fieldText>System condition</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;The operating state of the system when the fault occurred (e.g. in service, isolated, under load, stationary).&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -825,6 +916,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -851,6 +948,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -872,6 +975,7 @@
                     <dataType>String</dataType>
                     <fieldText>BOM Parts</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;Select parts from the bill of materials you expect to need. Your selections build up the list below.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -908,6 +1012,7 @@
                     <name>Additional_Information1</name>
                     <fieldText>Additional Information</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;Anything else the planner or technician should know — access requirements, special tooling, permits, or safety notes.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -930,6 +1035,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -949,6 +1060,7 @@
                     <name>Object_part_description1</name>
                     <fieldText>Object part description</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;The specific component or part affected (e.g. wheelset bearing, brake shoe). Used for reliability analysis.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -966,6 +1078,7 @@
                     <dataType>String</dataType>
                     <fieldText>Damage Code</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;What physically went wrong with the part (e.g. cracked, leaking, overheated). Select the closest SAP damage code.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -981,6 +1094,7 @@
                     <name>Damage_Code_Description1</name>
                     <fieldText>Damage Code Description</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;Free-text detail on the damage, if the code alone doesn&apos;t capture it.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -998,6 +1112,7 @@
                     <dataType>String</dataType>
                     <fieldText>Cause Code</fieldText>
                     <fieldType>DropdownBox</fieldType>
+                    <helpText>&lt;p&gt;The underlying reason the damage occurred (e.g. wear and tear, lubrication, accidental damage). Select the closest SAP cause code.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -1013,6 +1128,7 @@
                     <name>Cause_Description1</name>
                     <fieldText>Cause Description</fieldText>
                     <fieldType>LargeTextArea</fieldType>
+                    <helpText>&lt;p&gt;Free-text detail on the root cause, if the code alone doesn&apos;t capture it.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -1035,6 +1151,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>
@@ -1055,6 +1177,7 @@
                     <dataType>Date</dataType>
                     <fieldText>Expected completion date</fieldText>
                     <fieldType>InputField</fieldType>
+                    <helpText>&lt;p&gt;When you expect or require this work to be completed. Used by planning to prioritise the notification.&lt;/p&gt;</helpText>
                     <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
                     <isRequired>false</isRequired>
                     <styleProperties>
@@ -1077,6 +1200,12 @@
             <isRequired>false</isRequired>
             <regionContainerType>SectionWithHeader</regionContainerType>
             <styleProperties>
+                <styleSettings>
+                    <propertyName>--flowruntime-c-section-background-color</propertyName>
+                    <propertyValue>
+                        <stringValue>#F4F7FA</stringValue>
+                    </propertyValue>
+                </styleSettings>
                 <verticalAlignment>
                     <stringValue>top</stringValue>
                 </verticalAlignment>

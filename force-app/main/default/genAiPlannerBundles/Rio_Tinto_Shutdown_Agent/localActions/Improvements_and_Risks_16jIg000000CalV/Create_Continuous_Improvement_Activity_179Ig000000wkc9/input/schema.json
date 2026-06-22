@@ -1,0 +1,56 @@
+{
+  "required" : [ "activitySubcategory", "criticalRisk", "description" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "activitySubcategory" : {
+      "title" : "Activity Subcategory",
+      "description" : "Risk or Opportunity, or Continuous Improvement",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "criticalRisk" : {
+      "title" : "Critical Risk",
+      "description" : "Identify the risk reason",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "description" : {
+      "title" : "Description",
+      "description" : "Description of the improvement or risk",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "equipmentLocation" : {
+      "title" : "Equipment Location",
+      "description" : "Location of equipment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "improvementType" : {
+      "title" : "Improvement Type",
+      "description" : "What we did well or What we can do better",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "riskOpportunityType" : {
+      "title" : "Risk/Opportunity Type",
+      "description" : "Risk or Opportunity",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "shift" : {
+      "title" : "Shift",
+      "description" : "DS or NS",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType"
+}

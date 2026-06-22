@@ -1,0 +1,29 @@
+{
+  "required" : [ "DelayedServiceAppointmentID", "FsaiMetricID", "ServiceResourceID" ],
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "DelayedServiceAppointmentID" : {
+      "title" : "DelayedServiceAppointmentID",
+      "description" : "Salesforce ID/Record Id of the Service Appointment record that has been delayed and should be excluded from optimization",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "FsaiMetricID" : {
+      "title" : "FsaiMetricID",
+      "description" : "ID of the FSAI metric created",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    },
+    "ServiceResourceID" : {
+      "title" : "ServiceResourceID",
+      "description" : "Salesforce ID of the Service Resource whose schedule needs to be optimized",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isUserInput" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}

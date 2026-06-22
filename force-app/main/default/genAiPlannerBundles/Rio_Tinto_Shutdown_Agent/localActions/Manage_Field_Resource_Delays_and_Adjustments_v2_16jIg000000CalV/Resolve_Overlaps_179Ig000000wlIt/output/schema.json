@@ -1,0 +1,43 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "OptimizationRequestID" : {
+      "title" : "OptimizationRequestID",
+      "description" : "Salesforce ID of the optimization request",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : false,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "ResponseErrorType" : {
+      "title" : "ResponseErrorType",
+      "description" : "If the optimization request failed then it stores the response error type",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : false,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "ResponseIsSuccess" : {
+      "title" : "ResponseIsSuccess",
+      "description" : "Indicates where the optimization request was successful or not",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : false,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "ResponseMessage" : {
+      "title" : "ResponseMessage",
+      "description" : "Stores the response message",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}

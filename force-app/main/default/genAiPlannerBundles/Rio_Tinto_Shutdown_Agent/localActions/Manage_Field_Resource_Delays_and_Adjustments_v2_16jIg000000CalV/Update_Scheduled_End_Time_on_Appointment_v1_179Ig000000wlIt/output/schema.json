@@ -1,0 +1,88 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "DelayedAppointmentStatus" : {
+      "title" : "DelayedAppointmentStatus",
+      "description" : "Status of the appointment that is delayed",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "DelayedServiceAppointmentID" : {
+      "title" : "DelayedServiceAppointmentID",
+      "description" : "Salesforce ID/Record Id of the Service Appointment record that has been delayed",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "FsaiMetricID" : {
+      "title" : "FsaiMetricID",
+      "description" : "ID of the FSAI metric created",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "IsOptimizable" : {
+      "title" : "IsOptimizable",
+      "description" : "Indicates where the schedule is optimizable or not",
+      "lightning:type" : "lightning__booleanType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "OutputMessage" : {
+      "title" : "OutputMessage",
+      "description" : "Output message for the user",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "RemainingAppointmentInformation" : {
+      "title" : "RemainingAppointmentInformation",
+      "description" : "Details about the remaining appointments for the rest of the day. It also indicates whether there are any overlaps with the existing appointment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "UpdatedScheduledEndDateTimeText" : {
+      "title" : "UpdatedScheduledEndDateTimeText",
+      "description" : "Updated scheduled end date and time of the appointment adjusted with the estimated delay",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "UpdatedScheduledStartDateTime" : {
+      "title" : "UpdatedScheduledStartDateTime",
+      "description" : "Updated scheduled start date and time of the appointment adjusted with the estimated delay",
+      "lightning:type" : "lightning__dateTimeStringType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    },
+    "serviceResourceId" : {
+      "title" : "serviceResourceId",
+      "description" : "Resource Id of the field service resource assigned to the appointment",
+      "lightning:type" : "lightning__textType",
+      "lightning:isPII" : false,
+      "copilotAction:isDisplayable" : false,
+      "copilotAction:isUsedByPlanner" : true,
+      "copilotAction:useHydratedPrompt" : false
+    }
+  },
+  "lightning:type" : "lightning__objectType",
+  "lightning:textIndexed" : true
+}

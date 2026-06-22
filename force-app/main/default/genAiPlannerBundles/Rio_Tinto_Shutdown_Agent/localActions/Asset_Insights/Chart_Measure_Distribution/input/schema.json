@@ -1,0 +1,11 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "workOrderId" : { "title" : "Work Order Id", "description" : "Current work order Salesforce id. Pass currentRecordId when the user does not name a wagon or work order.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "assetId" : { "title" : "Asset Id", "description" : "Optional wagon or wheelset Asset id.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "wagonNumber" : { "title" : "Wagon Number", "description" : "Optional wagon number to target.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "dateRangeDays" : { "title" : "Date Range Days", "description" : "Optional look-back window in days.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "month" : { "title" : "Month", "description" : "Optional calendar month as YYYY-MM.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false }
+  },
+  "lightning:type" : "lightning__objectType"
+}

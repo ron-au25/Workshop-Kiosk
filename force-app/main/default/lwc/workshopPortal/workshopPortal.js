@@ -168,7 +168,15 @@ export default class WorkshopPortal extends LightningElement {
         this.selectedWorker = null;
         this.barcodeEmployeeId = null;
         this.showIdleWarning = false;
+        this._resetAgentChat();
         this.state = STATE.ROSTER;
+    }
+
+    // Clear/close the Agentforce conversation when a worker session ends,
+    // so the next worker doesn't inherit the previous chat.
+    _resetAgentChat() {
+        const chat = this.template.querySelector('c-agentforce-chat');
+        if (chat && typeof chat.reset === 'function') chat.reset();
     }
 
     handleEndSession() {

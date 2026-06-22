@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningMessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>Flow Launcher</masterLabel>
+    <isExposed>true</isExposed>
+    <description>Bridge between kiosk LWCs and the Aura flow host so screen flows run in a modal without a published page per flow.</description>
+    <lightningMessageFields>
+        <fieldName>messageType</fieldName>
+        <description>"open" (LWC -> Aura host) or "result" (Aura host -> LWC)</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>flowApiName</fieldName>
+        <description>API name of the screen flow to start</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>recordId</fieldName>
+        <description>Record id passed to the flow's "recordId" input variable</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>requestId</fieldName>
+        <description>Correlation id so the publisher can match the result to its request</description>
+    </lightningMessageFields>
+    <lightningMessageFields>
+        <fieldName>status</fieldName>
+        <description>On a "result" message: "success" or "cancel"</description>
+    </lightningMessageFields>
+</LightningMessageChannel>

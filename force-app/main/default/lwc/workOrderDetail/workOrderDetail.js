@@ -1,10 +1,11 @@
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
+import { publish, subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
+import FLOW_LAUNCHER from '@salesforce/messageChannel/FlowLauncher__c';
 import getWorkOrderDetail from '@salesforce/apex/KioskController.getWorkOrderDetail';
 import clockIn from '@salesforce/apex/KioskController.clockIn';
 import clockOut from '@salesforce/apex/KioskController.clockOut';
 import saveWorkOrderNotes from '@salesforce/apex/KioskController.saveWorkOrderNotes';
 import updateWorkStepStatus from '@salesforce/apex/KioskController.updateWorkStepStatus';
-import FlowModal from 'c/flowModal';
 
 const CAUSE_OPTIONS = [
     { value: '', label: '— Select —' },
@@ -70,6 +71,12 @@ export default class WorkOrderDetail extends LightningElement {
     _workOrderId;
     @api siteBaseUrl = '';
 
+    @wire(MessageContext) messageContext;
+    _flowSubscription;
+    _flowResolver = null;        // resolve() of the in-flight flow promise
+    _flowRequestId = null;       // correlation id for the in-flight flow
+    _flowSeq = 0;                // monotonic counter for unique request ids
+
     @track detail = null;
     @track isLoading = true;
     @track hasError = false;
@@ -91,7 +98,48 @@ export default class WorkOrderDetail extends LightningElement {
     @track showAssetReview = false;
     @track wpSidebarCollapsed = false;   // Rail Workpack: Operations + Work Plans sidebar
 
-    connectedCallback() { if (this._workOrderId) this.loadDetail(); }
+    connectedCallback() {
+        if (this._workOrderId) this.loadDetail();
+        if (!this._flowSubscription) {
+            this._flowSubscription = subscribe(
+                this.messageContext,
+                FLOW_LAUNCHER,
+                (msg) => this._handleFlowMessage(msg)
+            );
+        }
+    }
+
+    disconnectedCallback() {
+        if (this._flowSubscription) {
+            unsubscribe(this._flowSubscription);
+            this._flowSubscription = null;
+        }
+    }
+
+    // Result coming back from the Aura flow host.
+    _handleFlowMessage(msg) {
+        if (!msg || msg.messageType !== 'result') return;
+        if (!this._flowResolver || msg.requestId !== this._flowRequestId) return;
+        const resolve = this._flowResolver;
+        this._flowResolver = null;
+        this._flowRequestId = null;
+        resolve(msg.status === 'success' ? 'success' : 'cancel');
+    }
+
+    // Publishes a launch request and resolves when the host reports a result.
+    _launchFlow(flowApiName, recordId) {
+        const requestId = `${this._workOrderId || 'wo'}-${this._flowSeq++}`;
+        this._flowRequestId = requestId;
+        return new Promise((resolve) => {
+            this._flowResolver = resolve;
+            publish(this.messageContext, FLOW_LAUNCHER, {
+                messageType: 'open',
+                flowApiName,
+                recordId,
+                requestId,
+            });
+        });
+    }
 
     handleToggleWpSidebar() { this.wpSidebarCollapsed = !this.wpSidebarCollapsed; }
     get wpSidebarExpanded() { return !this.wpSidebarCollapsed; }
@@ -221,19 +269,20 @@ export default class WorkOrderDetail extends LightningElement {
     async handleStepClick(evt) {
         const stepId = evt.currentTarget.dataset.stepId;
         const actionDef = evt.currentTarget.dataset.actionDef;
+        // Drop focus from the triggering button before the modal overlay applies
+        // aria-hidden to the background. A focused element inside an aria-hidden
+        // ancestor is blocked by the browser (WAI-ARIA aria-hidden rule) and logs
+        // a console warning. Blurring first keeps focus out of the hidden subtree.
+        if (evt.currentTarget && typeof evt.currentTarget.blur === 'function') {
+            evt.currentTarget.blur();
+        }
         if (actionDef) {
             try {
                 await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'In Progress' });
                 this._updateStepStatusLocally(stepId, 'In Progress');
             } catch (e) { /* continue regardless */ }
 
-            const result = await FlowModal.open({
-                size: 'large',
-                description: 'Work Step Action',
-                flowApiName: actionDef,
-                workStepId: stepId,
-                siteBaseUrl: this.siteBaseUrl,
-            });
+            const result = await this._launchFlow(actionDef, stepId);
 
             if (result === 'success') {
                 try {

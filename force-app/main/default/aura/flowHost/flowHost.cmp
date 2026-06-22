@@ -1,0 +1,37 @@
+<aura:component implements="forceCommunity:availableForAllPageTypes" access="global" description="Hosts screen flows in a modal, launched via the FlowLauncher Lightning Message Channel. Lets LWCs run any flow inline without a published page per flow.">
+
+    <!-- Message channel bridge to/from the kiosk LWCs -->
+    <lightning:messageChannel type="FlowLauncher__c"
+                              aura:id="flowChannel"
+                              onMessage="{!c.handleMessage}"/>
+
+    <!-- State -->
+    <aura:attribute name="showModal" type="Boolean" default="false" access="private"/>
+    <aura:attribute name="flowApiName" type="String" access="private"/>
+    <aura:attribute name="flowInputs" type="Object[]" access="private"/>
+    <aura:attribute name="requestId" type="String" access="private"/>
+    <aura:attribute name="status" type="String" default="cancel" access="private"/>
+
+    <aura:if isTrue="{!v.showModal}">
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="flowHostHeading"
+                 class="slds-modal slds-fade-in-open slds-modal_large">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning:buttonIcon iconName="utility:close"
+                                          variant="bare-inverse"
+                                          alternativeText="Close"
+                                          class="slds-modal__close"
+                                          onclick="{!c.handleCancel}"/>
+                    <h2 id="flowHostHeading" class="slds-modal__title slds-hyphenate">Execute Work Step Action</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium flowHost-body">
+                    <aura:if isTrue="{!v.showModal}">
+                        <lightning:flow aura:id="flowRuntime" onstatuschange="{!c.handleFlowStatusChange}"/>
+                    </aura:if>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </aura:if>
+
+</aura:component>

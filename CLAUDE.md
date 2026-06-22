@@ -100,9 +100,23 @@ Custom field metadata files are in `force-app/main/default/objects/`.
 
 `KioskControllerTest.cls` uses `@IsTest(SeeAllData=true)` — a broken org Flow trigger blocks `ServiceTerritoryMember` inserts, so tests run against live org data. `setupWorker()` finds an existing `ServiceResource` by `Employee_Id__c` or falls back to the supervisor's own SR.
 
-### LWR site
+### Site platform
 
-Not yet scaffolded. The `experiences/` folder does not exist. The permission set (`Workshop_Kiosk_Supervisor.permissionset-meta.xml`) is deployed but the site shell is pending.
+The kiosk runs on an **Aura-based** Experience Cloud site (not LWR). This is important because `lightning:flow` (the Aura component for running Screen Flows in a modal) is not available in LWC or LWR — it requires Aura.
+
+### Flow activation (Aura host + Lightning Message Channel)
+
+Screen flows are launched via a pub/sub bridge rather than a direct LWC import:
+
+1. **`FlowLauncher__c` Lightning Message Channel** (`messageChannels/FlowLauncher.messageChannel-meta.xml`) — the shared bus. Fields: `messageType` (`open` | `result`), `flowApiName`, `recordId`, `requestId`, `status`.
+
+2. **`aura/flowHost`** — an Aura component (`implements="forceCommunity:availableForAllPageTypes"`) placed once on the Experience site page. It subscribes to `FlowLauncher__c`, renders a standard SLDS modal containing `lightning:flow`, starts the requested flow via `flow.startFlow(apiName, inputs)`, and publishes a `result` message (`success` or `cancel`) back on the channel when the flow finishes or is closed.
+
+3. **LWC side** (`workOrderDetail.js`) — imports `publish`/`subscribe` from `lightning/messageService` and `FLOW_LAUNCHER` from `@salesforce/messageChannel/FlowLauncher__c`. `_launchFlow(flowApiName, recordId)` returns a Promise: it publishes an `open` message with a unique `requestId`, stores the resolver, and resolves when the matching `result` message arrives.
+
+**Why not `c/flowModal`?** The old `c/flowModal` LWC used `LightningModal` (a platform modal base class) and constructed a direct `/flow/<name>` URL. This required a published Experience page per flow and didn't integrate with `lightning:flow`'s status events. The Aura host pattern eliminates both constraints and works in the Aura runtime.
+
+**Deployment order**: deploy the message channel first (`messageChannels/`), then `aura/flowHost`, then the LWCs that publish to it.
 
 ## Gotchas & lessons learned
 

@@ -3,11 +3,22 @@
 
         <div class="dashboard-topbar">
             <h2 class="dashboard-title">Workshop Dashboard</h2>
-            <button class="refresh-btn" onclick={handleRefresh} aria-label="Refresh dashboard" disabled={isLoading}>
-                <span class={refreshIconClass}>↻</span>
-                Refresh
-            </button>
+            <div class="topbar-actions">
+                <template lwc:if={isSupervisor}>
+                    <button class="gen-demo-btn" onclick={handleGenerateDemo} disabled={generatingDemo}>
+                        <span class={genDemoIconClass}>⚙</span>
+                        {genDemoLabel}
+                    </button>
+                </template>
+                <button class="refresh-btn" onclick={handleRefresh} aria-label="Refresh dashboard" disabled={isLoading}>
+                    <span class={refreshIconClass}>↻</span>
+                    Refresh
+                </button>
+            </div>
         </div>
+        <template lwc:if={demoFeedback}>
+            <p class={demoFeedbackClass}>{demoFeedback}</p>
+        </template>
 
         <!-- Date filter bar -->
         <div class="date-bar">

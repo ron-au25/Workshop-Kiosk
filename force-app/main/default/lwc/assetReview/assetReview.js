@@ -3,6 +3,8 @@ import WAGON_DIAGRAM from '@salesforce/resourceUrl/WagonDiagramTop';
 import getWagonAsset from '@salesforce/apex/KioskController.getWagonAsset';
 import getMeasurePointsByAsset from '@salesforce/apex/KioskController.getMeasurePointsByAsset';
 import getMeasurePoints from '@salesforce/apex/KioskController.getMeasurePoints';
+import getMeasureImages from '@salesforce/apex/KioskController.getMeasureImages';
+import uploadMeasureImage from '@salesforce/apex/KioskController.uploadMeasureImage';
 import saveMeasurePoint from '@salesforce/apex/KioskController.saveMeasurePoint';
 import getAssetTasks from '@salesforce/apex/KioskController.getAssetTasks';
 import createAssetTask from '@salesforce/apex/KioskController.createAssetTask';
@@ -88,6 +90,10 @@ export default class AssetReview extends LightningElement {
 
     @track selectedWheelsetId = null;
     @track wheelsetPoints = [];     // measure points for the selected wheelset
+    @track measureImages = {};      // measurePointId -> base64 data URI (lazy-loaded)
+    @track pendingImagePreview = null;   // data URI preview of an image staged in the form
+    _pendingImageBase64 = null;          // raw base64 to upload on save
+    _pendingImageName = null;
     @track tasks = [];
     @track loadingDetail = false;
 
@@ -192,11 +198,28 @@ export default class AssetReview extends LightningElement {
             ]);
             this.wheelsetPoints = points || [];
             this.tasks = tasks || [];
+            this._loadMeasureImages();
         } catch (e) {
             this.wheelsetPoints = [];
             this.tasks = [];
         } finally {
             this.loadingDetail = false;
+        }
+    }
+
+    // Fetch attached images (as data URIs) for the current points and merge into the map.
+    async _loadMeasureImages() {
+        const ids = (this.wheelsetPoints || []).map(p => p.id).filter(Boolean);
+        if (!ids.length) return;
+        try {
+            const imgs = await getMeasureImages({ token: this.sessionToken, measurePointIds: ids });
+            if (imgs && imgs.length) {
+                const map = { ...this.measureImages };
+                imgs.forEach(img => { map[img.measurePointId] = img.dataUri; });
+                this.measureImages = map;
+            }
+        } catch (e) {
+            // images are non-critical — ignore failures
         }
     }
 
@@ -239,6 +262,7 @@ export default class AssetReview extends LightningElement {
         this.editMeasureValueType = 'Depth';
         this.editDefectLocation = '';
         this.measureFeedback = '';
+        this._clearPendingImage();
         this.showMeasureForm = true;
     }
 
@@ -255,7 +279,45 @@ export default class AssetReview extends LightningElement {
         this.editMeasureValueType = p.measureValueType || 'Depth';
         this.editDefectLocation = p.defectLocation || '';
         this.measureFeedback = '';
+        this._clearPendingImage();
         this.showMeasureForm = true;
+    }
+
+    _clearPendingImage() {
+        this.pendingImagePreview = null;
+        this._pendingImageBase64 = null;
+        this._pendingImageName = null;
+    }
+
+    // Camera/file selection: read the chosen image to base64 and stage a preview.
+    handleImageSelect(evt) {
+        const file = evt.target.files && evt.target.files[0];
+        if (!file) return;
+        if (!file.type || file.type.indexOf('image/') !== 0) {
+            this._measureFb('Please choose an image file.', true);
+            return;
+        }
+        const MAX = 5 * 1024 * 1024; // 5MB guard
+        if (file.size > MAX) {
+            this._measureFb('Image is too large (max 5MB).', true);
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result || '';
+            const comma = result.indexOf(',');
+            this._pendingImageBase64 = comma >= 0 ? result.substring(comma + 1) : result;
+            this._pendingImageName = file.name || 'measure-image.jpg';
+            this.pendingImagePreview = result;   // full data URI for the preview
+        };
+        reader.onerror = () => this._measureFb('Could not read the image.', true);
+        reader.readAsDataURL(file);
+    }
+
+    handleRemovePendingImage() {
+        this._clearPendingImage();
+        const input = this.template.querySelector('[data-id="measureImageInput"]');
+        if (input) input.value = '';
     }
 
     async handleMarkOk(evt) {
@@ -314,6 +376,23 @@ export default class AssetReview extends LightningElement {
                 assetId: this.selectedWheelsetId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
+
+            // Upload a staged image (camera/file) against the saved record's id.
+            if (this._pendingImageBase64 && saved.id) {
+                try {
+                    const dataUri = await uploadMeasureImage({
+                        token: this.sessionToken,
+                        measurePointId: saved.id,
+                        fileName: this._pendingImageName,
+                        base64Data: this._pendingImageBase64,
+                    });
+                    this.measureImages = { ...this.measureImages, [saved.id]: dataUri };
+                } catch (imgErr) {
+                    this._measureFb('Measure saved, but image upload failed.', true);
+                }
+                this._clearPendingImage();
+            }
+
             if (this.editId) {
                 this.wheelsetPoints = this.wheelsetPoints.map(p => p.id === saved.id ? saved : p);
                 this.allPoints = this.allPoints.map(p => p.id === saved.id ? saved : p);
@@ -324,6 +403,7 @@ export default class AssetReview extends LightningElement {
             this._recomputeWheelsetStatus();
             this.showMeasureForm = false;
             this._measureFb('Saved.', false);
+            this._loadMeasureImages();   // pick up a newly attached image, if any
         } catch (e) {
             const msg = e.body?.message || '';
             this._measureFb(msg.includes('SESSION_EXPIRED') ? 'Session expired. Sign in again.' : 'Save failed. Try again.', true);
@@ -604,6 +684,7 @@ export default class AssetReview extends LightningElement {
             if (p.measureType === 'Attention Required') typeClass = 'attention';
             else if (p.measureType === 'Scrap') typeClass = 'scrap';
             else if (p.measureType === 'Measure') typeClass = 'measure';
+            const imageUri = this.measureImages[p.id];
             return {
                 ...p,
                 typeClass,
@@ -611,6 +692,8 @@ export default class AssetReview extends LightningElement {
                 showMeasure: p.measureValue != null,
                 showDefect: !!p.defectLocation,
                 showOkBtn: p.measureType !== 'OK',
+                imageUri,
+                hasImage: !!imageUri,
             };
         });
     }

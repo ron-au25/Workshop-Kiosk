@@ -39,10 +39,18 @@ image carousels) in addition to text. Two ways blocks are produced:
 { "type":"calendar", "title":"April", "month":"2026-04",
   "events":[ {"day":23,"label":"SA-00049"}, {"day":16,"label":"SA-00048"} ] }
 
-// Carousel of cards (with optional image)
+// Carousel of cards (with optional image). Add "workOrderId" to make an image
+// tappable → fullscreen lightbox → "Go to work order" drills into that WO detail.
 { "type":"carousel", "title":"Assets",
-  "cards":[ {"title":"Wagon RT-100","subtitle":"Bogie 2","imageUrl":"https://…","caption":"Last inspected Apr 1"} ] }
+  "cards":[ {"title":"Wagon RT-100","subtitle":"Bogie 2","imageUrl":"https://…","caption":"Last inspected Apr 1","workOrderId":"0WO..."} ] }
 ```
+
+**Carousel drill-down:** the `workOrderImages` action stamps each card with the parent
+`workOrderId` (measure-point and line-item images resolve up to their owning work order).
+In the renderer, tapping an image opens a fullscreen lightbox; its "Go to work order"
+button dispatches a `composed` `drilldown` event → `agentforceChat` closes the panel and
+re-dispatches → `workshopPortal.handleChatDrilldown` opens that work order's detail
+(reusing the `opendetail` / `STATE.WORK_ORDER_DETAIL` path).
 
 ## Interactive filtering (client-side, no agent round-trip)
 The `agentRichBlocks` renderer keeps the raw block data and offers on-block controls that

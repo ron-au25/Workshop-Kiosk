@@ -7,6 +7,17 @@
     --af-text-muted: #A6B2BD;
 }
 
+/* Light theme — overrides the tokens on the themed elements (launcher + panel) */
+.af-launcher.theme-light,
+.af-panel.theme-light {
+    --af-accent: #D14A1A;
+    --af-bg: #FFFFFF;
+    --af-surface: #F0F3F7;
+    --af-border: #D5DCE3;
+    --af-text: #14202B;
+    --af-text-muted: #4A5763;
+}
+
 /* ── Launcher ──────────────────────────────────────────────────────────── */
 .af-launcher {
     position: fixed;

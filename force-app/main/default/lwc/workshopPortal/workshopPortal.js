@@ -148,6 +148,15 @@ export default class WorkshopPortal extends LightningElement {
         this.state = STATE.WORK_ORDER_DETAIL;
     }
 
+    // Drill-down from a tapped carousel image in the Agentforce chat.
+    handleChatDrilldown(evt) {
+        const woId = evt.detail && evt.detail.workOrderId;
+        if (!woId) return;
+        this.selectedWorkOrderId = woId;
+        this.state = STATE.WORK_ORDER_DETAIL;
+        this.activeNav = 'workorders';
+    }
+
     handleDetailBack() {
         this.selectedWorkOrderId = null;
         this.state = STATE.WORK_ORDERS;

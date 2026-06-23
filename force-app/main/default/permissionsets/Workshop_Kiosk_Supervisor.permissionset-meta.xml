@@ -11,6 +11,10 @@
         <apexClass>KioskAgentforceController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>WorkpackDemoGenerator</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
 
     <!-- Allows the supervisor to use the Agentforce_API named credential (Agent API callouts) -->
     <externalCredentialPrincipalAccesses>
@@ -61,6 +65,15 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>WorkOrder</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>WorkOrderLineItem</object>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>

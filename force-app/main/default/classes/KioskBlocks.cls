@@ -355,9 +355,11 @@ public with sharing class KioskBlocks {
         Id woId = (Id) cleanId(in0.workOrderId);
         if (woId == null) return msg('Open a work order (or name one) so I can find its images.');
 
-        // Build the set of records whose attachments we scan.
+        // Build the set of records whose attachments we scan, plus a map from each
+        // record back to the WORK ORDER the user should drill into.
         Set<Id> entityIds = new Set<Id>{ woId };
         Map<Id, String> labelByEntity = new Map<Id, String>{ woId => 'This Work Order' };
+        Map<Id, Id> entityToWorkOrder = new Map<Id, Id>{ woId => woId };
 
         // Child work orders
         Set<Id> woFamily = new Set<Id>{ woId };
@@ -365,16 +367,19 @@ public with sharing class KioskBlocks {
             entityIds.add(child.Id);
             woFamily.add(child.Id);
             labelByEntity.put(child.Id, 'WO ' + nz(child.WorkOrderNumber));
+            entityToWorkOrder.put(child.Id, child.Id); // a child WO drills to itself
         }
         // Line items on the WO + its children
-        for (WorkOrderLineItem li : [SELECT Id, Subject FROM WorkOrderLineItem WHERE WorkOrderId IN :woFamily]) {
+        for (WorkOrderLineItem li : [SELECT Id, Subject, WorkOrderId FROM WorkOrderLineItem WHERE WorkOrderId IN :woFamily]) {
             entityIds.add(li.Id);
             labelByEntity.put(li.Id, 'Line: ' + nz(li.Subject));
+            entityToWorkOrder.put(li.Id, li.WorkOrderId);
         }
         // Measure points on the WO + its children
-        for (Measure_Point__c mp : [SELECT Id, Component_Name__c FROM Measure_Point__c WHERE Work_Order__c IN :woFamily]) {
+        for (Measure_Point__c mp : [SELECT Id, Component_Name__c, Work_Order__c FROM Measure_Point__c WHERE Work_Order__c IN :woFamily]) {
             entityIds.add(mp.Id);
             labelByEntity.put(mp.Id, 'Measure: ' + nz(mp.Component_Name__c));
+            entityToWorkOrder.put(mp.Id, mp.Work_Order__c);
         }
 
         // All files linked to any of those records, image extensions only.
@@ -397,7 +402,9 @@ public with sharing class KioskBlocks {
                 'subtitle' => labelByEntity.containsKey(cdl.LinkedEntityId) ? labelByEntity.get(cdl.LinkedEntityId) : '',
                 'caption' => '.' + ext,
                 // Renders in the supervisor's authenticated browser session.
-                'imageUrl' => '/sfc/servlet.shepherd/document/download/' + cdl.ContentDocumentId
+                'imageUrl' => '/sfc/servlet.shepherd/document/download/' + cdl.ContentDocumentId,
+                // The work order to drill into when the image is tapped.
+                'workOrderId' => entityToWorkOrder.get(cdl.LinkedEntityId)
             });
         }
 

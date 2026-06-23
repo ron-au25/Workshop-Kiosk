@@ -40,6 +40,32 @@ private class KioskBlocksTest {
     @IsTest static void calendar() { assertValid(KioskBlocks.shiftActivityCalendar(new List<KioskBlocks.Input>{ ctx() })); }
     @IsTest static void images() { assertValid(KioskBlocks.workOrderImages(new List<KioskBlocks.Input>{ ctx() })); }
 
+    // Seed an image on an existing work order and confirm the carousel card carries
+    // the workOrderId for drill-down. (ContentVersion insert is allowed; the broken
+    // flow only blocks WorkOrder inserts — so we reuse an existing WO.)
+    @IsTest static void imageCard_carriesWorkOrderId() {
+        List<WorkOrder> wos = [SELECT Id FROM WorkOrder LIMIT 1];
+        if (wos.isEmpty()) return;
+        Id woId = wos[0].Id;
+
+        String b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+        ContentVersion cv = new ContentVersion(Title='DrillTest', PathOnClient='drill.png',
+            VersionData=EncodingUtil.base64Decode(b64), IsMajorVersion=true);
+        insert cv;
+        Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
+        insert new ContentDocumentLink(ContentDocumentId=docId, LinkedEntityId=woId,
+            ShareType='V', Visibility='AllUsers');
+
+        KioskBlocks.Input in0 = new KioskBlocks.Input();
+        in0.workOrderId = woId;
+        Test.startTest();
+        String msg = KioskBlocks.workOrderImages(new List<KioskBlocks.Input>{ in0 })[0].message;
+        Test.stopTest();
+
+        System.assert(msg.contains('"type":"carousel"'), 'carousel returned');
+        System.assert(msg.contains('"workOrderId":"' + woId + '"'), 'card carries workOrderId for drill-down');
+    }
+
     @IsTest static void emptyInput_isGraceful() {
         // No context at all — should return guidance, not throw.
         assertValid(KioskBlocks.measurePointGraph(new List<KioskBlocks.Input>{ new KioskBlocks.Input() }));

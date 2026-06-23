@@ -129,9 +129,28 @@ The `agentforceChat` LWC talks to the **`Rio_Tinto_Shutdown_Agent`** ("Superviso
 
 **Rich responses (`agent-blocks`)**: agent replies can carry a fenced ` ```agent-blocks {"blocks":[...]} ``` `. `RenderBlocks.cls` extracts it (or heuristically parses markdown tables / activity lists), `KioskAgentforceController` returns it as `AgentReply.blocksJson`, and `agentRichBlocks` renders KPI/table/timeline/chart(bar/line/pie/donut, inline SVG)/calendar/carousel. Schema: `Workshop Files/Agentforce Rich Blocks - Schema.md`.
 
+**Carousel drill-down**: carousel cards can carry a `workOrderId` field. Tapping the card image opens a fullscreen lightbox; the "Go to work order" button in the lightbox closes the chat panel and fires a `drilldown` composed CustomEvent (`{ detail: { workOrderId } }`) up to `workshopPortal.handleChatDrilldown`, which navigates straight into that work order's detail screen. Event chain: `agentRichBlocks` → `handleGoToRecord` → `agentforceChat.handleDrilldown` (closes panel, re-dispatches) → `workshopPortal`.
+
 **Agent chart actions**: `KioskBlocks.cls` holds the logic for 8 visualizations; 8 thin `AgentAction*` classes expose them as `@InvocableMethod`s (one invocable per class — a Salesforce limit). They're wired into the **Asset Insights** topic in `genAiPlannerBundles/Rio_Tinto_Shutdown_Agent/...`, each `invocationTargetType=apex` with `localActions/Asset_Insights/<Action>/{input,output}/schema.json`. The actions build blocks deterministically (numbers computed in Apex) and return them in the displayable `message` output.
 
+**Theme prop**: both `agentforceChat` and `agentRichBlocks` accept a `theme` `@api` prop (`'dark'` | `'light'`). CSS class `theme-light` is toggled on the root element for light-mode kiosk pages.
+
 **Deploying the agent bundle**: the agent can't be updated while **Active** — `sf agent deactivate --api-name Rio_Tinto_Shutdown_Agent` → `sf project deploy start -d <bundle>` → `sf agent activate ...`. This briefly interrupts live agent users.
+
+### Demo workpack generator
+
+`WorkpackDemoGenerator.generateDemoWorkpack(token)` builds a full self-contained workpack hierarchy from scratch in one DML transaction (Savepoint/rollback on failure). Resolves reference IDs (WorkType, Territory, Account) from the live source workpack `00010070`, then creates:
+
+- 1 Wagon Asset (STRU) + 4 Wheelset Assets (WINC) each with 1 Axle child
+- ~3 sample Measure Points per wheelset (OK / Attention Required / Measure)
+- Root Rail Workpack WorkOrder (AssetId = wagon)
+- Several Wagon PM01 child WorkOrders (+ 1 WOLI each) + 1 PM02 child
+
+Called from the **"Generate Demo Workpack"** button in `kioskDashboard`. On success, fires `opendetail` event so `workshopPortal` navigates directly into the new workpack. Token is validated via `KioskController.isValidSession` before building.
+
+### Measure point image attachments
+
+`KioskController.getMeasureImages(token, measurePointIds)` returns base64 data URIs for the latest image `ContentVersion` linked to each measure point. Data URIs are used (not Salesforce content URLs) to avoid LWR CSP / cross-site-cookie issues with `/sfc/servlet.shepherd/` URLs. Capped at ~3 MB per image. `uploadMeasureImage(token, measurePointId, base64, filename, mimeType)` inserts a new `ContentVersion` + `ContentDocumentLink`. Both are called from `assetReview` — images load lazily when a wheelset is selected, and the add-image form stages a base64 preview before upload.
 
 ## Gotchas & lessons learned
 

@@ -430,6 +430,42 @@
 }
 .form-textarea:focus { border-color: var(--rt-accent-2, #2E8FE6); }
 
+/* Photo upload (camera / file) */
+.img-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    border: 1px dashed var(--rt-border, #2A3744);
+    border-radius: 10px;
+    background: var(--rt-surface-2, #1B2530);
+    color: var(--rt-text-muted, #A6B2BD);
+    font-size: 15px;
+    cursor: pointer;
+}
+.img-upload-btn:hover { border-color: var(--rt-accent-2, #2E8FE6); color: var(--rt-text, #F2F5F7); }
+.img-upload-btn input[type="file"] { display: none; }
+.img-preview {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--rt-border, #2A3744);
+}
+.img-preview img { display: block; width: 100%; max-height: 220px; object-fit: cover; }
+.img-remove {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+
 .form-select {
     background: var(--rt-surface, #131A22);
     border: 1px solid var(--rt-border, #2A3744);
@@ -591,6 +627,19 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
 .measure-value { font-size: 22px; font-weight: 700; color: var(--rt-warning, #F2B441); }
 .measure-unit { font-size: 14px; color: var(--rt-text-muted, #A6B2BD); }
 .point-defect { font-size: 13px; color: var(--rt-text-muted, #A6B2BD); }
+.point-image {
+    margin: 8px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--rt-border, #2A3744);
+    background: var(--rt-surface-2, #1B2530);
+}
+.point-image img {
+    display: block;
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+}
 .point-comments {
     font-size: 14px;
     color: var(--rt-text-muted, #A6B2BD);

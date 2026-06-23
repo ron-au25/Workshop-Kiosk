@@ -14,7 +14,9 @@ const PAD = 28;
  * data is kept; filter controls update per-block state and re-derive the view.
  */
 export default class AgentRichBlocks extends LightningElement {
+    @api theme = 'dark';   // 'dark' | 'light'
     _raw = [];
+    @track lightbox = null;   // { imageUrl, label, workOrderId } when an image is open fullscreen
     _filters = [];            // one filter-state object per block, by index
     @track view = [];         // prepared + filtered blocks (what the template renders)
 
@@ -30,6 +32,14 @@ export default class AgentRichBlocks extends LightningElement {
 
     get hasBlocks() {
         return this.view && this.view.length > 0;
+    }
+
+    get wrapClass() {
+        return 'rb-wrap' + (this.theme === 'light' ? ' theme-light' : '');
+    }
+
+    get lightboxClass() {
+        return 'rb-lightbox' + (this.theme === 'light' ? ' theme-light' : '');
     }
 
     _defaultFilter(b) {
@@ -183,13 +193,16 @@ export default class AgentRichBlocks extends LightningElement {
         }
         const carouselCards = cards.map((c, i) => ({
             key: `cc${bi}-${i}`,
+            idx: i,
             title: c.title || '',
             subtitle: c.subtitle || '',
             imageUrl: c.imageUrl || '',
             caption: c.caption || '',
+            workOrderId: c.workOrderId || null,
             hasImage: !!c.imageUrl,
             hasSubtitle: !!c.subtitle,
             hasCaption: !!c.caption,
+            canDrill: !!c.workOrderId,
         }));
         return { carouselCards, searchValue: f.search };
     }
@@ -366,5 +379,42 @@ export default class AgentRichBlocks extends LightningElement {
         const bi = this._bi(evt);
         this._filters[bi] = this._defaultFilter(this._raw[bi]);
         this._rebuild();
+    }
+
+    // ---- carousel image lightbox + drill-down ------------------------------
+
+    // Open a carousel image fullscreen. Card identified by block/card index.
+    handleCardOpen(evt) {
+        const bi = parseInt(evt.currentTarget.dataset.bi, 10);
+        const ci = parseInt(evt.currentTarget.dataset.ci, 10);
+        const card = this.view[bi] && this.view[bi].carouselCards[ci];
+        if (!card || !card.imageUrl) return;
+        this.lightbox = {
+            imageUrl: card.imageUrl,
+            label: card.subtitle || card.title || '',
+            title: card.title || '',
+            workOrderId: card.workOrderId || null,
+            canDrill: !!card.workOrderId,
+        };
+    }
+
+    handleCloseLightbox() {
+        this.lightbox = null;
+    }
+
+    // Stop the backdrop's close handler when tapping the image/content itself.
+    stopBubble(evt) {
+        evt.stopPropagation();
+    }
+
+    handleGoToRecord() {
+        const woId = this.lightbox && this.lightbox.workOrderId;
+        this.lightbox = null;
+        if (!woId) return;
+        this.dispatchEvent(new CustomEvent('drilldown', {
+            detail: { workOrderId: woId },
+            bubbles: true,
+            composed: true,
+        }));
     }
 }

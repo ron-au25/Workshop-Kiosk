@@ -1358,6 +1358,101 @@ public with sharing class KioskController {
         return result;
     }
 
+    public class MeasureImageDTO {
+        @AuraEnabled public String measurePointId;
+        @AuraEnabled public String dataUri;   // data:<mime>;base64,<bytes> — renders inline in <img>
+    }
+
+    /**
+     * Returns the latest image attachment (as a base64 data URI) for each measure
+     * point that has one. Data URIs render inline in an <img> without the LWR file
+     * URL / CSP / cross-site-cookie issues. Keep the measure point id list small
+     * (the visible card list); images are skipped above a safe size.
+     */
+    @AuraEnabled(cacheable=false)
+    public static List<MeasureImageDTO> getMeasureImages(String token, List<String> measurePointIds) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        List<MeasureImageDTO> out = new List<MeasureImageDTO>();
+        if (measurePointIds == null || measurePointIds.isEmpty()) return out;
+
+        Set<String> imageExts = new Set<String>{ 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp' };
+        Integer maxBytes = 3000000; // ~3MB cap to stay within heap/response limits
+
+        // Map each measure point to its linked content documents.
+        Map<Id, Id> docToEntity = new Map<Id, Id>();
+        for (ContentDocumentLink cdl : [
+            SELECT ContentDocumentId, LinkedEntityId
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId IN :measurePointIds
+        ]) {
+            // first (latest-created) doc per entity wins; query orders below handle recency
+            docToEntity.put(cdl.ContentDocumentId, cdl.LinkedEntityId);
+        }
+        if (docToEntity.isEmpty()) return out;
+
+        Map<Id, MeasureImageDTO> byEntity = new Map<Id, MeasureImageDTO>();
+        for (ContentVersion cv : [
+            SELECT ContentDocumentId, FileExtension, VersionData, ContentSize
+            FROM ContentVersion
+            WHERE ContentDocumentId IN :docToEntity.keySet() AND IsLatest = true
+            ORDER BY CreatedDate DESC
+        ]) {
+            String ext = (cv.FileExtension == null) ? '' : cv.FileExtension.toLowerCase();
+            if (!imageExts.contains(ext)) continue;
+            if (cv.ContentSize != null && cv.ContentSize > maxBytes) continue;
+            Id entityId = docToEntity.get(cv.ContentDocumentId);
+            if (entityId == null || byEntity.containsKey(entityId)) continue; // one image per point
+            if (cv.VersionData == null) continue;
+
+            String mime = (ext == 'jpg') ? 'jpeg' : ext;
+            MeasureImageDTO img = new MeasureImageDTO();
+            img.measurePointId = entityId;
+            img.dataUri = 'data:image/' + mime + ';base64,' + EncodingUtil.base64Encode(cv.VersionData);
+            byEntity.put(entityId, img);
+        }
+        out.addAll(byEntity.values());
+        return out;
+    }
+
+    /**
+     * Attaches an image (base64) to a measure point as a ContentVersion + link.
+     * Used by the measure form's camera/file upload. Returns the data URI so the
+     * card can show it immediately without a re-query.
+     */
+    @AuraEnabled
+    public static String uploadMeasureImage(String token, String measurePointId, String fileName, String base64Data) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(measurePointId) || String.isBlank(base64Data)) {
+            throw new AuraHandledException('INVALID_REQUEST');
+        }
+
+        String cleanName = String.isBlank(fileName) ? 'Measure Image.jpg' : fileName;
+        String ext = cleanName.contains('.') ? cleanName.substringAfterLast('.').toLowerCase() : 'jpg';
+        Set<String> imageExts = new Set<String>{ 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp' };
+        if (!imageExts.contains(ext)) throw new AuraHandledException('NOT_AN_IMAGE');
+
+        Blob body = EncodingUtil.base64Decode(base64Data);
+
+        ContentVersion cv = new ContentVersion();
+        cv.Title = cleanName;
+        cv.PathOnClient = cleanName;
+        cv.VersionData = body;
+        cv.IsMajorVersion = true;
+        insert cv;
+
+        Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id LIMIT 1].ContentDocumentId;
+        insert new ContentDocumentLink(
+            ContentDocumentId = docId,
+            LinkedEntityId = measurePointId,
+            ShareType = 'V',
+            Visibility = 'AllUsers');
+
+        String mime = (ext == 'jpg') ? 'jpeg' : ext;
+        return 'data:image/' + mime + ';base64,' + base64Data;
+    }
+
     @AuraEnabled
     public static MeasurePointDTO saveMeasurePoint(String token, String reqJson) {
         TokenPayload payload = validateToken(token);
@@ -1754,6 +1849,11 @@ public with sharing class KioskController {
         String payload = workerId + '|' + territoryId + '|' + expiryMs + '|' + issuedAtMs;
         String sig = computeHmac(payload);
         return EncodingUtil.base64Encode(Blob.valueOf(payload + '|' + sig));
+    }
+
+    /** Public guard for other kiosk classes: true when the session token is valid. */
+    public static Boolean isValidSession(String token) {
+        return validateToken(token) != null;
     }
 
     private static TokenPayload validateToken(String token) {

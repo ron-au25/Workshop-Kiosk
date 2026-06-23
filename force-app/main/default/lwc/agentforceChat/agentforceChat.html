@@ -1,6 +1,6 @@
 <template>
     <!-- Floating launcher button -->
-    <button class="af-launcher" onclick={handleToggle} title={launcherLabel} aria-label={launcherLabel}>
+    <button class={launcherClass} onclick={handleToggle} title={launcherLabel} aria-label={launcherLabel}>
         <template lwc:if={open}>✕</template>
         <template lwc:else>💬</template>
     </button>
@@ -30,7 +30,7 @@
                             </div>
                         </template>
                         <template lwc:if={m.hasBlocks}>
-                            <c-agent-rich-blocks blocks={m.blocks}></c-agent-rich-blocks>
+                            <c-agent-rich-blocks blocks={m.blocks} theme={theme} ondrilldown={handleDrilldown}></c-agent-rich-blocks>
                         </template>
                     </div>
                 </template>

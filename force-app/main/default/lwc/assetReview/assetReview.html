@@ -269,6 +269,25 @@
                                                     onkeydown={handleInputKeydown}></textarea>
                                             </div>
 
+                                            <div class="form-group">
+                                                <label class="form-label">Photo <span class="optional">(optional)</span></label>
+                                                <template lwc:if={pendingImagePreview}>
+                                                    <div class="img-preview">
+                                                        <img src={pendingImagePreview} alt="Selected" />
+                                                        <button type="button" class="img-remove" onclick={handleRemovePendingImage} title="Remove photo">✕</button>
+                                                    </div>
+                                                </template>
+                                                <template lwc:else>
+                                                    <label class="img-upload-btn">
+                                                        <span>📷 Take photo / attach image</span>
+                                                        <input type="file" accept="image/*" capture="environment"
+                                                            data-id="measureImageInput"
+                                                            onchange={handleImageSelect}
+                                                            onkeydown={handleInputKeydown} />
+                                                    </label>
+                                                </template>
+                                            </div>
+
                                             <template lwc:if={measureFeedback}>
                                                 <p class={measureFeedbackClass}>{measureFeedback}</p>
                                             </template>
@@ -304,6 +323,11 @@
                                                     </template>
                                                     <template lwc:if={pt.showDefect}>
                                                         <span class="point-defect">📍 {pt.defectLocation}</span>
+                                                    </template>
+                                                    <template lwc:if={pt.hasImage}>
+                                                        <div class="point-image">
+                                                            <img src={pt.imageUri} alt={pt.componentName} loading="lazy" />
+                                                        </div>
                                                     </template>
                                                     <template lwc:if={pt.comments}>
                                                         <p class="point-comments">{pt.comments}</p>

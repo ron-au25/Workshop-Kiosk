@@ -111,6 +111,7 @@
                                         session-token={sessionToken}
                                         is-supervisor={isSupervisor}
                                         onrefresh={handleDashboardRefresh}
+                                        onopendetail={handleOpenDetail}
                                     ></c-kiosk-dashboard>
                                 </template>
 
@@ -137,6 +138,8 @@
             <c-agentforce-chat
                 supervisor-name={supervisorName}
                 work-order-id={selectedWorkOrderId}
+                theme={theme}
+                ondrilldown={handleChatDrilldown}
             ></c-agentforce-chat>
 
             <template lwc:if={showIdleWarning}>

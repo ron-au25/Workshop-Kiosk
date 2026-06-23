@@ -1,5 +1,6 @@
 import { LightningElement, api, track } from 'lwc';
 import getDashboardMetrics from '@salesforce/apex/KioskController.getDashboardMetrics';
+import generateDemoWorkpack from '@salesforce/apex/WorkpackDemoGenerator.generateDemoWorkpack';
 
 const DONUT_COLORS = ['#E25822', '#2E8FE6', '#21C07A', '#F2B441', '#A855F7', '#E84B4B', '#14B8A6'];
 const CIRCUMFERENCE = 2 * Math.PI * 70;
@@ -52,6 +53,10 @@ export default class KioskDashboard extends LightningElement {
     @track dateTo   = toIso(new Date());
     @track showCustomPicker = false;
 
+    @track generatingDemo = false;
+    @track demoFeedback = '';
+    @track demoFeedbackIsError = false;
+
     _refreshInterval;
 
     connectedCallback() {
@@ -102,6 +107,35 @@ export default class KioskDashboard extends LightningElement {
     }
 
     handleRefresh() { this.loadMetrics(); }
+
+    get genDemoLabel() { return this.generatingDemo ? 'Generating…' : 'Generate Demo Workpack'; }
+    get genDemoIconClass() { return 'gen-demo-icon' + (this.generatingDemo ? ' spinning' : ''); }
+    get demoFeedbackClass() { return 'demo-feedback' + (this.demoFeedbackIsError ? ' error' : ' success'); }
+
+    async handleGenerateDemo() {
+        if (this.generatingDemo) return;
+        this.generatingDemo = true;
+        this.demoFeedback = '';
+        try {
+            const woId = await generateDemoWorkpack({ token: this.sessionToken });
+            this.demoFeedback = 'Demo workpack created. Opening…';
+            this.demoFeedbackIsError = false;
+            // Navigate straight into the new workpack (portal listens for opendetail).
+            this.dispatchEvent(new CustomEvent('opendetail', {
+                detail: { workOrderId: woId },
+                bubbles: true,
+                composed: true,
+            }));
+        } catch (e) {
+            const msg = e.body?.message || '';
+            this.demoFeedback = msg.includes('SESSION_EXPIRED')
+                ? 'Session expired. Please sign in again.'
+                : 'Could not generate demo workpack. Try again.';
+            this.demoFeedbackIsError = true;
+        } finally {
+            this.generatingDemo = false;
+        }
+    }
 
     handleInputKeydown(evt) { evt.stopPropagation(); }
 

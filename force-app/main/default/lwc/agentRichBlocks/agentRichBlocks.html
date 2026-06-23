@@ -1,6 +1,6 @@
 <template>
     <template lwc:if={hasBlocks}>
-        <div class="rb-wrap">
+        <div class={wrapClass}>
             <template for:each={view} for:item="b">
                 <div key={b.key} class="rb-block">
                     <template lwc:if={b.title}>
@@ -165,7 +165,14 @@
                             <template for:each={b.carouselCards} for:item="c">
                                 <div key={c.key} class="rb-card">
                                     <template lwc:if={c.hasImage}>
-                                        <img src={c.imageUrl} alt={c.title} class="rb-card-img" />
+                                        <button type="button" class="rb-card-imgbtn"
+                                                data-bi={b.idx} data-ci={c.idx}
+                                                onclick={handleCardOpen} title="View image">
+                                            <img src={c.imageUrl} alt={c.title} class="rb-card-img" />
+                                            <template lwc:if={c.canDrill}>
+                                                <span class="rb-card-zoom">⤢</span>
+                                            </template>
+                                        </button>
                                     </template>
                                     <div class="rb-card-body">
                                         <div class="rb-card-title">{c.title}</div>
@@ -182,6 +189,22 @@
                     </template>
                 </div>
             </template>
+        </div>
+    </template>
+
+    <!-- Fullscreen image lightbox -->
+    <template lwc:if={lightbox}>
+        <div class={lightboxClass} onclick={handleCloseLightbox}>
+            <div class="rb-lb-content" onclick={stopBubble}>
+                <button type="button" class="rb-lb-close" onclick={handleCloseLightbox} aria-label="Close">✕</button>
+                <img src={lightbox.imageUrl} alt={lightbox.title} class="rb-lb-img" />
+                <div class="rb-lb-bar">
+                    <span class="rb-lb-label">{lightbox.label}</span>
+                    <template lwc:if={lightbox.canDrill}>
+                        <button type="button" class="rb-lb-goto" onclick={handleGoToRecord}>Go to work order →</button>
+                    </template>
+                </div>
+            </div>
         </div>
     </template>
 </template>

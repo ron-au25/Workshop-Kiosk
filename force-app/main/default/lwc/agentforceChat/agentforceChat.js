@@ -7,6 +7,7 @@ export default class AgentforceChat extends LightningElement {
     @api supervisorName;
     // The work order the user is currently viewing; can change mid-conversation.
     @api workOrderId;
+    @api theme = 'dark';   // 'dark' | 'light' — follows the kiosk theme
 
     @track open = false;
     @track messages = [];   // { id, role: 'user'|'agent', text }
@@ -27,8 +28,14 @@ export default class AgentforceChat extends LightningElement {
 
     // ---- launcher / panel toggle ------------------------------------------
 
+    get _themeSuffix() {
+        return this.theme === 'light' ? ' theme-light' : '';
+    }
     get panelClass() {
-        return 'af-panel' + (this.open ? ' af-open' : '');
+        return 'af-panel' + (this.open ? ' af-open' : '') + this._themeSuffix;
+    }
+    get launcherClass() {
+        return 'af-launcher' + this._themeSuffix;
     }
     get launcherLabel() {
         return this.open ? 'Close assistant' : 'Ask Agentforce';
@@ -38,6 +45,14 @@ export default class AgentforceChat extends LightningElement {
     }
     get hasMessages() {
         return this.messages.length > 0;
+    }
+
+    // A carousel image's "Go to work order" was tapped — close the chat panel and
+    // bubble the drill-down request up to workshopPortal.
+    handleDrilldown(evt) {
+        evt.stopPropagation();   // re-dispatch a single, non-composed event upward
+        this.open = false;
+        this.dispatchEvent(new CustomEvent('drilldown', { detail: evt.detail }));
     }
 
     async handleToggle() {

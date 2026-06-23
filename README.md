@@ -27,6 +27,7 @@ Rail wagon maintenance workshops generate dozens of work orders per shift. Previ
 | `RenderBlocks.cls` | Extracts structured `agent-blocks` JSON from an agent reply (fenced block, else heuristic parse of markdown tables / activity lists) for the chat to render as charts/tables/timelines |
 | `KioskBlocks.cls` | Builds the `agent-blocks` JSON for 8 chart/timeline/table visualizations from live data (work orders, measure points, wagon/wheelset assets, time reports) |
 | `AgentAction*.cls` (×8) | Thin `@InvocableMethod` wrappers exposing each `KioskBlocks` visualization as an Agentforce action (one invocable per class is a Salesforce limit) |
+| `WorkpackDemoGenerator.cls` | One-tap demo-data generator — creates a complete workpack hierarchy modeled on WO 00010070: new wagon Asset + 4 wheelsets + an axle per wheelset, root + child work orders, line items, and sample measure points. Token-guarded `@AuraEnabled`; all-or-nothing via Savepoint. Triggered from the supervisor dashboard button |
 
 ### Lightning Web Components
 

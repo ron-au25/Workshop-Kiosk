@@ -170,6 +170,13 @@
 }
 .card-title { font-size: 20px; font-weight: 600; color: var(--rt-text, #F2F5F7); margin: 0 0 20px; }
 
+/* Jobs per day bar chart */
+.jobsperday-card { margin-bottom: 24px; }
+.jpd-svg { width: 100%; height: auto; max-height: 240px; display: block; }
+.jpd-bar { fill: var(--rt-accent, #E25822); }
+.jpd-count { fill: var(--rt-text, #F2F5F7); font-size: 13px; font-weight: 600; }
+.jpd-axis { fill: var(--rt-text-muted, #A6B2BD); font-size: 12px; }
+
 /* Donut */
 .donut-wrapper { display: flex; align-items: center; gap: 24px; }
 .donut-svg { width: 160px; height: 160px; flex-shrink: 0; }

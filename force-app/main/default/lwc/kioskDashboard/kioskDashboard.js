@@ -14,7 +14,9 @@ const DATE_PRESETS = [
 ];
 
 function toIso(d) {
-    return d.toISOString().slice(0, 10);
+    // Use LOCAL date parts — toISOString() converts to UTC, which rolls the date
+    // back a day in AU timezones (made "Today" show yesterday's work).
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function getPresetRange(preset) {
@@ -95,6 +97,7 @@ export default class KioskDashboard extends LightningElement {
                 });
             }
             this.metrics = raw;
+            this._buildJobsChart();
         } catch (e) {
             this.hasError = true;
             this.errorMessage = e.body?.message?.includes('SESSION_EXPIRED')
@@ -239,5 +242,57 @@ export default class KioskDashboard extends LightningElement {
                 dotStyle: `background:${color}`,
             };
         });
+    }
+
+    // ---- Jobs-per-day bar chart (precomputed in _buildJobsChart) ----------
+
+    @track jpdViewBox = '0 0 640 200';
+    @track jpdBars = [];
+
+    get hasJobsPerDay() {
+        return this.jpdBars && this.jpdBars.length > 0;
+    }
+
+    // Build SVG bar geometry once per data load (not in a getter — avoids
+    // recomputing/throwing on every re-render, which froze the filter buttons).
+    _buildJobsChart() {
+        const data = (this.metrics && this.metrics.jobsPerDay) || [];
+        const W = 640, H = 200, PAD_T = 16, PAD_B = 34, PAD_X = 12;
+        const n = data.length;
+        this.jpdViewBox = `0 0 ${W} ${H}`;
+        if (n === 0) { this.jpdBars = []; return; }
+
+        let maxCount = 1;
+        for (let i = 0; i < n; i++) { if (data[i].count > maxCount) maxCount = data[i].count; }
+        const plotH = H - PAD_T - PAD_B;
+        const slot = (W - PAD_X * 2) / n;
+        const barW = Math.max(2, Math.min(slot * 0.7, 48));
+        const labelEvery = n <= 10 ? 1 : Math.ceil(n / 10);
+
+        this.jpdBars = data.map((d, i) => {
+            const c = d.count || 0;
+            const h = (c / maxCount) * plotH;
+            const x = PAD_X + i * slot + (slot - barW) / 2;
+            const y = PAD_T + (plotH - h);
+            const showLabel = (i % labelEvery === 0) || (i === n - 1);
+            return {
+                key: d.day,
+                x, y, w: barW, h: Math.max(c > 0 ? 2 : 0, h),
+                cx: x + barW / 2,
+                countY: y - 5,
+                count: c,
+                showCount: c > 0,
+                axisLabel: showLabel ? this._shortDay(d.day) : '',
+                labelY: H - 12,
+            };
+        });
+    }
+
+    _shortDay(iso) {
+        // iso = yyyy-MM-dd -> "23 Jun" (local, label only)
+        const parts = (iso || '').split('-');
+        if (parts.length !== 3) return iso;
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString('en-AU', { day: '2-digit', month: 'short' });
     }
 }

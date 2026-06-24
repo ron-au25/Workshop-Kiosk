@@ -4,7 +4,12 @@ export default class KioskHeader extends LightningElement {
     @api territoryName;
     @api supervisorName;
     @api workerName;
+    @api crewName;
     @api isPortrait = false;
+
+    get hasCrew() {
+        return !!(this.crewName && this.crewName.trim());
+    }
 
     @track currentTime = '';
     _clockInterval;

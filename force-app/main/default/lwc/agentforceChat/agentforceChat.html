@@ -63,6 +63,9 @@
                 onkeydown={handleInputKeydown}
                 rows="1"
             ></textarea>
+            <template lwc:if={voiceSupported}>
+                <button class={micClass} onclick={handleMicToggle} aria-label={micLabel} title={micLabel}>🎤</button>
+            </template>
             <button class="af-send" onclick={handleSend} disabled={sendDisabled} aria-label="Send">➤</button>
         </div>
     </section>

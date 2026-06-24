@@ -34,6 +34,7 @@ public with sharing class KioskController {
         @AuraEnabled public String token;
         @AuraEnabled public String workerId;
         @AuraEnabled public String workerName;
+        @AuraEnabled public String crewName;   // the crew the worker belongs to (null if none)
         @AuraEnabled public String errorCode;
         @AuraEnabled public Integer remainingAttempts;
         @AuraEnabled public Long lockedUntilMs;
@@ -49,11 +50,17 @@ public with sharing class KioskController {
         @AuraEnabled public String kioskNotes;
         @AuraEnabled public List<DonutSlice> workTypeBreakdown;
         @AuraEnabled public List<CriticalJob> topCriticalJobs;
+        @AuraEnabled public List<JobDay> jobsPerDay;          // scheduled jobs bucketed by day
     }
 
     public class DonutSlice {
         @AuraEnabled public String label;
         @AuraEnabled public Integer count;
+    }
+
+    public class JobDay {
+        @AuraEnabled public String day;     // ISO date yyyy-MM-dd
+        @AuraEnabled public Integer count;  // jobs scheduled that day
     }
 
     public class CriticalJob {
@@ -479,8 +486,23 @@ public with sharing class KioskController {
         result.success = true;
         result.workerId = sr.Id;
         result.workerName = sr.Name;
+        result.crewName = resolveCrewName(sr.Id);
         result.token = issueToken(sr.Id, territoryId, now);
         return result;
+    }
+
+    /** Current crew name for a worker (active membership), or null if not in a crew. */
+    private static String resolveCrewName(Id workerId) {
+        List<ServiceCrewMember> members = [
+            SELECT ServiceCrew.Name
+            FROM ServiceCrewMember
+            WHERE ServiceResourceId = :workerId
+              AND (EndDate = NULL OR EndDate >= :DateTime.now())
+            WITH SECURITY_ENFORCED
+            ORDER BY EndDate NULLS FIRST
+            LIMIT 1
+        ];
+        return members.isEmpty() ? null : members[0].ServiceCrew.Name;
     }
 
     // ─── Work orders (resource-scoped via SA assignments) ────────────────────
@@ -1193,7 +1215,7 @@ public with sharing class KioskController {
 
         // Find SAs in the territory within the date window
         List<ServiceAppointment> sas = [
-            SELECT Id, ParentRecordId
+            SELECT Id, ParentRecordId, SchedStartTime
             FROM ServiceAppointment
             WHERE ServiceTerritoryId = :payload.territoryId
               AND ParentRecordType = 'WorkOrder'
@@ -1204,8 +1226,16 @@ public with sharing class KioskController {
         ];
 
         Set<Id> woIds = new Set<Id>();
+        // Bucket distinct work orders per scheduled day (count each WO once per day).
+        Map<Date, Set<Id>> woIdsByDay = new Map<Date, Set<Id>>();
         for (ServiceAppointment sa : sas) {
-            if (sa.ParentRecordId != null) woIds.add(sa.ParentRecordId);
+            if (sa.ParentRecordId == null) continue;
+            woIds.add(sa.ParentRecordId);
+            if (sa.SchedStartTime != null) {
+                Date d = sa.SchedStartTime.date();
+                if (!woIdsByDay.containsKey(d)) woIdsByDay.put(d, new Set<Id>());
+                woIdsByDay.get(d).add(sa.ParentRecordId);
+            }
         }
 
         String kioskNotes = getKioskNotes(payload.territoryId);
@@ -1265,6 +1295,22 @@ public with sharing class KioskController {
 
         m.workTypeBreakdown = sliceMap.values();
         m.topCriticalJobs = criticals;
+
+        // Jobs-per-day series across the selected window (zero-filled, in order).
+        // Cap the span so a huge custom range can't blow out the payload/chart.
+        List<JobDay> series = new List<JobDay>();
+        Integer spanDays = fromDate.daysBetween(toDate) + 1;   // inclusive
+        Integer maxDays = 62;
+        if (spanDays > 0 && spanDays <= maxDays) {
+            for (Integer i = 0; i < spanDays; i++) {
+                Date d = fromDate.addDays(i);
+                JobDay jd = new JobDay();
+                jd.day = DateTime.newInstance(d, Time.newInstance(0,0,0,0)).format('yyyy-MM-dd');
+                jd.count = woIdsByDay.containsKey(d) ? woIdsByDay.get(d).size() : 0;
+                series.add(jd);
+            }
+        }
+        m.jobsPerDay = series;
         return m;
     }
 

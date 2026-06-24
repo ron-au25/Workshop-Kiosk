@@ -14,6 +14,9 @@ export default class AgentforceChat extends LightningElement {
     @track draft = '';
     @track isThinking = false;
     @track errorMessage = '';
+    @track listening = false;   // voice input active (Web Speech API)
+
+    _recognition = null;
 
     _sessionId = null;
     _seq = 1;
@@ -45,6 +48,72 @@ export default class AgentforceChat extends LightningElement {
     }
     get hasMessages() {
         return this.messages.length > 0;
+    }
+
+    // ---- voice input (free Web Speech API; Chrome/Edge only) ---------------
+
+    get voiceSupported() {
+        return typeof window !== 'undefined'
+            && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+    }
+    get micClass() {
+        return 'af-mic' + (this.listening ? ' af-mic-on' : '');
+    }
+    get micLabel() {
+        return this.listening ? 'Stop voice input' : 'Voice input';
+    }
+
+    handleMicToggle() {
+        if (!this.voiceSupported) return;
+        if (this.listening) {
+            this._stopListening();
+            return;
+        }
+        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        try {
+            this._recognition = new Rec();
+            this._recognition.lang = 'en-AU';
+            this._recognition.interimResults = true;
+            this._recognition.continuous = false;
+            this._recognition.onresult = (event) => this._handleSpeechResult(event);
+            this._recognition.onerror = (event) => this._handleSpeechError(event);
+            this._recognition.onend = () => { this.listening = false; };
+            this._recognition.start();
+            this.listening = true;
+            this.errorMessage = '';
+            this._historyIdx = null;   // typing-equivalent: leave history-browse mode
+        } catch (e) {
+            this.listening = false;
+        }
+    }
+
+    _handleSpeechResult(event) {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+        }
+        this._setInput(transcript);   // live into the input box (DOM + property + caret)
+    }
+
+    _handleSpeechError(event) {
+        this.listening = false;
+        const err = event && event.error;
+        if (err === 'not-allowed' || err === 'service-not-allowed') {
+            this.errorMessage = 'Microphone access is blocked. Enable it in your browser settings.';
+        }
+        // 'no-speech' / 'aborted' are silent — nothing to surface.
+    }
+
+    _stopListening() {
+        if (this._recognition) {
+            try { this._recognition.stop(); } catch (e) { /* already stopped */ }
+        }
+        this.listening = false;
+    }
+
+    disconnectedCallback() {
+        this._stopListening();
+        this._recognition = null;
     }
 
     // A carousel image's "Go to work order" was tapped — close the chat panel and
@@ -90,6 +159,7 @@ export default class AgentforceChat extends LightningElement {
     @api
     async reset() {
         // Called by parent on idle-logout / end session.
+        this._stopListening();    // don't leave the mic open for the next worker
         const sid = this._sessionId;
         this._sessionId = null;
         this._seq = 1;
@@ -109,8 +179,9 @@ export default class AgentforceChat extends LightningElement {
 
     handleInput(evt) {
         this.draft = evt.target.value;
-        // Typing exits history-browsing mode.
+        // Typing exits history-browsing mode and stops voice capture.
         this._historyIdx = null;
+        if (this.listening) this._stopListening();
     }
 
     // Required on the kiosk: stop the global barcode keydown handler in
@@ -180,6 +251,7 @@ export default class AgentforceChat extends LightningElement {
     }
 
     async handleSend() {
+        if (this.listening) this._stopListening();
         const text = (this.draft || '').trim();
         if (!text || this.isThinking) return;
 

@@ -40,16 +40,35 @@ private class WorkpackDemoGeneratorTest {
             System.assert(String.isNotBlank(li.Description), 'WOLI has a description');
         }
 
-        // Measures on each wheelset
-        Integer measures = [SELECT COUNT() FROM Measure_Point__c WHERE Asset__c IN :wsIds];
-        System.assertEquals(12, measures, '3 measures x 4 wheelsets');
+        // Measures on each wheelset — a numeric time series + OK + Attention.
+        List<Measure_Point__c> mps = [
+            SELECT Measure_Type__c, Measure_Value__c, MeasureValue_Type__c, Update_Date__c
+            FROM Measure_Point__c WHERE Asset__c IN :wsIds
+        ];
+        System.assert(mps.size() >= 4 * 8, 'a numeric series per wheelset, not just a few');
         Integer attention = [SELECT COUNT() FROM Measure_Point__c WHERE Asset__c IN :wsIds AND Measure_Type__c = 'Attention Required'];
         System.assertEquals(4, attention, 'one attention item per wheelset');
+
+        // Numeric "Measure" readings should VARY (not a flat line) — check the
+        // distinct Depth values span a sensible ±30% range around the ~28 baseline.
+        Set<Decimal> depthVals = new Set<Decimal>();
+        Decimal lo = null, hi = null;
+        for (Measure_Point__c mp : mps) {
+            if (mp.Measure_Type__c == 'Measure' && mp.MeasureValue_Type__c == 'Depth' && mp.Measure_Value__c != null) {
+                depthVals.add(mp.Measure_Value__c);
+                if (lo == null || mp.Measure_Value__c < lo) lo = mp.Measure_Value__c;
+                if (hi == null || mp.Measure_Value__c > hi) hi = mp.Measure_Value__c;
+            }
+        }
+        System.assert(depthVals.size() > 1, 'depth readings vary (graph is not a straight line)');
+        if (lo != null) {
+            System.assert(lo >= 28 * 0.70 - 0.1 && hi <= 28 * 1.30 + 0.1, 'within ~±30% of baseline');
+        }
 
         // Dates populated for timeline/calendar/measure-graph
         System.assertNotEquals(null, [SELECT StartDate FROM WorkOrder WHERE Id = :rootId].StartDate, 'root WO has StartDate');
         Integer datedMeasures = [SELECT COUNT() FROM Measure_Point__c WHERE Asset__c IN :wsIds AND Update_Date__c != null];
-        System.assertEquals(12, datedMeasures, 'all measures dated');
+        System.assertEquals(mps.size(), datedMeasures, 'all measures dated');
         Integer datedAssets = [SELECT COUNT() FROM Asset WHERE (Id = :wagonId OR ParentId = :wagonId) AND InstallDate != null];
         System.assert(datedAssets >= 5, 'wagon + wheelsets have install dates');
     }

@@ -8,6 +8,9 @@
             </template>
             <div class="header-territory">
                 <span class="territory-label">⚙ {territoryName}</span>
+                <template lwc:if={hasCrew}>
+                    <span class="crew-label">👥 {crewName}</span>
+                </template>
             </div>
         </div>
         <div class="header-centre">

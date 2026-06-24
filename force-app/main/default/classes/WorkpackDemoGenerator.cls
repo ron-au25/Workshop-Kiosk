@@ -199,20 +199,30 @@ public with sharing class WorkpackDemoGenerator {
         }
         insert lineItems;
 
-        // Backfill any auto-created blank line items on these child WOs.
+        // Backfill any auto-created blank line items across the ROOT workpack AND
+        // its child WOs (the button opens the root, so its WOLIs must be filled too).
+        Map<Id, String> woSubjectById = new Map<Id, String>();
+        woSubjectById.put(root.Id, root.Subject);
+        for (WorkOrder c : children) woSubjectById.put(c.Id, c.Subject);
+
+        Map<Id, Integer> opSeqByWo = new Map<Id, Integer>();   // per-WO operation numbering
         List<WorkOrderLineItem> toFix = new List<WorkOrderLineItem>();
-        Integer seq = 1;
         for (WorkOrderLineItem li : [
             SELECT Id, Subject, Description, WorkOrderId
             FROM WorkOrderLineItem
-            WHERE WorkOrderId IN :childById.keySet()
+            WHERE WorkOrderId IN :woSubjectById.keySet()
+            ORDER BY WorkOrderId, LineItemNumber
         ]) {
             Boolean blankSubj = String.isBlank(li.Subject);
             Boolean blankDesc = String.isBlank(li.Description);
             if (!blankSubj && !blankDesc) continue;
-            String woSubj = childById.containsKey(li.WorkOrderId) ? childById.get(li.WorkOrderId).Subject : 'Workpack operation';
-            String op = '00' + seq + '0';
-            seq++;
+
+            String woSubj = woSubjectById.containsKey(li.WorkOrderId)
+                ? woSubjectById.get(li.WorkOrderId) : 'Workpack operation';
+            Integer next = (opSeqByWo.containsKey(li.WorkOrderId) ? opSeqByWo.get(li.WorkOrderId) : 0) + 1;
+            opSeqByWo.put(li.WorkOrderId, next);
+            String op = String.valueOf(next * 10).leftPad(4, '0');   // 0010, 0020, ...
+
             if (blankSubj) {
                 String s = op + ' — ' + woSubj;
                 li.Subject = s.length() > 255 ? s.substring(0, 255) : s;
@@ -226,49 +236,72 @@ public with sharing class WorkpackDemoGenerator {
         if (!toFix.isEmpty()) update toFix;
 
         // --- 7. Sample measure points per wheelset ---------------------------
-        // Stagger dates so the measure-graph (values over time) and timeline show
-        // progression instead of every point landing on the same timestamp.
+        // Build a TIME SERIES of numeric readings per wheelset, each varied up to
+        // ±30% off a baseline, so the measure-point graph shows a realistic
+        // wiggly line instead of a flat one. Plus an OK and an Attention item.
+        Integer READINGS = 6;                 // numeric readings per metric, over time
         List<Measure_Point__c> measures = new List<Measure_Point__c>();
         Integer wsIndex = 0;
         for (Asset ws : wheelsets) {
-            // each wheelset inspected on a different recent day; 3 readings hours apart
-            Datetime base = rootStart.addDays(wsIndex * 3 + 1);
-            // OK item
+            // each wheelset's series starts on a different recent day
+            Datetime seriesStart = rootStart.addDays(wsIndex * 3 + 1);
+
+            // Time-series: Flange depth (Depth, baseline ~28) and Bearing temp
+            // (Pressure, baseline ~22). Readings spread ~12h apart with ±30% jitter.
+            for (Integer r = 0; r < READINGS; r++) {
+                Datetime readingAt = seriesStart.addHours(r * 12);
+                measures.add(new Measure_Point__c(
+                    Component_Name__c = 'Flange depth',
+                    Measure_Type__c = 'Measure',
+                    Measure_Value__c = vary(28, 0.30),
+                    MeasureValue_Type__c = 'Depth',
+                    Comments__c = 'Reading ' + (r + 1) + ' of ' + READINGS + '.',
+                    Work_Order__c = root.Id,
+                    Asset__c = ws.Id,
+                    Update_Date__c = readingAt
+                ));
+                measures.add(new Measure_Point__c(
+                    Component_Name__c = 'Bearing condition',
+                    Measure_Type__c = 'Measure',
+                    Measure_Value__c = vary(22, 0.30),
+                    MeasureValue_Type__c = 'Pressure',
+                    Comments__c = 'Reading ' + (r + 1) + ' of ' + READINGS + '.',
+                    Work_Order__c = root.Id,
+                    Asset__c = ws.Id,
+                    Update_Date__c = readingAt.addHours(1)
+                ));
+            }
+
+            // One OK and one Attention item per wheelset (status mix for charts).
             measures.add(new Measure_Point__c(
                 Component_Name__c = 'Wheel profile inspection',
                 Measure_Type__c = 'OK',
                 Comments__c = 'Within tolerance.',
                 Work_Order__c = root.Id,
                 Asset__c = ws.Id,
-                Update_Date__c = base
+                Update_Date__c = seriesStart.addHours(READINGS * 12)
             ));
-            // Numeric measure
-            measures.add(new Measure_Point__c(
-                Component_Name__c = 'Flange depth',
-                Measure_Type__c = 'Measure',
-                Measure_Value__c = 28 + Math.mod(ws.Name.length(), 5),
-                MeasureValue_Type__c = 'Depth',
-                Comments__c = 'Measured at rim.',
-                Work_Order__c = root.Id,
-                Asset__c = ws.Id,
-                Update_Date__c = base.addHours(2)
-            ));
-            // Attention item with a defect location
             measures.add(new Measure_Point__c(
                 Component_Name__c = 'Bearing condition',
                 Measure_Type__c = 'Attention Required',
-                Measure_Value__c = 22,
+                Measure_Value__c = vary(22, 0.30),
                 MeasureValue_Type__c = 'Pressure',
                 Defect_Location__c = 'Lower Lug',
                 Comments__c = 'Elevated reading — monitor.',
                 Work_Order__c = root.Id,
                 Asset__c = ws.Id,
-                Update_Date__c = base.addHours(4)
+                Update_Date__c = seriesStart.addHours(READINGS * 12 + 2)
             ));
             wsIndex++;
         }
         insert measures;
 
         return root.Id;
+    }
+
+    /** Return baseline varied by up to ±pct (e.g. 0.30 = ±30%), rounded to 1 dp. */
+    private static Decimal vary(Decimal baseline, Decimal pct) {
+        Decimal factor = 1 + (Math.random() * 2 - 1) * pct;   // 1-pct .. 1+pct
+        return (baseline * factor).setScale(1);
     }
 }

@@ -30,6 +30,7 @@ export default class WorkshopPortal extends LightningElement {
     @track selectedWorker;
     @track sessionToken;
     @track currentWorkerName;
+    @track currentCrewName = '';
     @track setupError;
     @track isAuthError = false;
     @track siteBaseUrl = '';
@@ -121,9 +122,10 @@ export default class WorkshopPortal extends LightningElement {
     }
 
     handleEmployeeAuthenticated(evt) {
-        const { token, workerName } = evt.detail;
+        const { token, workerName, crewName } = evt.detail;
         this.sessionToken = token;
         this.currentWorkerName = workerName;
+        this.currentCrewName = crewName || '';
         this.activeNav = 'dashboard';
         this.state = STATE.DASHBOARD;
         this._startIdleTimer();
@@ -174,6 +176,7 @@ export default class WorkshopPortal extends LightningElement {
         this._clearTimers();
         this.sessionToken = null;
         this.currentWorkerName = null;
+        this.currentCrewName = '';
         this.selectedWorker = null;
         this.barcodeEmployeeId = null;
         this.showIdleWarning = false;

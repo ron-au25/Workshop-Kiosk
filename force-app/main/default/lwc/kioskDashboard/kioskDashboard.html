@@ -176,6 +176,30 @@
                 </div>
             </div>
 
+            <!-- Jobs per day -->
+            <div class="card jobsperday-card">
+                <h3 class="card-title">📊 Jobs per Day</h3>
+                <template lwc:if={hasJobsPerDay}>
+                    <svg viewBox={jpdViewBox} class="jpd-svg" preserveAspectRatio="xMidYMid meet"
+                         aria-label="Number of jobs scheduled per day">
+                        <template for:each={jpdBars} for:item="bar">
+                            <g key={bar.key}>
+                                <rect class="jpd-bar" x={bar.x} y={bar.y} width={bar.w} height={bar.h} rx="3"></rect>
+                                <template lwc:if={bar.showCount}>
+                                    <text x={bar.cx} y={bar.countY} text-anchor="middle" class="jpd-count">{bar.count}</text>
+                                </template>
+                                <template lwc:if={bar.axisLabel}>
+                                    <text x={bar.cx} y={bar.labelY} text-anchor="middle" class="jpd-axis">{bar.axisLabel}</text>
+                                </template>
+                            </g>
+                        </template>
+                    </svg>
+                </template>
+                <template lwc:else>
+                    <div class="empty-state">No jobs scheduled for this period</div>
+                </template>
+            </div>
+
             <!-- Kiosk notes -->
             <template lwc:if={metrics.kioskNotes}>
                 <div class="card notes-card">

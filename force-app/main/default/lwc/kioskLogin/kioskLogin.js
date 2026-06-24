@@ -109,7 +109,7 @@ export default class KioskLogin extends LightningElement {
             if (result.success) {
                 this.pin = '';
                 this.dispatchEvent(new CustomEvent('authenticated', {
-                    detail: { token: result.token, workerName: result.workerName, workerId: result.workerId },
+                    detail: { token: result.token, workerName: result.workerName, workerId: result.workerId, crewName: result.crewName },
                 }));
             } else {
                 this.pin = '';

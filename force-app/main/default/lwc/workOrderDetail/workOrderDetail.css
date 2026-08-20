@@ -272,6 +272,30 @@
 .tr-arrow { color: var(--rt-text-dim, #6B7A89); }
 .tr-dur { margin-left: auto; font-weight: 600; font-size: 14px; white-space: nowrap; }
 
+/* Collapsible Time History header (reuses .section-title sizing) */
+.tr-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+.tr-toggle-label { flex: 0 0 auto; }
+.tr-toggle-action {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--rt-accent, #2E8FE6);
+}
+.tr-toggle-chevron { font-size: 18px; color: var(--rt-text-dim, #6B7A89); line-height: 1; }
+
 /* ─── Notes / codes form ─────────────────────────────────────────────────── */
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .form-label { font-size: 13px; color: var(--rt-text-dim, #6B7A89); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }

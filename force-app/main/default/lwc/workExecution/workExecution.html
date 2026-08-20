@@ -55,7 +55,7 @@
                             </template>
                         </div>
 
-                        <template lwc:if={hasAttachments}>
+                        <template lwc:if={hasSelectedAttachmentContent}>
                             <div class="pdf-annotator-container">
                                 <c-pdf-annotator
                                     pdf-url={selectedAttachmentUrl}
@@ -64,6 +64,27 @@
                                     file-name={selectedAttachment.title}
                                     onsaved={handleAnnotationSaved}
                                 ></c-pdf-annotator>
+                            </div>
+                        </template>
+                        <template lwc:elseif={contentLoading}>
+                            <div class="we-center">
+                                <div class="spinner"></div>
+                                <p>Loading document…</p>
+                            </div>
+                        </template>
+                        <template lwc:elseif={isSelectedTooLarge}>
+                            <div class="we-center">
+                                <span class="we-empty-icon">📄</span>
+                                <p>This document is too large to annotate here.</p>
+                                <button class="btn-secondary" onclick={handleOpenFullDocument}>
+                                    Open full document
+                                </button>
+                            </div>
+                        </template>
+                        <template lwc:elseif={hasContentError}>
+                            <div class="we-center">
+                                <span class="we-error-icon">⚠</span>
+                                <p>{contentErrorMsg}</p>
                             </div>
                         </template>
                         <template lwc:else>

@@ -19,7 +19,7 @@ trigger WorkOrderWorkpackTrigger on WorkOrder (before update) {
     for (WorkType wt : [
         SELECT Id FROM WorkType
         WHERE Id IN :woToWorkTypeId.values()
-          AND Name = 'Rail Workpack'
+          AND Name LIKE '%Workpack%'
         WITH SECURITY_ENFORCED
     ]) {
         railWorkpackTypeIds.add(wt.Id);

@@ -746,3 +746,162 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
     animation: ar-spin 0.8s linear infinite;
 }
 @keyframes ar-spin { to { transform: rotate(360deg); } }
+
+/* ─── WO-count badge on component chips ──────────────────────────────────── */
+.wo-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--rt-accent-2, #2E8FE6);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* ─── Level-3 sub-asset strip ────────────────────────────────────────────── */
+.child-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 4px 0 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--rt-border, #2A3744);
+}
+.child-strip-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--rt-text-muted, #A6B2BD);
+    margin-right: 2px;
+}
+.child-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--rt-surface-2, #1B2530);
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 999px;
+    color: var(--rt-text, #F2F5F7);
+    font-size: 14px;
+    font-weight: 600;
+    height: 40px;
+    padding: 0 16px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    font-family: inherit;
+}
+.child-chip:hover { background: var(--rt-surface-3, #243040); }
+.child-chip.selected {
+    background: rgba(46,143,230,0.18);
+    border-color: var(--rt-accent-2, #2E8FE6);
+    color: var(--rt-accent-2, #2E8FE6);
+}
+.child-chip .zone-dot { width: 12px; height: 12px; box-shadow: none; }
+
+/* ─── Work Plans panel ───────────────────────────────────────────────────── */
+.plan-list { display: flex; flex-direction: column; gap: 10px; }
+.plan-card {
+    background: var(--rt-surface-2, #1B2530);
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.plan-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--rt-text, #F2F5F7);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 12px 14px;
+    cursor: pointer;
+    text-align: left;
+}
+.plan-toggle:hover { background: var(--rt-surface-3, #243040); }
+.plan-order {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--rt-surface-3, #243040);
+    color: var(--rt-text-muted, #A6B2BD);
+    font-size: 13px;
+    font-weight: 800;
+}
+.plan-name { flex: 1; }
+.plan-chevron { color: var(--rt-text-muted, #A6B2BD); font-size: 16px; }
+.step-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--rt-border, #2A3744);
+}
+.ar-step-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rt-border, #2A3744);
+}
+.ar-step-row:last-child { border-bottom: none; }
+.step-num {
+    color: var(--rt-text-dim, #6B7A89);
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 18px;
+    padding-top: 2px;
+}
+.step-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.step-name { color: var(--rt-text, #F2F5F7); font-size: 14px; }
+.step-desc { color: var(--rt-text-muted, #A6B2BD); font-size: 13px; }
+.step-status {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--rt-text-muted, #A6B2BD);
+    white-space: nowrap;
+}
+.ar-step-row.status-completed .step-status { color: var(--rt-success, #21C07A); }
+.ar-step-row.status-in-progress .step-status { color: var(--rt-accent-2, #2E8FE6); }
+.no-steps { color: var(--rt-text-muted, #A6B2BD); font-size: 13px; padding: 10px 14px; margin: 0; }
+
+/* ─── Required Parts table ───────────────────────────────────────────────── */
+.parts-table {
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.parts-head, .parts-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 120px;
+    gap: 12px;
+    padding: 10px 14px;
+    align-items: center;
+}
+.parts-head {
+    background: var(--rt-surface-3, #243040);
+    color: var(--rt-text-muted, #A6B2BD);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.parts-row {
+    border-top: 1px solid var(--rt-border, #2A3744);
+    color: var(--rt-text, #F2F5F7);
+    font-size: 14px;
+}
+.parts-col-name { font-weight: 600; }
+.parts-col-qty { font-variant-numeric: tabular-nums; }
+.parts-col-wo { color: var(--rt-text-muted, #A6B2BD); font-variant-numeric: tabular-nums; }

@@ -242,7 +242,21 @@
                     <!-- Time report history -->
                     <template lwc:if={hasTimeReports}>
                         <div class="wd-section">
-                            <h3 class="section-title">Time History</h3>
+                            <template lwc:if={hasMultipleTimeReports}>
+                                <button
+                                    type="button"
+                                    class={timeHistoryToggleClass}
+                                    onclick={handleToggleTimeHistory}
+                                    aria-expanded={timeHistoryExpanded}
+                                >
+                                    <span class="tr-toggle-label">Time History</span>
+                                    <span class="tr-toggle-action">{timeHistoryToggleLabel}</span>
+                                    <span class="tr-toggle-chevron">{timeHistoryChevron}</span>
+                                </button>
+                            </template>
+                            <template lwc:else>
+                                <h3 class="section-title">Time History</h3>
+                            </template>
                             <div class="tr-list">
                                 <template for:each={timeReportsEnriched} for:item="tr">
                                     <div key={tr.id} class={tr.rowClass}>

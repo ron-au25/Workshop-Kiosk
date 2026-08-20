@@ -78,6 +78,18 @@
             <masterLabel>Timeline</masterLabel>
             <utterance>show the maintenance timeline for this wagon</utterance>
         </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>au_measures_over</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Measures Over Value</masterLabel>
+            <utterance>show me measures over 20</utterance>
+        </aiPluginUtterances>
+        <aiPluginUtterances>
+            <developerName>au_measures_outcome</developerName>
+            <language xsi:nil="true"/>
+            <masterLabel>Measures By Outcome</masterLabel>
+            <utterance>show scrap or require attention measures</utterance>
+        </aiPluginUtterances>
         <canEscalate>false</canEscalate>
         <description>Produces graphical insights (charts, timelines, tables, KPIs, calendars) and image/photo/attachment carousels about wagons, assets, measure points, and work orders for the kiosk.</description>
         <developerName>Asset_Insights</developerName>
@@ -116,6 +128,13 @@
             <masterLabel>ai_instr_4</masterLabel>
             <sortOrder>4</sortOrder>
         </genAiPluginInstructions>
+        <genAiPluginInstructions>
+            <description>When the user wants to FILTER or DRILL INTO specific measures by their own criteria — a value threshold (e.g. "show me measures over 20", "readings above 50", "anything under 5", "between 10 and 30"), an outcome (e.g. "show scrap or require attention", "just the scrap measures", "anything needing attention"), or a measurement type (e.g. "temperature readings over 80") — call the Measure Explorer action, not the Measure Point Graph. Map "over/above/greater than N" to minValue, "under/below/less than N" to maxValue, and "between A and B" to both. Map outcome words to measureOutcome using the exact picklist values Scrap, Attention Required, Measure, OK (comma-separate multiple, e.g. "scrap or require attention" becomes "Scrap,Attention Required"). Map a measurement type to valueType (Temperature, Pressure, Level, Width, Length, Depth). Re-call the action with new inputs every time the user changes the criteria; never reuse a previous result. Pass currentRecordId as workOrderId when no wagon is named. Relay the returned message verbatim — it carries the agent-blocks the kiosk renders as detailed measure cards.</description>
+            <developerName>ai_instr_5</developerName>
+            <language>en_US</language>
+            <masterLabel>ai_instr_5</masterLabel>
+            <sortOrder>5</sortOrder>
+        </genAiPluginInstructions>
         <language>en_US</language>
         <localActionLinks>
             <functionName>Chart_Asset_Timeline</functionName>
@@ -125,6 +144,9 @@
         </localActionLinks>
         <localActionLinks>
             <functionName>Chart_Measure_Point_Graph</functionName>
+        </localActionLinks>
+        <localActionLinks>
+            <functionName>Chart_Measure_Explorer</functionName>
         </localActionLinks>
         <localActionLinks>
             <functionName>Chart_Wagon_Condition</functionName>
@@ -197,6 +219,54 @@
             </mappingAttributes>
             <masterLabel>Measure Point Graph</masterLabel>
             <progressIndicatorMessage>building chart...</progressIndicatorMessage>
+        </localActions>
+        <localActions>
+            <fullName>Chart_Measure_Explorer</fullName>
+            <description>Filtered, detailed analysis of measure points by the user's criteria — a value threshold (minValue / maxValue), an outcome (Scrap / Attention Required / Measure / OK), and/or a value type. Returns a KPI summary and a carousel of measure cards; the kiosk shows full detail (outcome, value, value type, component, defect location, comments, date) when a card is tapped. The kiosk renders the returned message — relay it verbatim.</description>
+            <developerName>Chart_Measure_Explorer</developerName>
+            <invocationTarget>AgentActionMeasureExplorer</invocationTarget>
+            <invocationTargetType>apex</invocationTargetType>
+            <isConfirmationRequired>false</isConfirmationRequired>
+            <isIncludeInProgressIndicator>true</isIncludeInProgressIndicator>
+            <localDeveloperName>Chart_Measure_Explorer</localDeveloperName>
+            <mappingAttributes>
+                <label>workOrderId</label>
+                <name>input_workOrderId</name>
+                <parameterName>workOrderId</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <mappingAttributes>
+                <label>wagonNumber</label>
+                <name>input_wagonNumber</name>
+                <parameterName>wagonNumber</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <mappingAttributes>
+                <label>minValue</label>
+                <name>input_minValue</name>
+                <parameterName>minValue</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <mappingAttributes>
+                <label>maxValue</label>
+                <name>input_maxValue</name>
+                <parameterName>maxValue</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <mappingAttributes>
+                <label>measureOutcome</label>
+                <name>input_measureOutcome</name>
+                <parameterName>measureOutcome</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <mappingAttributes>
+                <label>valueType</label>
+                <name>input_valueType</name>
+                <parameterName>valueType</parameterName>
+                <parameterType>input</parameterType>
+            </mappingAttributes>
+            <masterLabel>Measure Explorer</masterLabel>
+            <progressIndicatorMessage>finding measures...</progressIndicatorMessage>
         </localActions>
         <localActions>
             <fullName>Chart_Wagon_Condition</fullName>

@@ -99,6 +99,22 @@
     font-weight: 600;
 }
 
+.search-row { display: flex; gap: 10px; align-items: stretch; }
+.search-row .search-wrap { flex: 1; }
+.search-all-btn {
+    background: var(--rt-accent, #E25822);
+    border: 1px solid var(--rt-accent, #E25822);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    min-height: 40px;
+    padding: 0 18px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+.search-all-btn:hover { filter: brightness(1.1); }
 .search-wrap { position: relative; }
 .search-icon-sm {
     position: absolute;

@@ -39,6 +39,34 @@ private class KioskBlocksTest {
     @IsTest static void codes() { assertValid(KioskBlocks.codeFrequency(new List<KioskBlocks.Input>{ ctx() })); }
     @IsTest static void calendar() { assertValid(KioskBlocks.shiftActivityCalendar(new List<KioskBlocks.Input>{ ctx() })); }
     @IsTest static void images() { assertValid(KioskBlocks.workOrderImages(new List<KioskBlocks.Input>{ ctx() })); }
+    @IsTest static void measureExplorer_unfiltered() { assertValid(KioskBlocks.measureExplorer(new List<KioskBlocks.Input>{ ctx() })); }
+
+    @IsTest static void measureExplorer_withCriteria() {
+        // Value threshold + outcome filter — must still return a graceful message
+        // or a valid agent-blocks fence regardless of what live data matches.
+        KioskBlocks.Input in0 = ctx();
+        in0.minValue = '20';
+        in0.measureOutcome = 'Scrap,Attention Required';
+        in0.valueType = 'Temperature';
+        assertValid(KioskBlocks.measureExplorer(new List<KioskBlocks.Input>{ in0 }));
+    }
+
+    // When a measure point has a value/outcome, the explorer card must carry the
+    // detail rows the lightbox renders (Outcome, Value, Component, ...).
+    @IsTest static void measureExplorer_cardCarriesDetails() {
+        List<Measure_Point__c> mps = [
+            SELECT Work_Order__c FROM Measure_Point__c
+            WHERE Work_Order__c != null AND Measure_Value__c != null LIMIT 1
+        ];
+        if (mps.isEmpty()) return; // no suitable live data; skip
+        KioskBlocks.Input in0 = new KioskBlocks.Input();
+        in0.workOrderId = mps[0].Work_Order__c;
+        String msg = KioskBlocks.measureExplorer(new List<KioskBlocks.Input>{ in0 })[0].message;
+        if (msg.contains('"type":"carousel"')) {
+            System.assert(msg.contains('"details"'), 'cards carry detail rows');
+            System.assert(msg.contains('"label":"Outcome"'), 'detail includes Outcome row');
+        }
+    }
 
     // Seed an image on an existing work order and confirm the carousel card carries
     // the workOrderId for drill-down. (ContentVersion insert is allowed; the broken

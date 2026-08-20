@@ -191,19 +191,34 @@ export default class AgentRichBlocks extends LightningElement {
                 `${c.title} ${c.subtitle} ${c.caption}`.toLowerCase().includes(q)
             );
         }
-        const carouselCards = cards.map((c, i) => ({
-            key: `cc${bi}-${i}`,
-            idx: i,
-            title: c.title || '',
-            subtitle: c.subtitle || '',
-            imageUrl: c.imageUrl || '',
-            caption: c.caption || '',
-            workOrderId: c.workOrderId || null,
-            hasImage: !!c.imageUrl,
-            hasSubtitle: !!c.subtitle,
-            hasCaption: !!c.caption,
-            canDrill: !!c.workOrderId,
-        }));
+        const carouselCards = cards.map((c, i) => {
+            const details = Array.isArray(c.details)
+                ? c.details
+                      .filter((d) => d && (d.value != null && String(d.value) !== ''))
+                      .map((d, di) => ({
+                          key: `cd${bi}-${i}-${di}`,
+                          label: d.label || '',
+                          value: d.value == null ? '' : String(d.value),
+                      }))
+                : [];
+            return {
+                key: `cc${bi}-${i}`,
+                idx: i,
+                title: c.title || '',
+                subtitle: c.subtitle || '',
+                imageUrl: c.imageUrl || '',
+                caption: c.caption || '',
+                workOrderId: c.workOrderId || null,
+                details,
+                hasImage: !!c.imageUrl,
+                hasSubtitle: !!c.subtitle,
+                hasCaption: !!c.caption,
+                hasDetails: details.length > 0,
+                // card opens the lightbox if it has an image OR detail rows to show
+                canOpen: !!c.imageUrl || details.length > 0,
+                canDrill: !!c.workOrderId,
+            };
+        });
         return { carouselCards, searchValue: f.search };
     }
 
@@ -235,14 +250,53 @@ export default class AgentRichBlocks extends LightningElement {
                 cssClass: s.hidden ? 'rb-legend-item rb-legend-off' : 'rb-legend-item',
             })),
         };
-        if (ct === 'bar') out.bars = this._bars(series, bi);
-        else if (ct === 'line') Object.assign(out, this._line(series, bi));
-        else out.slices = this._slices(series, bi, ct === 'donut');
+        if (ct === 'bar') {
+            const max = Math.max(1, ...series.map((s) => s.value));
+            out.bars = this._bars(series, bi, max);
+            out.axis = this._axes();
+            out.yTicks = this._yTicks(max, bi);
+        } else if (ct === 'line') {
+            const max = Math.max(1, ...series.map((s) => s.value));
+            Object.assign(out, this._line(series, bi, max));
+            out.axis = this._axes();
+            out.yTicks = this._yTicks(max, bi);
+        } else {
+            out.slices = this._slices(series, bi, ct === 'donut');
+        }
         return out;
     }
 
-    _bars(series, bi) {
-        const max = Math.max(1, ...series.map((s) => s.value));
+    // X/Y axis lines for cartesian (bar/line) charts.
+    _axes() {
+        const h0 = CHART_H - PAD;
+        return {
+            xLine: { x1: PAD, y1: h0, x2: CHART_W - PAD, y2: h0 },
+            yLine: { x1: PAD, y1: PAD, x2: PAD, y2: h0 },
+        };
+    }
+
+    // Horizontal gridlines + value labels along the Y axis (0 / mid / max).
+    _yTicks(max, bi) {
+        const h0 = CHART_H - PAD;
+        const plotH = CHART_H - PAD * 2;
+        return [0, 0.5, 1].map((fr, i) => ({
+            key: `yt${bi}-${i}`,
+            y: h0 - fr * plotH,
+            x1: PAD,
+            x2: CHART_W - PAD,
+            labelX: PAD - 5,
+            label: this._fmtNum(max * fr),
+        }));
+    }
+
+    _fmtNum(v) {
+        const n = Number(v);
+        if (isNaN(n)) return '';
+        if (Number.isInteger(n)) return String(n);
+        return n.toFixed(Math.abs(n) < 10 ? 1 : 0);
+    }
+
+    _bars(series, bi, max) {
         const n = series.length || 1;
         const gap = 10;
         const bw = (CHART_W - PAD * 2 - gap * (n - 1)) / n;
@@ -260,20 +314,31 @@ export default class AgentRichBlocks extends LightningElement {
                 label: s.label,
                 labelX: x + bw / 2,
                 labelY: h0 + 14,
+                valueText: this._fmtNum(s.value),
+                valX: x + bw / 2,
                 valY: h0 - bh - 4,
             };
         });
     }
 
-    _line(series, bi) {
-        const max = Math.max(1, ...series.map((s) => s.value));
+    _line(series, bi, max) {
         const n = series.length;
         const stepX = n > 1 ? (CHART_W - PAD * 2) / (n - 1) : 0;
         const h0 = CHART_H - PAD;
         const pts = series.map((s, i) => {
             const x = PAD + i * stepX;
             const y = h0 - (s.value / max) * (CHART_H - PAD * 2);
-            return { key: `pt${bi}-${i}`, x, y, label: s.label, labelX: x, labelY: h0 + 14 };
+            return {
+                key: `pt${bi}-${i}`,
+                x,
+                y,
+                label: s.label,
+                labelX: x,
+                labelY: h0 + 14,
+                valueText: this._fmtNum(s.value),
+                valX: x,
+                valY: y - 7,
+            };
         });
         const polyline = pts.map((p) => `${p.x},${p.y}`).join(' ');
         return {
@@ -383,16 +448,21 @@ export default class AgentRichBlocks extends LightningElement {
 
     // ---- carousel image lightbox + drill-down ------------------------------
 
-    // Open a carousel image fullscreen. Card identified by block/card index.
+    // Open a carousel card fullscreen — shows the image (if any) and its detail
+    // rows. Card identified by block/card index.
     handleCardOpen(evt) {
         const bi = parseInt(evt.currentTarget.dataset.bi, 10);
         const ci = parseInt(evt.currentTarget.dataset.ci, 10);
         const card = this.view[bi] && this.view[bi].carouselCards[ci];
-        if (!card || !card.imageUrl) return;
+        if (!card || !card.canOpen) return;
         this.lightbox = {
-            imageUrl: card.imageUrl,
+            imageUrl: card.imageUrl || '',
+            hasImage: !!card.imageUrl,
             label: card.subtitle || card.title || '',
             title: card.title || '',
+            caption: card.caption || '',
+            details: card.details || [],
+            hasDetails: (card.details || []).length > 0,
             workOrderId: card.workOrderId || null,
             canDrill: !!card.workOrderId,
         };

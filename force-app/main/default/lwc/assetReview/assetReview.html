@@ -43,7 +43,7 @@
                 <!-- ─── Wagon diagram with wheelset zones ─── -->
                 <div class="ar-section">
                     <button class="collapse-header" onclick={handleToggleDiagram} aria-expanded={diagramExpanded}>
-                        <span class="section-title nomargin">Wheelsets — tap a section</span>
+                        <span class="section-title nomargin">Components — tap a section</span>
                         <span class="collapse-icon">{diagramToggleIcon}</span>
                     </button>
 
@@ -59,9 +59,34 @@
                             >
                                 <span class={zone.dotClass}></span>
                                 <span class="chip-label">{zone.label}</span>
+                                <template lwc:if={zone.hasWos}>
+                                    <span class="wo-badge" title="Work orders in this workpack">{zone.woCount}</span>
+                                </template>
                             </button>
                         </template>
                     </div>
+
+                    <!-- Level-3 sub-assets of the selected component -->
+                    <template lwc:if={hasChildComponents}>
+                        <div class="child-strip">
+                            <span class="child-strip-label">Sub-assets</span>
+                            <template for:each={childComponents} for:item="child">
+                                <button
+                                    key={child.id}
+                                    class={child.chipClass}
+                                    data-id={child.id}
+                                    onclick={handleSelectChild}
+                                    aria-label={child.name}
+                                >
+                                    <span class={child.dotClass}></span>
+                                    <span class="chip-label">{child.name}</span>
+                                    <template lwc:if={child.hasWos}>
+                                        <span class="wo-badge" title="Work orders in this workpack">{child.woCount}</span>
+                                    </template>
+                                </button>
+                            </template>
+                        </div>
+                    </template>
 
                     <template lwc:if={diagramExpanded}>
                         <div class="diagram-frame">
@@ -254,6 +279,7 @@
                                             <div class="form-group">
                                                 <label class="form-label">Comments</label>
                                                 <textarea class="form-textarea" rows="2"
+                                                    data-id="editComments"
                                                     placeholder="Observations, findings…"
                                                     value={editComments}
                                                     oninput={handleCommentsChange}
@@ -263,6 +289,7 @@
                                             <div class="form-group">
                                                 <label class="form-label">Review Notes <span class="optional">(optional)</span></label>
                                                 <textarea class="form-textarea" rows="2"
+                                                    data-id="editReviewNotes"
                                                     placeholder="Notes for supervisor review…"
                                                     value={editReviewNotes}
                                                     oninput={handleReviewNotesChange}
@@ -505,13 +532,98 @@
                         </template>
                     </div>
 
+                    <!-- ─── Work Plans of the associated work order ─── -->
+                    <div class="ar-section">
+                        <button class="collapse-header" onclick={handleTogglePlans} aria-expanded={plansExpanded}>
+                            <span class="section-title nomargin">{detailHeading} — Work Plans</span>
+                            <span class="collapse-icon">{plansToggleIcon}</span>
+                        </button>
+                        <template lwc:if={plansExpanded}>
+                            <template lwc:if={hasPlans}>
+                                <div class="plan-list">
+                                    <template for:each={workPlansEnriched} for:item="plan">
+                                        <div key={plan.id} class="plan-card">
+                                            <button
+                                                class={plan.toggleClass}
+                                                data-plan-id={plan.id}
+                                                onclick={handleTogglePlan}
+                                                aria-expanded={plan.isExpanded}
+                                            >
+                                                <span class="plan-order">{plan.executionOrder}</span>
+                                                <span class="plan-name">{plan.name}</span>
+                                                <span class="plan-chevron">{plan.chevron}</span>
+                                            </button>
+                                            <template lwc:if={plan.isExpanded}>
+                                                <div class="step-list">
+                                                    <template for:each={plan.steps} for:item="step">
+                                                        <div key={step.id} class={step.stepClass}>
+                                                            <span class="step-num">{step.executionOrder}</span>
+                                                            <div class="step-body">
+                                                                <span class="step-name">{step.name}</span>
+                                                                <template lwc:if={step.description}>
+                                                                    <span class="step-desc">{step.description}</span>
+                                                                </template>
+                                                            </div>
+                                                            <span class="step-status">{step.status}</span>
+                                                        </div>
+                                                    </template>
+                                                    <template lwc:if={plan.hasNoSteps}>
+                                                        <p class="no-steps">No steps defined.</p>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <div class="ar-empty">
+                                    <span class="ar-empty-icon">📋</span>
+                                    <p>No work plans on the work order for this asset.</p>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+
+                    <!-- ─── Required Parts for the selected asset ─── -->
+                    <div class="ar-section">
+                        <button class="collapse-header" onclick={handleToggleParts} aria-expanded={partsExpanded}>
+                            <span class="section-title nomargin">{detailHeading} — Required Parts</span>
+                            <span class="collapse-icon">{partsToggleIcon}</span>
+                        </button>
+                        <template lwc:if={partsExpanded}>
+                            <template lwc:if={hasParts}>
+                                <div class="parts-table">
+                                    <div class="parts-head">
+                                        <span class="parts-col-name">Part</span>
+                                        <span class="parts-col-qty">Qty</span>
+                                        <span class="parts-col-wo">Work Order</span>
+                                    </div>
+                                    <template for:each={partsEnriched} for:item="part">
+                                        <div key={part.key} class="parts-row">
+                                            <span class="parts-col-name">{part.productName}</span>
+                                            <span class="parts-col-qty">{part.qtyDisplay}</span>
+                                            <span class="parts-col-wo">{part.workOrderNumber}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template lwc:else>
+                                <div class="ar-empty">
+                                    <span class="ar-empty-icon">📦</span>
+                                    <p>No required parts recorded for this asset.</p>
+                                </div>
+                            </template>
+                        </template>
+                    </div>
+
                 </template>
 
                 <template lwc:if={hasSelection}></template>
                 <template lwc:else>
                     <div class="ar-hint">
                         <span class="ar-empty-icon">👆</span>
-                        <p>Tap a wheelset (L1–L4) on the diagram to view its asset details, measures and tasks.</p>
+                        <p>Tap a component on the diagram to view its sub-assets, details, measures, work plans and tasks.</p>
                     </div>
                 </template>
 

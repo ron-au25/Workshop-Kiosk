@@ -19,7 +19,13 @@ export default class PdfAnnotator extends LightningElement {
     @api set pdfUrl(val) {
         const changed = this._pdfUrl !== val;
         this._pdfUrl = val;
-        if (changed && this._libsReady) this._reloadPdf();
+        if (!val) {
+            this.isLoading = false;
+            this.hasError = true;
+            this.errorMsg = 'This document is too large to preview, or is unavailable.';
+        } else if (changed && this._libsReady) {
+            this._reloadPdf();
+        }
     }
 
     @track activeTool = TOOL.HAND;
@@ -82,7 +88,15 @@ export default class PdfAnnotator extends LightningElement {
     async _loadPdf() {
         if (!this._pdfUrl) { this.isLoading = false; return; }
         try {
-            this._pdfDoc = await window.pdfjsLib.getDocument(this._pdfUrl).promise;
+            // A `data:` URI must be handed to pdf.js as raw bytes, NOT as a URL.
+            // Given a URL, pdf.js fetches it via internal XHR, and the Experience
+            // Cloud CSP `connect-src` directive has no `data:` entry, so the
+            // browser blocks the fetch. Decoding to a Uint8Array and passing
+            // { data } skips the network entirely — no fetch, no CSP gate.
+            const src = (typeof this._pdfUrl === 'string' && this._pdfUrl.startsWith('data:'))
+                ? { data: this._dataUriToBytes(this._pdfUrl) }
+                : this._pdfUrl;
+            this._pdfDoc = await window.pdfjsLib.getDocument(src).promise;
             this.totalPages = this._pdfDoc.numPages;
             this.isLoading = false;
             // eslint-disable-next-line @lwc/lwc/no-async-operation
@@ -93,6 +107,15 @@ export default class PdfAnnotator extends LightningElement {
             this.hasError = true;
             this.isLoading = false;
         }
+    }
+
+    _dataUriToBytes(dataUri) {
+        const base64 = dataUri.substring(dataUri.indexOf(',') + 1);
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
     }
 
     async _renderAllPages() {

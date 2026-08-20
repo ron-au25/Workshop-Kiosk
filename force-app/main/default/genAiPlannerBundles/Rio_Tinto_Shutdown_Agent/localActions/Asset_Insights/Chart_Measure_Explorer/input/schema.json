@@ -1,0 +1,13 @@
+{
+  "unevaluatedProperties" : false,
+  "properties" : {
+    "workOrderId" : { "title" : "Work Order Id", "description" : "Current work order Salesforce id. Pass currentRecordId when the user does not name a wagon or work order.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "assetId" : { "title" : "Asset Id", "description" : "Optional wagon or wheelset Asset id.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : false },
+    "wagonNumber" : { "title" : "Wagon Number", "description" : "Optional wagon number to target.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "minValue" : { "title" : "Min Value", "description" : "Lower bound for the measure value. Set from phrases like 'measures over 20', 'greater than 20', 'above 20' becomes 20. Leave blank for no lower bound.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "maxValue" : { "title" : "Max Value", "description" : "Upper bound for the measure value. Set from phrases like 'measures under 5', 'less than 5', 'below 5' becomes 5. Leave blank for no upper bound.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "measureOutcome" : { "title" : "Measure Outcome", "description" : "Comma-separated outcome filter. Valid values: Scrap, Attention Required, Measure, OK. Map the user's words: 'scrap' becomes Scrap, 'require attention' / 'attention required' / 'needs attention' becomes Attention Required, 'ok' / 'passing' becomes OK. 'show scrap or require attention' becomes 'Scrap,Attention Required'. Leave blank for all outcomes.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true },
+    "valueType" : { "title" : "Measure Value Type", "description" : "Measurement type filter. Valid values: Temperature, Pressure, Level, Width, Length, Depth. Set from e.g. 'temperature readings' becomes Temperature. Leave blank for all types.", "lightning:type" : "lightning__textType", "lightning:isPII" : false, "copilotAction:isUserInput" : true }
+  },
+  "lightning:type" : "lightning__objectType"
+}

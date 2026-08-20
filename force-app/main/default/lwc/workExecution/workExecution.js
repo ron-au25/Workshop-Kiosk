@@ -3,6 +3,7 @@ import getMeasurePoints from '@salesforce/apex/KioskController.getMeasurePoints'
 import saveMeasurePoint from '@salesforce/apex/KioskController.saveMeasurePoint';
 import deleteMeasurePoint from '@salesforce/apex/KioskController.deleteMeasurePoint';
 import getWorkOrderAttachments from '@salesforce/apex/KioskController.getWorkOrderAttachments';
+import getAttachmentContent from '@salesforce/apex/KioskController.getAttachmentContent';
 import getWorkOrderDetail from '@salesforce/apex/KioskController.getWorkOrderDetail';
 
 const MEASURE_TYPES = ['Attention Required', 'Measure', 'OK'];
@@ -18,8 +19,14 @@ export default class WorkExecution extends LightningElement {
     @track isLoading = false;
     @track hasError = false;
 
-    // Attachment viewer
+    // Attachment viewer — content is fetched lazily, one file at a time, via
+    // getAttachmentContent as a base64 data URI for inline pdf.js annotation.
+    // Files over 4MB can't be inlined (Apex 6,000,000-char String limit); they
+    // are flagged tooLarge and opened view-only in a new tab instead.
     @track selectedAttachmentIndex = 0;
+    @track contentLoading = false;
+    @track contentErrorMsg = '';
+    _contentCache = {}; // contentDocumentId -> base64 data URI
 
     // Right panel collapse + resize
     @track rightVisible = true;
@@ -81,11 +88,50 @@ export default class WorkExecution extends LightningElement {
             if (this.selectedAttachmentIndex >= this.attachments.length) {
                 this.selectedAttachmentIndex = 0;
             }
+            this._loadSelectedContent();
         } catch (e) {
             this.hasError = true;
         } finally {
             this.isLoading = false;
         }
+    }
+
+    async _loadSelectedContent() {
+        const att = this.selectedAttachment;
+        if (!att) return;
+        if (att.tooLarge) return; // view-only via new tab; nothing to inline
+        if (this._contentCache[att.contentDocumentId]) return; // already fetched
+        this.contentLoading = true;
+        this.contentErrorMsg = '';
+        try {
+            const res = await getAttachmentContent({
+                token: this.sessionToken,
+                contentDocumentId: att.contentDocumentId,
+            });
+            if (res && res.dataUri) {
+                this._contentCache[att.contentDocumentId] = res.dataUri;
+            }
+        } catch (e) {
+            this.contentErrorMsg = 'Failed to open the document.';
+        } finally {
+            this.contentLoading = false;
+        }
+    }
+
+    // Opens an oversized attachment in a new tab. This is a top-level navigation
+    // (not a fetch), so the browser uses the member's authenticated web session
+    // to load the file directly — no CORS and no Apex size limit involved.
+    handleOpenFullDocument() {
+        const att = this.selectedAttachment;
+        if (!att) return;
+        const base = this._siteBasePath();
+        const url = `${base}/sfc/servlet.shepherd/document/download/${att.contentDocumentId}`;
+        window.open(url, '_blank');
+    }
+
+    _siteBasePath() {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        return pathParts.length > 0 ? '/' + pathParts[0] : '';
     }
 
     handleBack() {
@@ -218,15 +264,17 @@ export default class WorkExecution extends LightningElement {
 
     handleSelectAttachment(evt) {
         const idx = parseInt(evt.currentTarget.dataset.idx, 10);
-        if (!isNaN(idx)) this.selectedAttachmentIndex = idx;
+        if (!isNaN(idx)) {
+            this.selectedAttachmentIndex = idx;
+            this.contentErrorMsg = '';
+            this._loadSelectedContent();
+        }
     }
 
     handleAnnotationSaved() {
-        // After save, stay on current tab but refresh list (new annotated copy appears)
-        const currentUrl = this.selectedAttachmentUrl;
-        this.loadAll().then ? this.loadAll() : undefined;
-        // Restore selection to same doc after reload — handled in loadAll via URL match
-        this._restoreUrl = currentUrl;
+        // After save, refresh list (new annotated copy appears); loadAll()
+        // re-triggers content fetch for whatever ends up selected.
+        this.loadAll();
     }
 
     handleToggleRight() {
@@ -332,7 +380,22 @@ export default class WorkExecution extends LightningElement {
     }
 
     get selectedAttachmentUrl() {
-        return this.selectedAttachment ? this.selectedAttachment.downloadUrl : null;
+        const att = this.selectedAttachment;
+        return att ? (this._contentCache[att.contentDocumentId] || null) : null;
+    }
+
+    get hasSelectedAttachmentContent() {
+        return !!this.selectedAttachmentUrl;
+    }
+
+    get isSelectedTooLarge() {
+        const att = this.selectedAttachment;
+        return !!(att && att.tooLarge) && !this.selectedAttachmentUrl;
+    }
+
+    get hasContentError() {
+        return !this.contentLoading && !this.selectedAttachmentUrl
+            && !this.isSelectedTooLarge && !!this.contentErrorMsg;
     }
 
     get hasMultipleAttachments() {

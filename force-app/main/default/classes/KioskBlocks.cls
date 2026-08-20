@@ -31,6 +31,14 @@ public with sharing class KioskBlocks {
         public String maxItems;
         @InvocableVariable(label='Event Type Filter' description='Optional timeline filter: "measure" to show only measures taken, "workorder" to show only work orders. Blank = both.')
         public String eventType;
+        @InvocableVariable(label='Min Value' description='Optional lower bound for Measure Value. E.g. "measures over 20" -> 20. Blank = no lower bound.')
+        public String minValue;
+        @InvocableVariable(label='Max Value' description='Optional upper bound for Measure Value. E.g. "measures under 5" -> 5. Blank = no upper bound.')
+        public String maxValue;
+        @InvocableVariable(label='Measure Outcome' description='Optional comma-separated outcome filter for measures. Valid values: "Scrap", "Attention Required", "Measure", "OK". E.g. "scrap or attention" -> "Scrap,Attention Required". Blank = all outcomes.')
+        public String measureOutcome;
+        @InvocableVariable(label='Measure Value Type' description='Optional measurement type filter. Valid values: Temperature, Pressure, Level, Width, Length, Depth. Blank = all types.')
+        public String valueType;
     }
 
     public class Output {
@@ -178,6 +186,105 @@ public with sharing class KioskBlocks {
         outBlocks.add(new Map<String, Object>{ 'type' => 'chart', 'chartType' => 'bar', 'title' => 'Measures by Outcome', 'series' => split });
 
         return blocks('Here is the measure point graph (' + mps.size() + ' readings).', outBlocks);
+    }
+
+    /**
+     * Measure Explorer — filtered, detailed analysis of measure points.
+     * Supports the user's own criteria: a value threshold (minValue / maxValue),
+     * an outcome filter (Scrap / Attention Required / Measure / OK), and a value-type
+     * filter (Temperature, Pressure, ...). Returns a KPI summary plus a CAROUSEL where
+     * each card carries a rich `details` list (outcome, value, value type, component,
+     * defect location, comments, date) the kiosk shows on drill-in, an optional image,
+     * and the parent workOrderId for "go to work order".
+     */
+    public static List<Output> measureExplorer(List<Input> reqs) {
+        Input in0 = first(reqs);
+        Id assetId = resolveAnyAssetId(in0);
+        String woId = cleanId(in0.workOrderId);
+
+        // ---- parse the user's criteria -------------------------------------
+        Decimal minVal = parseDecimalOrNull(in0.minValue);
+        Decimal maxVal = parseDecimalOrNull(in0.maxValue);
+        Set<String> outcomes = parseOutcomes(in0.measureOutcome);  // normalised picklist values
+        String vType = normValueType(in0.valueType);
+
+        // ---- base query (asset hierarchy or single work order) -------------
+        List<Measure_Point__c> mps;
+        if (assetId != null) {
+            Set<Id> ids = wagonAndWheelsetIds(assetId);
+            mps = [SELECT Id, Component_Name__c, Measure_Type__c, Measure_Value__c, MeasureValue_Type__c,
+                          Defect_Location__c, Comments__c, Work_Order__c, CreatedDate, Update_Date__c
+                   FROM Measure_Point__c WHERE Asset__c IN :ids ORDER BY CreatedDate DESC LIMIT 200];
+        } else if (woId != null) {
+            mps = [SELECT Id, Component_Name__c, Measure_Type__c, Measure_Value__c, MeasureValue_Type__c,
+                          Defect_Location__c, Comments__c, Work_Order__c, CreatedDate, Update_Date__c
+                   FROM Measure_Point__c WHERE Work_Order__c = :woId ORDER BY CreatedDate DESC LIMIT 200];
+        } else {
+            return msg('Tell me which wagon, wheelset, or work order to explore.');
+        }
+
+        // ---- apply the criteria in Apex (deterministic) --------------------
+        List<Measure_Point__c> matched = new List<Measure_Point__c>();
+        Map<String, Integer> outcomeCount = new Map<String, Integer>();
+        for (Measure_Point__c mp : mps) {
+            if (minVal != null && (mp.Measure_Value__c == null || mp.Measure_Value__c < minVal)) continue;
+            if (maxVal != null && (mp.Measure_Value__c == null || mp.Measure_Value__c > maxVal)) continue;
+            if (!outcomes.isEmpty() && !outcomes.contains(nz(mp.Measure_Type__c))) continue;
+            if (vType != null && !vType.equalsIgnoreCase(nz(mp.MeasureValue_Type__c))) continue;
+            matched.add(mp);
+            String mt = String.isBlank(mp.Measure_Type__c) ? 'Unspecified' : mp.Measure_Type__c;
+            outcomeCount.put(mt, (outcomeCount.containsKey(mt) ? outcomeCount.get(mt) : 0) + 1);
+        }
+
+        String crit = describeCriteria(minVal, maxVal, outcomes, vType);
+        if (matched.isEmpty()) {
+            return msg('No measures matched' + (crit == '' ? '.' : ' ' + crit + '.'));
+        }
+
+        // Latest image per matched measure point (for an optional card thumbnail).
+        Map<Id, String> imageByMp = latestImageUrlByEntity(new Map<Id, Measure_Point__c>(matched).keySet());
+
+        // ---- build cards with rich detail ----------------------------------
+        List<Object> cards = new List<Object>();
+        for (Measure_Point__c mp : matched) {
+            Datetime d = (mp.Update_Date__c != null) ? mp.Update_Date__c : mp.CreatedDate;
+            String valStr = (mp.Measure_Value__c != null)
+                ? (String.valueOf(mp.Measure_Value__c) + ' ' + nz(mp.MeasureValue_Type__c)).trim()
+                : '—';
+
+            // detail rows the lightbox renders (label/value pairs)
+            List<Object> details = new List<Object>();
+            details.add(detailRow('Outcome', nz(mp.Measure_Type__c)));
+            details.add(detailRow('Value', valStr));
+            details.add(detailRow('Value Type', nz(mp.MeasureValue_Type__c)));
+            details.add(detailRow('Component', nz(mp.Component_Name__c)));
+            if (String.isNotBlank(mp.Defect_Location__c)) details.add(detailRow('Defect Location', mp.Defect_Location__c));
+            details.add(detailRow('Recorded', fmtDate(d)));
+            if (String.isNotBlank(mp.Comments__c)) details.add(detailRow('Comments', mp.Comments__c));
+
+            cards.add(new Map<String, Object>{
+                'title' => nz(mp.Component_Name__c) == '' ? 'Measure' : mp.Component_Name__c,
+                'subtitle' => nz(mp.Measure_Type__c),
+                'caption' => valStr,
+                'imageUrl' => imageByMp.containsKey(mp.Id) ? imageByMp.get(mp.Id) : null,
+                'workOrderId' => mp.Work_Order__c,
+                'details' => details
+            });
+        }
+
+        // KPI summary of the matched set by outcome.
+        List<Object> kpis = new List<Object>();
+        kpis.add(new Map<String, Object>{ 'label' => 'Matched', 'value' => matched.size() });
+        for (String k : outcomeCount.keySet()) {
+            kpis.add(new Map<String, Object>{ 'label' => k, 'value' => outcomeCount.get(k) });
+        }
+
+        String title = 'Measures' + (crit == '' ? '' : ' ' + crit);
+        return blocks('Found ' + matched.size() + ' measure(s)' + (crit == '' ? '' : ' ' + crit)
+            + '. Tap a card for full detail.', new List<Object>{
+            new Map<String, Object>{ 'type' => 'kpi', 'title' => 'Summary', 'items' => kpis },
+            new Map<String, Object>{ 'type' => 'carousel', 'title' => title, 'cards' => cards }
+        });
     }
 
     public static List<Output> wagonConditionByWheelset(List<Input> reqs) {
@@ -527,6 +634,77 @@ public with sharing class KioskBlocks {
             try { return Integer.valueOf(m.group()); } catch (Exception e) { return null; }
         }
         return null;
+    }
+
+    /** Parse the first decimal in a string ("over 20" / "20.5" -> 20 / 20.5), else null. */
+    private static Decimal parseDecimalOrNull(String s) {
+        if (String.isBlank(s)) return null;
+        Matcher m = Pattern.compile('-?\\d+(\\.\\d+)?').matcher(s);
+        if (m.find()) {
+            try { return Decimal.valueOf(m.group()); } catch (Exception e) { return null; }
+        }
+        return null;
+    }
+
+    /** Map a free-text outcome filter to a set of valid Measure_Type__c picklist values. */
+    private static Set<String> parseOutcomes(String s) {
+        Set<String> out = new Set<String>();
+        if (String.isBlank(s)) return out;
+        String t = s.toLowerCase();
+        if (t.contains('scrap')) out.add('Scrap');
+        if (t.contains('attention') || t.contains('require')) out.add('Attention Required');
+        if (t.contains('ok') || t.contains('pass')) out.add('OK');
+        // "measure" as an outcome only when not part of "attention"/general phrasing
+        if (Pattern.compile('(^|[^a-z])measure([^a-z]|$)').matcher(t).find()) out.add('Measure');
+        return out;
+    }
+
+    /** Normalise a value-type filter to a valid MeasureValue_Type__c picklist value, else null. */
+    private static String normValueType(String s) {
+        if (String.isBlank(s)) return null;
+        String t = s.toLowerCase();
+        for (String v : new List<String>{ 'Temperature', 'Pressure', 'Level', 'Width', 'Length', 'Depth' }) {
+            if (t.contains(v.toLowerCase())) return v;
+        }
+        return null;
+    }
+
+    /** Human-readable description of the applied measure criteria (for titles/prose). */
+    private static String describeCriteria(Decimal minVal, Decimal maxVal, Set<String> outcomes, String vType) {
+        List<String> bits = new List<String>();
+        if (minVal != null && maxVal != null) bits.add('between ' + minVal + ' and ' + maxVal);
+        else if (minVal != null) bits.add('over ' + minVal);
+        else if (maxVal != null) bits.add('under ' + maxVal);
+        if (!outcomes.isEmpty()) {
+            List<String> os = new List<String>(outcomes);
+            os.sort();
+            bits.add('(' + String.join(os, ' / ') + ')');
+        }
+        if (vType != null) bits.add(vType.toLowerCase());
+        return bits.isEmpty() ? '' : String.join(bits, ' ');
+    }
+
+    private static Map<String, Object> detailRow(String label, String value) {
+        return new Map<String, Object>{ 'label' => label, 'value' => value };
+    }
+
+    /** Latest image ContentVersion download URL per linked entity (measure point), else absent. */
+    private static Map<Id, String> latestImageUrlByEntity(Set<Id> entityIds) {
+        Map<Id, String> urlByEntity = new Map<Id, String>();
+        if (entityIds == null || entityIds.isEmpty()) return urlByEntity;
+        Set<String> imageExts = new Set<String>{ 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg', 'heic', 'tif', 'tiff' };
+        for (ContentDocumentLink cdl : [
+            SELECT ContentDocumentId, LinkedEntityId, ContentDocument.FileExtension
+            FROM ContentDocumentLink
+            WHERE LinkedEntityId IN :entityIds
+            ORDER BY ContentDocument.CreatedDate DESC
+        ]) {
+            if (urlByEntity.containsKey(cdl.LinkedEntityId)) continue; // newest first; keep first
+            String ext = (cdl.ContentDocument.FileExtension == null) ? '' : cdl.ContentDocument.FileExtension.toLowerCase();
+            if (!imageExts.contains(ext)) continue;
+            urlByEntity.put(cdl.LinkedEntityId, '/sfc/servlet.shepherd/document/download/' + cdl.ContentDocumentId);
+        }
+        return urlByEntity;
     }
 
     /** Normalise an event-type filter to 'measure' | 'workorder' | null. */

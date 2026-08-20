@@ -7,6 +7,7 @@ import getMeasureImages from '@salesforce/apex/KioskController.getMeasureImages'
 import uploadMeasureImage from '@salesforce/apex/KioskController.uploadMeasureImage';
 import saveMeasurePoint from '@salesforce/apex/KioskController.saveMeasurePoint';
 import getAssetTasks from '@salesforce/apex/KioskController.getAssetTasks';
+import getAssetReviewDetail from '@salesforce/apex/KioskController.getAssetReviewDetail';
 import createAssetTask from '@salesforce/apex/KioskController.createAssetTask';
 import updateAssetTask from '@salesforce/apex/KioskController.updateAssetTask';
 import updateAssetSerial from '@salesforce/apex/KioskController.updateAssetSerial';
@@ -88,7 +89,12 @@ export default class AssetReview extends LightningElement {
     @track isLoading = true;
     @track hasError = false;
 
-    @track selectedWheelsetId = null;
+    @track selectedWheelsetId = null;   // level-2 component anchor
+    @track selectedChildId = null;      // level-3 sub-asset (terminal selection)
+    @track assetDetail = { workPlans: [], parts: [] };  // work plans + parts for active asset
+    @track expandedPlanIds = {};
+    @track plansExpanded = true;
+    @track partsExpanded = true;
     @track wheelsetPoints = [];     // measure points for the selected wheelset
     @track measureImages = {};      // measurePointId -> base64 data URI (lazy-loaded)
     @track pendingImagePreview = null;   // data URI preview of an image staged in the form
@@ -168,12 +174,13 @@ export default class AssetReview extends LightningElement {
         evt.stopPropagation();
     }
 
-    // ─── Wheelset selection ──────────────────────────────────────────────────
+    // ─── Component (level-2) selection ───────────────────────────────────────
     async handleSelectWheelset(evt) {
         const id = evt.currentTarget.dataset.id;
         if (!id) return;
         const firstSelection = !this.selectedWheelsetId;
         this.selectedWheelsetId = id;
+        this.selectedChildId = null;     // reset the level-3 drill on a new component
         this.overviewExpanded = true;
         this.detailExpanded = true;
         // On the first selection, collapse the big top panels down to the indicator strip
@@ -189,19 +196,42 @@ export default class AssetReview extends LightningElement {
         await this.loadDetail(id);
     }
 
+    // ─── Sub-asset (level-3) selection ───────────────────────────────────────
+    async handleSelectChild(evt) {
+        const id = evt.currentTarget.dataset.id;
+        if (!id) return;
+        this.selectedChildId = id;
+        this.overviewExpanded = true;
+        this.detailExpanded = true;
+        this.showMeasureForm = false;
+        this.showTaskForm = false;
+        const child = this._findChild(id);
+        this.serialDraft = child ? (child.serialNumber || '') : '';
+        await this.loadDetail(id);
+    }
+
+    _findChild(id) {
+        const ws = this.wheelsets.find(w => w.id === this.selectedWheelsetId);
+        return ws && ws.children ? ws.children.find(c => c.id === id) : null;
+    }
+
     async loadDetail(assetId) {
         this.loadingDetail = true;
+        this.expandedPlanIds = {};
         try {
-            const [points, tasks] = await Promise.all([
+            const [points, tasks, detail] = await Promise.all([
                 getMeasurePointsByAsset({ token: this.sessionToken, assetId }),
                 getAssetTasks({ token: this.sessionToken, assetId }),
+                getAssetReviewDetail({ token: this.sessionToken, workOrderId: this.workOrderId, assetId }),
             ]);
             this.wheelsetPoints = points || [];
             this.tasks = tasks || [];
+            this.assetDetail = detail || { workPlans: [], parts: [] };
             this._loadMeasureImages();
         } catch (e) {
             this.wheelsetPoints = [];
             this.tasks = [];
+            this.assetDetail = { workPlans: [], parts: [] };
         } finally {
             this.loadingDetail = false;
         }
@@ -227,23 +257,28 @@ export default class AssetReview extends LightningElement {
     handleToggleDetail() { this.detailExpanded = !this.detailExpanded; }
     handleToggleDiagram() { this.diagramExpanded = !this.diagramExpanded; }
     handleToggleCharts() { this.chartsExpanded = !this.chartsExpanded; }
+    handleTogglePlans() { this.plansExpanded = !this.plansExpanded; }
+    handleToggleParts() { this.partsExpanded = !this.partsExpanded; }
+    handleTogglePlan(evt) {
+        const planId = evt.currentTarget.dataset.planId;
+        this.expandedPlanIds = { ...this.expandedPlanIds, [planId]: !this.expandedPlanIds[planId] };
+    }
 
     // ─── Serial edit ─────────────────────────────────────────────────────────
     handleSerialChange(evt) { this.serialDraft = evt.target.value; }
 
     async handleSaveSerial() {
-        if (!this.selectedWheelsetId) return;
+        const assetId = this.activeAssetId;
+        if (!assetId) return;
         this.savingSerial = true;
         try {
             await updateAssetSerial({
                 token: this.sessionToken,
-                assetId: this.selectedWheelsetId,
+                assetId,
                 serialNumber: this.serialDraft,
             });
-            // Reflect locally
-            this.wheelsets = this.wheelsets.map(w =>
-                w.id === this.selectedWheelsetId ? { ...w, serialNumber: this.serialDraft } : w
-            );
+            // Reflect locally on whichever asset (component or sub-asset) is active
+            this._patchAsset(assetId, { serialNumber: this.serialDraft });
         } catch (e) {
             // silent — surfaced via feedback span if desired
         } finally {
@@ -281,12 +316,32 @@ export default class AssetReview extends LightningElement {
         this.measureFeedback = '';
         this._clearPendingImage();
         this.showMeasureForm = true;
+        // LWC does not reliably reflect a bound `value` onto a <textarea>'s displayed
+        // text, so push the preloaded Comments/Review Notes into the DOM after render.
+        this._syncMeasureTextareas = true;
     }
 
     _clearPendingImage() {
         this.pendingImagePreview = null;
         this._pendingImageBase64 = null;
         this._pendingImageName = null;
+    }
+
+    // Build the stored file name: "<component name> - <worker>.<ext>", keeping the
+    // original file extension. Falls back gracefully if either part is missing.
+    _buildImageFileName(componentName) {
+        const orig = this._pendingImageName || 'measure-image.jpg';
+        const ext = orig.includes('.') ? orig.substring(orig.lastIndexOf('.') + 1) : 'jpg';
+        const parts = [];
+        if (componentName && componentName.trim()) parts.push(componentName.trim());
+        if (this.workerName && this.workerName.trim()) parts.push(this.workerName.trim());
+        let base = parts.join(' - ') || 'Measure Image';
+        // strip characters awkward in file names; collapse whitespace
+        base = base.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+        // ContentVersion.Title maxes at 255 chars — cap so long component
+        // checklist text + worker name can't overflow and fail the insert.
+        if (base.length > 200) base = base.substring(0, 200).trim();
+        return `${base}.${ext}`;
     }
 
     // Camera/file selection: read the chosen image to base64 and stage a preview.
@@ -335,7 +390,7 @@ export default class AssetReview extends LightningElement {
                 measureValueType: null,
                 defectLocation: p.defectLocation || null,
                 workOrderId: this.workOrderId,
-                assetId: this.selectedWheelsetId,
+                assetId: this.activeAssetId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
             this.wheelsetPoints = this.wheelsetPoints.map(x => x.id === saved.id ? saved : x);
@@ -373,7 +428,7 @@ export default class AssetReview extends LightningElement {
                 measureValueType: isMeasure ? this.editMeasureValueType : null,
                 defectLocation: this.editDefectLocation || null,
                 workOrderId: this.workOrderId,
-                assetId: this.selectedWheelsetId,
+                assetId: this.activeAssetId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
 
@@ -383,7 +438,7 @@ export default class AssetReview extends LightningElement {
                     const dataUri = await uploadMeasureImage({
                         token: this.sessionToken,
                         measurePointId: saved.id,
-                        fileName: this._pendingImageName,
+                        fileName: this._buildImageFileName(saved.componentName || this.editComponentName),
                         base64Data: this._pendingImageBase64,
                     });
                     this.measureImages = { ...this.measureImages, [saved.id]: dataUri };
@@ -421,7 +476,7 @@ export default class AssetReview extends LightningElement {
         }
     }
 
-    // Recompute the selected wheelset's status dot from its current points.
+    // Recompute the active asset's status dot from its current points.
     _recomputeWheelsetStatus() {
         const pts = this.wheelsetPoints;
         let status = 'grey';
@@ -431,9 +486,19 @@ export default class AssetReview extends LightningElement {
             // Green = a real measure recorded; empty checklist placeholders stay grey.
             status = 'green';
         }
-        this.wheelsets = this.wheelsets.map(w =>
-            w.id === this.selectedWheelsetId ? { ...w, iconStatus: status } : w
-        );
+        this._patchAsset(this.activeAssetId, { iconStatus: status });
+    }
+
+    // Patch a field on whichever asset matches (level-2 component or a level-3 child),
+    // producing new array/object refs so the reactive getters re-render.
+    _patchAsset(assetId, patch) {
+        this.wheelsets = this.wheelsets.map(w => {
+            if (w.id === assetId) return { ...w, ...patch };
+            if (w.children && w.children.some(c => c.id === assetId)) {
+                return { ...w, children: w.children.map(c => c.id === assetId ? { ...c, ...patch } : c) };
+            }
+            return w;
+        });
     }
 
     // ─── Task form (create + edit) ───────────────────────────────────────────
@@ -488,6 +553,13 @@ export default class AssetReview extends LightningElement {
             if (desc) desc.value = this.taskDescription;
             if (comm) comm.value = this.taskComments;
         }
+        if (this._syncMeasureTextareas) {
+            this._syncMeasureTextareas = false;
+            const comm = this.template.querySelector('[data-id="editComments"]');
+            const notes = this.template.querySelector('[data-id="editReviewNotes"]');
+            if (comm) comm.value = this.editComments;
+            if (notes) notes.value = this.editReviewNotes;
+        }
     }
 
     handleTaskSubjectChange(evt) { this.taskSubject = evt.target.value; }
@@ -512,7 +584,7 @@ export default class AssetReview extends LightningElement {
             const req = {
                 id: this.taskEditId || null,
                 workOrderId: this.workOrderId,
-                assetId: this.selectedWheelsetId,
+                assetId: this.activeAssetId,
                 subject: this.taskSubject.trim(),
                 description: this.taskDescription || null,
                 causeCodes: this.taskCauseCodes || null,
@@ -571,6 +643,8 @@ export default class AssetReview extends LightningElement {
             return {
                 id: w.id,
                 label: w.label,
+                woCount: w.workOrderCount || 0,
+                hasWos: (w.workOrderCount || 0) > 0,
                 zoneStyle: `left:${layout.left}%;width:${layout.width}%;`,
                 zoneClass: 'wagon-zone' + (selected ? ' selected' : ''),
                 chipClass: 'indicator-chip' + (selected ? ' selected' : ''),
@@ -578,6 +652,69 @@ export default class AssetReview extends LightningElement {
             };
         });
     }
+
+    // ─── Derived: active asset + level-3 children ────────────────────────────
+    get activeAssetId() { return this.selectedChildId || this.selectedWheelsetId; }
+
+    get activeAsset() {
+        if (this.selectedChildId) return this._findChild(this.selectedChildId);
+        return this.wheelsets.find(w => w.id === this.selectedWheelsetId) || null;
+    }
+
+    // Level-3 sub-assets under the selected component, enriched for the chip row.
+    get childComponents() {
+        const ws = this.wheelsets.find(w => w.id === this.selectedWheelsetId);
+        const kids = (ws && ws.children) ? ws.children : [];
+        return kids.map(c => {
+            const selected = c.id === this.selectedChildId;
+            return {
+                id: c.id,
+                name: c.name,
+                woCount: c.workOrderCount || 0,
+                hasWos: (c.workOrderCount || 0) > 0,
+                chipClass: 'child-chip' + (selected ? ' selected' : ''),
+                dotClass: 'zone-dot status-' + (c.iconStatus || 'grey'),
+            };
+        });
+    }
+
+    get hasChildComponents() { return this.childComponents.length > 0; }
+
+    // ─── Derived: work plans + required parts ────────────────────────────────
+    get workPlansEnriched() {
+        const plans = (this.assetDetail && this.assetDetail.workPlans) || [];
+        return plans.map(p => {
+            const isExpanded = !!this.expandedPlanIds[p.id];
+            const steps = (p.steps || []).map(s => ({
+                ...s,
+                stepClass: 'ar-step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-'),
+            }));
+            return {
+                ...p,
+                steps,
+                isExpanded,
+                hasNoSteps: steps.length === 0,
+                toggleClass: 'plan-toggle' + (isExpanded ? ' expanded' : ''),
+                chevron: isExpanded ? '▾' : '›',
+            };
+        });
+    }
+
+    get partsEnriched() {
+        const parts = (this.assetDetail && this.assetDetail.parts) || [];
+        return parts.map((p, i) => ({
+            key: p.id || `part-${i}`,
+            productName: p.productName,
+            qtyDisplay: p.quantity != null ? `${this._fmtNum(p.quantity)}${p.unit ? ' ' + p.unit : ''}` : '',
+            workOrderNumber: p.workOrderNumber,
+            source: p.source,
+        }));
+    }
+
+    get hasPlans() { return this.workPlansEnriched.length > 0; }
+    get hasParts() { return this.partsEnriched.length > 0; }
+    get plansToggleIcon() { return this.plansExpanded ? '▾' : '›'; }
+    get partsToggleIcon() { return this.partsExpanded ? '▾' : '›'; }
 
     // ─── Derived: SVG charts (one per value type present) ────────────────────
     get charts() {
@@ -738,8 +875,9 @@ export default class AssetReview extends LightningElement {
     }
     get taskFormHeading() { return this.taskEditId ? 'Edit PM02 Task' : 'New PM02 Task'; }
 
+    // Overview/detail panels follow the active asset (level-3 child if drilled, else the component).
     get selectedWheelset() {
-        return this.wheelsets.find(w => w.id === this.selectedWheelsetId) || null;
+        return this.activeAsset;
     }
     get hasSelection() { return !!this.selectedWheelsetId; }
     get hasPoints() { return this.wheelsetPoints.length > 0; }
@@ -762,8 +900,8 @@ export default class AssetReview extends LightningElement {
 
     get wagonStatusPill() { return this.wagon?.status || ''; }
     get detailHeading() {
-        const ws = this.selectedWheelset;
-        return ws ? `Wheelset ${ws.label}` : '';
+        const a = this.activeAsset;
+        return a ? a.name : '';
     }
 
     _formatDate(isoStr) {

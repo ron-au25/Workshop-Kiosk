@@ -265,6 +265,24 @@ public with sharing class KioskController {
         @AuraEnabled public String purchaseDate;
         @AuraEnabled public String floc;
         @AuraEnabled public String iconStatus;     // grey / green / red
+        @AuraEnabled public String assetType;      // Asset_Type__c (WINC / VALV / …)
+        @AuraEnabled public Integer workOrderCount; // WOs in this workpack referencing this asset
+        @AuraEnabled public List<WheelsetDTO> children; // level-3 sub-assets under this component
+    }
+
+    // Work plans + required parts for a single selected asset (loaded on demand).
+    public class AssetReviewDetailDTO {
+        @AuraEnabled public List<WorkPlanDTO> workPlans;
+        @AuraEnabled public List<PartDTO> parts;
+    }
+
+    public class PartDTO {
+        @AuraEnabled public String id;
+        @AuraEnabled public String productName;
+        @AuraEnabled public Decimal quantity;
+        @AuraEnabled public String unit;
+        @AuraEnabled public String workOrderNumber;
+        @AuraEnabled public String source;         // 'Work Order' | 'Work Type'
     }
 
     public class TaskWoDTO {
@@ -302,8 +320,23 @@ public with sharing class KioskController {
         @AuraEnabled public String contentDocumentId;
         @AuraEnabled public String title;
         @AuraEnabled public String fileExtension;
-        @AuraEnabled public String downloadUrl;
+        @AuraEnabled public Long contentSize;
+        // True when the file exceeds the base64 inline ceiling and can only be
+        // opened view-only in a new tab (see getAttachmentContent).
+        @AuraEnabled public Boolean tooLarge;
     }
+
+    public class AttachmentContent {
+        // Base64 data URI for files at or under the inline ceiling (null otherwise).
+        @AuraEnabled public String dataUri;
+        // True when the file is over the ceiling; the UI opens it view-only instead.
+        @AuraEnabled public Boolean tooLarge;
+    }
+
+    // Max file size we inline as a base64 data URI. Apex caps a single String at
+    // 6,000,000 chars and base64 costs ~1.33x, so 4MB (~5.33M chars) stays safe.
+    // Larger files can't be inlined and are opened view-only in a new browser tab.
+    private static final Long ATTACHMENT_MAX_BYTES = 4000000;
 
     // ─── Supervisor context ───────────────────────────────────────────────────
 
@@ -672,6 +705,67 @@ public with sharing class KioskController {
         page.totalCount = total;
         page.hasMore = (pageOffset + pageSize) < total;
         page.debugFilter = baseWhere;
+        return page;
+    }
+
+    // ─── Extended workpack search (org-wide, ignores territory/status/resource) ──
+    // Finds ALL Rail Workpack work orders whose Wagon_Number__c contains the
+    // supplied text, regardless of who they're assigned to or their status.
+    // Requires a search term of more than 3 characters.
+    @AuraEnabled(cacheable=false)
+    public static WorkOrderPage searchAllWorkpacks(String token, String wagonSearch) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        String term = wagonSearch == null ? '' : wagonSearch.trim();
+        if (term.length() < 3) {
+            throw new AuraHandledException('Enter at least 3 characters to search.');
+        }
+
+        Map<String, Object> binds = new Map<String, Object>{
+            'wagonLike'   => '%' + term + '%',
+            'workpackType'=> 'Rail Workpack'
+        };
+
+        Integer total = Database.countQueryWithBinds(
+            'SELECT COUNT() FROM WorkOrder '
+            + 'WHERE WorkType.Name = :workpackType AND Wagon_Number__c LIKE :wagonLike',
+            binds, AccessLevel.SYSTEM_MODE
+        );
+
+        List<WorkOrder> raw = Database.queryWithBinds(
+            'SELECT Id, WorkOrderNumber, Subject, Status, Priority, WorkTypeId, WorkType.Name, '
+            + 'Wagon_Number__c, Asset.Name, SAP_FLOC_Desc__c, SAP_Work_Center__c, External_ID__c, '
+            + 'DurationInMinutes '
+            + 'FROM WorkOrder '
+            + 'WHERE WorkType.Name = :workpackType AND Wagon_Number__c LIKE :wagonLike '
+            + 'ORDER BY Wagon_Number__c ASC, CreatedDate DESC LIMIT 200',
+            binds,
+            AccessLevel.SYSTEM_MODE
+        );
+
+        List<WorkOrderCard> cards = new List<WorkOrderCard>();
+        for (WorkOrder wo : raw) {
+            WorkOrderCard c = new WorkOrderCard();
+            c.id = wo.Id;
+            c.woNumber = wo.WorkOrderNumber;
+            c.subject = wo.Subject;
+            c.status = wo.Status;
+            c.priority = wo.Priority;
+            c.workTypeName = wo.WorkTypeId != null ? wo.WorkType.Name : null;
+            c.wagonNumber = wo.Wagon_Number__c;
+            c.assetName = wo.Asset != null ? wo.Asset.Name : null;
+            c.flocDesc = wo.SAP_FLOC_Desc__c;
+            c.sapWorkCenter = wo.SAP_Work_Center__c;
+            c.externalId = wo.External_ID__c;
+            c.durationMinutes = wo.DurationInMinutes != null ? (Integer)wo.DurationInMinutes : null;
+            cards.add(c);
+        }
+
+        WorkOrderPage page = new WorkOrderPage();
+        page.records = cards;
+        page.totalCount = total;
+        page.hasMore = total > raw.size();
         return page;
     }
 
@@ -1583,26 +1677,40 @@ public with sharing class KioskController {
         if (wagons.isEmpty()) throw new AuraHandledException('NO_ASSET');
         Asset wagon = wagons[0];
 
-        // 2. Child wheelsets.
+        // 2. Level-2 components (children of the wagon).
         List<Asset> children = [
             SELECT Id, Name, SerialNumber, Status, Entitlement_Status__c,
-                   InstallDate, PurchaseDate, FLOC__c
+                   InstallDate, PurchaseDate, FLOC__c, Asset_Type__c
             FROM Asset WHERE ParentId = :wagonId
             WITH SECURITY_ENFORCED
             ORDER BY Name
         ];
-
-        // 3. Aggregate measure points per wheelset to compute the at-a-glance status.
         Set<Id> childIds = new Set<Id>();
         for (Asset a : children) childIds.add(a.Id);
 
+        // 3. Level-3 sub-assets (grandchildren, e.g. Axles under a Wheelset).
+        List<Asset> grandkids = new List<Asset>();
+        if (!childIds.isEmpty()) {
+            grandkids = [
+                SELECT Id, Name, SerialNumber, Status, Entitlement_Status__c,
+                       InstallDate, PurchaseDate, FLOC__c, Asset_Type__c, ParentId
+                FROM Asset WHERE ParentId IN :childIds
+                WITH SECURITY_ENFORCED
+                ORDER BY Name
+            ];
+        }
+
+        // 4. Aggregate measure points across BOTH levels for the at-a-glance status.
+        Set<Id> measureAssetIds = new Set<Id>(childIds);
+        for (Asset g : grandkids) measureAssetIds.add(g.Id);
+
         Map<Id, Boolean> hasAttention = new Map<Id, Boolean>();
         Map<Id, Boolean> hasMeasure = new Map<Id, Boolean>();
-        if (!childIds.isEmpty()) {
+        if (!measureAssetIds.isEmpty()) {
             for (Measure_Point__c mp : [
                 SELECT Asset__c, Measure_Type__c, Measure_Value__c, MeasureValue_Type__c
                 FROM Measure_Point__c
-                WHERE Asset__c IN :childIds
+                WHERE Asset__c IN :measureAssetIds
                 WITH SECURITY_ENFORCED
             ]) {
                 if (mp.Measure_Type__c == 'Attention Required' || mp.Measure_Type__c == 'Scrap') {
@@ -1616,6 +1724,24 @@ public with sharing class KioskController {
             }
         }
 
+        // 5. Count of work orders in THIS workpack (root WO + its children) per asset.
+        Map<Id, Integer> woCountByAsset = new Map<Id, Integer>();
+        for (AggregateResult ar : [
+            SELECT AssetId aid, COUNT(Id) cnt FROM WorkOrder
+            WHERE (Id = :workOrderId OR ParentWorkOrderId = :workOrderId) AND AssetId != null
+            WITH SECURITY_ENFORCED
+            GROUP BY AssetId
+        ]) {
+            woCountByAsset.put((Id) ar.get('aid'), (Integer) ar.get('cnt'));
+        }
+
+        // 6. Group grandchildren under their parent component.
+        Map<Id, List<Asset>> grandByParent = new Map<Id, List<Asset>>();
+        for (Asset g : grandkids) {
+            if (!grandByParent.containsKey(g.ParentId)) grandByParent.put(g.ParentId, new List<Asset>());
+            grandByParent.get(g.ParentId).add(g);
+        }
+
         WagonDTO dto = new WagonDTO();
         dto.id = wagon.Id;
         dto.name = wagon.Name;
@@ -1627,26 +1753,39 @@ public with sharing class KioskController {
         dto.wheelsets = new List<WheelsetDTO>();
 
         for (Asset a : children) {
-            WheelsetDTO w = new WheelsetDTO();
-            w.id = a.Id;
-            w.name = a.Name;
-            w.label = deriveWheelsetLabel(a.Name);
-            w.serialNumber = a.SerialNumber;
-            w.status = a.Status;
-            w.warrantyStatus = a.Entitlement_Status__c;
-            w.installDate = a.InstallDate == null ? null : String.valueOf(a.InstallDate);
-            w.purchaseDate = a.PurchaseDate == null ? null : String.valueOf(a.PurchaseDate);
-            w.floc = a.FLOC__c;
-            if (hasAttention.get(a.Id) == true) {
-                w.iconStatus = 'red';
-            } else if (hasMeasure.get(a.Id) == true) {
-                w.iconStatus = 'green';
-            } else {
-                w.iconStatus = 'grey';
+            WheelsetDTO w = mapAsset(a, hasAttention, hasMeasure, woCountByAsset);
+            w.children = new List<WheelsetDTO>();
+            for (Asset g : grandByParent.get(a.Id) != null ? grandByParent.get(a.Id) : new List<Asset>()) {
+                w.children.add(mapAsset(g, hasAttention, hasMeasure, woCountByAsset));
             }
             dto.wheelsets.add(w);
         }
         return dto;
+    }
+
+    // Build a WheelsetDTO from an Asset plus the precomputed status/count maps.
+    private static WheelsetDTO mapAsset(Asset a, Map<Id, Boolean> hasAttention,
+            Map<Id, Boolean> hasMeasure, Map<Id, Integer> woCountByAsset) {
+        WheelsetDTO w = new WheelsetDTO();
+        w.id = a.Id;
+        w.name = a.Name;
+        w.label = deriveWheelsetLabel(a.Name);
+        w.serialNumber = a.SerialNumber;
+        w.status = a.Status;
+        w.warrantyStatus = a.Entitlement_Status__c;
+        w.installDate = a.InstallDate == null ? null : String.valueOf(a.InstallDate);
+        w.purchaseDate = a.PurchaseDate == null ? null : String.valueOf(a.PurchaseDate);
+        w.floc = a.FLOC__c;
+        w.assetType = a.Asset_Type__c;
+        w.workOrderCount = woCountByAsset.containsKey(a.Id) ? woCountByAsset.get(a.Id) : 0;
+        if (hasAttention.get(a.Id) == true) {
+            w.iconStatus = 'red';
+        } else if (hasMeasure.get(a.Id) == true) {
+            w.iconStatus = 'green';
+        } else {
+            w.iconStatus = 'grey';
+        }
+        return w;
     }
 
     // Derive an L1..L4 short label from an asset name like "20213 Wheelset L1".
@@ -1693,6 +1832,108 @@ public with sharing class KioskController {
             result.add(mapTask(wo));
         }
         return result;
+    }
+
+    // Work plans + required parts for the WOs in this workpack that reference the selected asset.
+    @AuraEnabled(cacheable=false)
+    public static AssetReviewDetailDTO getAssetReviewDetail(String token, String workOrderId, String assetId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        AssetReviewDetailDTO dto = new AssetReviewDetailDTO();
+        dto.workPlans = new List<WorkPlanDTO>();
+        dto.parts = new List<PartDTO>();
+        if (String.isBlank(workOrderId) || String.isBlank(assetId)) return dto;
+
+        // WOs in this workpack (root or a direct child of it) that reference the asset.
+        Map<Id, WorkOrder> assocWos = new Map<Id, WorkOrder>();
+        for (WorkOrder wo : [
+            SELECT Id, WorkOrderNumber, WorkTypeId FROM WorkOrder
+            WHERE (Id = :workOrderId OR ParentWorkOrderId = :workOrderId) AND AssetId = :assetId
+            WITH SECURITY_ENFORCED
+        ]) {
+            assocWos.put(wo.Id, wo);
+        }
+        if (assocWos.isEmpty()) return dto;
+        Set<Id> woIds = assocWos.keySet();
+
+        // ── Work plans + steps for the associated WOs ──
+        Map<Id, WorkPlanDTO> planMap = new Map<Id, WorkPlanDTO>();
+        for (WorkPlan wp : [
+            SELECT Id, Name, ExecutionOrder FROM WorkPlan
+            WHERE WorkOrderId IN :woIds
+            WITH SECURITY_ENFORCED ORDER BY ExecutionOrder ASC NULLS LAST
+        ]) {
+            WorkPlanDTO wpDto = new WorkPlanDTO();
+            wpDto.id = wp.Id;
+            wpDto.name = wp.Name;
+            wpDto.executionOrder = wp.ExecutionOrder;
+            wpDto.steps = new List<WorkStepDTO>();
+            dto.workPlans.add(wpDto);
+            planMap.put(wp.Id, wpDto);
+        }
+        if (!planMap.isEmpty()) {
+            for (WorkStep ws : [
+                SELECT Id, Name, Status, ExecutionOrder, Description, WorkPlanId, ActionType, ActionDefinition
+                FROM WorkStep
+                WHERE WorkOrderId IN :woIds
+                WITH SECURITY_ENFORCED ORDER BY WorkPlanExecutionOrder ASC, ExecutionOrder ASC
+            ]) {
+                if (!planMap.containsKey(ws.WorkPlanId)) continue;
+                WorkStepDTO sdto = new WorkStepDTO();
+                sdto.id = ws.Id;
+                sdto.name = ws.Name;
+                sdto.status = ws.Status;
+                sdto.executionOrder = ws.ExecutionOrder;
+                sdto.description = ws.Description;
+                sdto.actionType = ws.ActionType;
+                sdto.actionDefinition = ws.ActionDefinition;
+                planMap.get(ws.WorkPlanId).steps.add(sdto);
+            }
+        }
+
+        // ── Required parts: COALESCE(WO.ProductRequired, WorkType.ProductRequired) ──
+        // Direct parts on the WO win; WOs with none fall back to their WorkType's parts.
+        Set<Id> wosWithDirectParts = new Set<Id>();
+        for (ProductRequired pr : [
+            SELECT Id, ParentRecordId, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
+            FROM ProductRequired
+            WHERE ParentRecordId IN :woIds
+            WITH SECURITY_ENFORCED
+        ]) {
+            wosWithDirectParts.add(pr.ParentRecordId);
+            dto.parts.add(mapPart(pr, assocWos.get(pr.ParentRecordId), 'Work Order'));
+        }
+
+        // Fallback to WorkType parts for associated WOs that carry no direct parts.
+        Map<Id, Id> workTypeToWo = new Map<Id, Id>();
+        for (WorkOrder wo : assocWos.values()) {
+            if (wo.WorkTypeId != null && !wosWithDirectParts.contains(wo.Id)) {
+                workTypeToWo.put(wo.WorkTypeId, wo.Id);
+            }
+        }
+        if (!workTypeToWo.isEmpty()) {
+            for (ProductRequired pr : [
+                SELECT Id, ParentRecordId, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
+                FROM ProductRequired
+                WHERE ParentRecordId IN :workTypeToWo.keySet()
+                WITH SECURITY_ENFORCED
+            ]) {
+                dto.parts.add(mapPart(pr, assocWos.get(workTypeToWo.get(pr.ParentRecordId)), 'Work Type'));
+            }
+        }
+        return dto;
+    }
+
+    private static PartDTO mapPart(ProductRequired pr, WorkOrder wo, String source) {
+        PartDTO p = new PartDTO();
+        p.id = pr.Id;
+        p.productName = (pr.Product2 != null && pr.Product2.Name != null) ? pr.Product2.Name : 'Unnamed part';
+        p.quantity = pr.QuantityRequired;
+        p.unit = pr.QuantityUnitOfMeasure;
+        p.workOrderNumber = wo != null ? wo.WorkOrderNumber : null;
+        p.source = source;
+        return p;
     }
 
     // Apply the editable fields from a request onto a WorkOrder (shared by create + update).
@@ -1795,9 +2036,14 @@ public with sharing class KioskController {
         TokenPayload payload = validateToken(token);
         if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
 
+        // Metadata only. Content is fetched lazily, one file at a time, via
+        // getAttachmentContent — files <=4MB come back as a base64 data URI for
+        // inline pdf.js annotation; larger files are flagged tooLarge and opened
+        // view-only in a new tab (the browser's member session reads them there,
+        // which Apex can't inline past the 6M-char String limit).
         List<ContentDocumentLink> links = [
             SELECT ContentDocumentId, ContentDocument.Title,
-                   ContentDocument.FileExtension
+                   ContentDocument.FileExtension, ContentDocument.ContentSize
             FROM ContentDocumentLink
             WHERE LinkedEntityId = :workOrderId
             WITH SECURITY_ENFORCED
@@ -1810,10 +2056,54 @@ public with sharing class KioskController {
             att.contentDocumentId = cdl.ContentDocumentId;
             att.title = cdl.ContentDocument.Title;
             att.fileExtension = cdl.ContentDocument.FileExtension;
-            att.downloadUrl = '/sfc/servlet.shepherd/document/download/' + cdl.ContentDocumentId;
+            att.contentSize = cdl.ContentDocument.ContentSize;
+            att.tooLarge = (cdl.ContentDocument.ContentSize != null
+                && cdl.ContentDocument.ContentSize > ATTACHMENT_MAX_BYTES);
             result.add(att);
         }
         return result;
+    }
+
+    /**
+     * Returns one attachment's content as a base64 data URI for inline viewing.
+     * Files above ATTACHMENT_MAX_BYTES can't be inlined (Apex 6M-char String
+     * limit) — they come back with tooLarge=true and no dataUri; the UI opens
+     * those view-only in a new tab instead.
+     */
+    @AuraEnabled(cacheable=false)
+    public static AttachmentContent getAttachmentContent(String token, String contentDocumentId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(contentDocumentId)) throw new AuraHandledException('INVALID_REQUEST');
+
+        List<ContentVersion> versions = [
+            SELECT FileExtension, VersionData, ContentSize
+            FROM ContentVersion
+            WHERE ContentDocumentId = :contentDocumentId
+              AND IsLatest = true
+            WITH SECURITY_ENFORCED
+            LIMIT 1
+        ];
+        if (versions.isEmpty()) throw new AuraHandledException('NOT_FOUND');
+        ContentVersion cv = versions[0];
+
+        AttachmentContent out = new AttachmentContent();
+        out.tooLarge = false;
+
+        if (cv.ContentSize != null && cv.ContentSize > ATTACHMENT_MAX_BYTES) {
+            out.tooLarge = true;
+            return out;
+        }
+        if (cv.VersionData == null) throw new AuraHandledException('NOT_FOUND');
+
+        String ext = (cv.FileExtension == null) ? '' : cv.FileExtension.toLowerCase();
+        String mime = (ext == 'pdf') ? 'application/pdf'
+            : (ext == 'jpg') ? 'image/jpeg'
+            : (ext == 'png' || ext == 'gif' || ext == 'bmp' || ext == 'webp') ? ('image/' + ext)
+            : 'application/octet-stream';
+
+        out.dataUri = 'data:' + mime + ';base64,' + EncodingUtil.base64Encode(cv.VersionData);
+        return out;
     }
 
     @AuraEnabled(cacheable=false)

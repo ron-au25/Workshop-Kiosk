@@ -97,6 +97,7 @@ export default class WorkOrderDetail extends LightningElement {
     @track showExecution = false;
     @track showAssetReview = false;
     @track wpSidebarCollapsed = false;   // Rail Workpack: Operations + Work Plans sidebar
+    @track timeHistoryExpanded = false;  // Time History: collapsed shows only the most recent entry
 
     connectedCallback() {
         if (this._workOrderId) this.loadDetail();
@@ -368,13 +369,35 @@ export default class WorkOrderDetail extends LightningElement {
 
     get timeReportsEnriched() {
         if (!this.detail?.timeReports) return [];
-        return this.detail.timeReports.map(tr => ({
+        // Reports arrive newest-first (Start_Time__c DESC). When collapsed, show
+        // only the most recent entry; expand to reveal the full list.
+        const source = this.timeHistoryExpanded
+            ? this.detail.timeReports
+            : this.detail.timeReports.slice(0, 1);
+        return source.map(tr => ({
             ...tr,
             startDisplay: this._formatDt(tr.startTime),
             endDisplay: tr.endTime ? this._formatDt(tr.endTime) : 'Active',
             durationDisplay: tr.durationMinutes != null ? `${tr.durationMinutes}m` : '—',
             rowClass: 'tr-row' + (tr.isActive ? ' active' : ''),
         }));
+    }
+
+    handleToggleTimeHistory() {
+        this.timeHistoryExpanded = !this.timeHistoryExpanded;
+    }
+
+    // True when there is more than one report (a toggle is only useful then).
+    get hasMultipleTimeReports() { return this.detail?.timeReports?.length > 1; }
+
+    get timeHistoryToggleClass() {
+        return 'section-title tr-toggle' + (this.timeHistoryExpanded ? ' expanded' : '');
+    }
+    get timeHistoryChevron() { return this.timeHistoryExpanded ? '▾' : '›'; }
+    get timeHistoryToggleLabel() {
+        if (this.timeHistoryExpanded) return 'Show less';
+        const n = this.detail?.timeReports?.length || 0;
+        return `Show all ${n}`;
     }
 
     get isClocked() { return !!this.detail?.activeTimeReport; }
@@ -397,7 +420,7 @@ export default class WorkOrderDetail extends LightningElement {
     get hasFeedback() { return !!this.saveFeedback; }
 
     get backLabel() { return this.detail?.parentWorkOrderId ? (this.detail.parentWoNumber || 'Work Pack') : 'Work Orders'; }
-    get isRailWorkpack() { return this.detail?.workTypeName === 'Rail Workpack'; }
+    get isRailWorkpack() { return (this.detail?.workTypeName || '').includes('Workpack'); }
     get hasAsset() { return !!this.detail?.assetId; }
     get hasChildWorkOrders() { return (this.detail?.childWorkOrders?.length || 0) > 0; }
     get hasLineItems() { return (this.detail?.lineItems?.length || 0) > 0; }

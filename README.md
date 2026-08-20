@@ -1,6 +1,6 @@
 # Workshop Kiosk
 
-A Salesforce Lightning Web Component (LWC) kiosk application for Rio Tinto Rail wagon inspection workshops. Deployed on Salesforce Experience Cloud (LWR), it runs on locked-down iPads at workshop stations and provides field workers with a PIN-authenticated, touch-first interface to view work orders, log time, and record inspection measurements — without needing individual Salesforce logins.
+A Salesforce Lightning Web Component (LWC) kiosk application for Rio Tinto Rail wagon inspection workshops. Deployed on an Aura-based Salesforce Experience Cloud site, it runs on locked-down iPads at workshop stations and provides field workers with a PIN-authenticated, touch-first interface to view work orders, log time, and record inspection measurements — without needing individual Salesforce logins.
 
 ---
 
@@ -25,8 +25,8 @@ Rail wagon maintenance workshops generate dozens of work orders per shift. Previ
 | `WorkpackPdfProcessor.cls` | Extracts structured data from PDF workpack attachments using Einstein GenAI prompt templates and populates work order fields automatically |
 | `KioskAgentforceController.cls` | Bridges the kiosk chat LWC to the **Agentforce Agent API** (start/send/end session) via the `Agentforce_API` Named Credential; runs as the supervisor. Injects the current work order as context on every message, and extracts rich render-blocks from replies |
 | `RenderBlocks.cls` | Extracts structured `agent-blocks` JSON from an agent reply (fenced block, else heuristic parse of markdown tables / activity lists) for the chat to render as charts/tables/timelines |
-| `KioskBlocks.cls` | Builds the `agent-blocks` JSON for 8 chart/timeline/table visualizations from live data (work orders, measure points, wagon/wheelset assets, time reports) |
-| `AgentAction*.cls` (×8) | Thin `@InvocableMethod` wrappers exposing each `KioskBlocks` visualization as an Agentforce action (one invocable per class is a Salesforce limit) |
+| `KioskBlocks.cls` | Builds the `agent-blocks` JSON for 10 chart/timeline/table visualizations from live data (work orders, measure points, wagon/wheelset assets, time reports) |
+| `AgentAction*.cls` (×10) | Thin `@InvocableMethod` wrappers exposing each `KioskBlocks` visualization as an Agentforce action (one invocable per class is a Salesforce limit) |
 | `WorkpackDemoGenerator.cls` | One-tap demo-data generator — creates a complete workpack hierarchy modeled on WO 00010070: new wagon Asset + 4 wheelsets + an axle per wheelset, root + child work orders, line items, and sample measure points. Token-guarded `@AuraEnabled`; all-or-nothing via Savepoint. Triggered from the supervisor dashboard button |
 
 ### Lightning Web Components
@@ -79,7 +79,7 @@ An embedded chat assistant (the `agentforceChat` LWC) lets the supervisor conver
 
 **Context:** the work order currently open is injected into every message (the user can switch orders mid-chat), so "this work order" resolves correctly.
 
-**Rich graphical responses:** agent replies can carry a fenced ` ```agent-blocks {json} ``` ` block that the kiosk renders as KPI cards, tables, timelines, charts (bar/line/pie/donut), calendars, and carousels (`agentRichBlocks`). The agent's **Asset Insights** topic has 8 Apex actions (`KioskBlocks` + `AgentAction*` wrappers) that build these blocks from live data — e.g. *work orders by status*, *asset maintenance timeline*, *measure point graph*, *wagon condition by wheelset*, *time worked vs planned*, *measure-type distribution*, *cause/damage/delay codes*, *shift activity calendar*.
+**Rich graphical responses:** agent replies can carry a fenced ` ```agent-blocks {json} ``` ` block that the kiosk renders as KPI cards, tables, timelines, charts (bar/line/pie/donut), calendars, and carousels (`agentRichBlocks`). The agent's **Asset Insights** topic has 10 Apex actions (`KioskBlocks` + `AgentAction*` wrappers) that build these blocks from live data — e.g. *work orders by status*, *asset maintenance timeline*, *measure point graph*, *wagon condition by wheelset*, *time worked vs planned*, *measure-type distribution*, *cause/damage/delay codes*, *shift activity calendar*, *measure explorer*, *work order images*.
 
 See `Workshop Files/Agentforce Kiosk - Setup Guide.md` (OAuth/Named-Credential setup + gotchas) and `Workshop Files/Agentforce Rich Blocks - Schema.md` (block JSON contract).
 

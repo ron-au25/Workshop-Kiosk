@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Salesforce LWC + Apex kiosk app for Rio Tinto Rail wagon inspection workshops. Target org: `rsnov25demo` (`ron@rsfieldnov25.demo`). API version: 66.0.
+Salesforce LWC + Apex kiosk app for Rio Tinto Rail wagon inspection workshops. Target org: `rsnov25demo` (`ron@rsfieldnov25.demo`). API version: 67.0.
 
 ## Commands
 
@@ -131,7 +131,9 @@ The `agentforceChat` LWC talks to the **`Rio_Tinto_Shutdown_Agent`** ("Superviso
 
 **Carousel drill-down**: carousel cards can carry a `workOrderId` field. Tapping the card image opens a fullscreen lightbox; the "Go to work order" button in the lightbox closes the chat panel and fires a `drilldown` composed CustomEvent (`{ detail: { workOrderId } }`) up to `workshopPortal.handleChatDrilldown`, which navigates straight into that work order's detail screen. Event chain: `agentRichBlocks` → `handleGoToRecord` → `agentforceChat.handleDrilldown` (closes panel, re-dispatches) → `workshopPortal`.
 
-**Agent chart actions**: `KioskBlocks.cls` holds the logic for 8 visualizations; 8 thin `AgentAction*` classes expose them as `@InvocableMethod`s (one invocable per class — a Salesforce limit). They're wired into the **Asset Insights** topic in `genAiPlannerBundles/Rio_Tinto_Shutdown_Agent/...`, each `invocationTargetType=apex` with `localActions/Asset_Insights/<Action>/{input,output}/schema.json`. The actions build blocks deterministically (numbers computed in Apex) and return them in the displayable `message` output.
+**Agent chart actions**: `KioskBlocks.cls` holds the logic for 10 visualizations; 10 thin `AgentAction*` classes expose them as `@InvocableMethod`s (one invocable per class — a Salesforce limit). They're wired into the **Asset Insights** topic in `genAiPlannerBundles/Rio_Tinto_Shutdown_Agent/...`, each `invocationTargetType=apex` with `localActions/Asset_Insights/<Action>/{input,output}/schema.json`. The actions build blocks deterministically (numbers computed in Apex) and return them in the displayable `message` output.
+
+**Measure Explorer (filtered measure drill-down)**: `KioskBlocks.measureExplorer` (`AgentActionMeasureExplorer` → `Chart_Measure_Explorer`) filters measure points by the user's own criteria — value threshold (`minValue`/`maxValue`), outcome (`measureOutcome` = Scrap/Attention Required/Measure/OK, comma-separated), and `valueType` — and returns a KPI summary + a **carousel** whose cards each carry a `details` array (`{label,value}` rows: Outcome, Value, Value Type, Component, Defect Location, Recorded, Comments) plus `workOrderId`. NL like "show me measures over 20" or "show scrap or require attention" maps to the inputs via planner instruction `ai_instr_5`. In `agentRichBlocks`, a carousel card with `details` (even without an `imageUrl`) is tappable → the lightbox renders the image (if any) plus the detail rows. Generic carousel feature — any action can populate `details`; schema in `Workshop Files/Agentforce Rich Blocks - Schema.md`.
 
 **Theme prop**: both `agentforceChat` and `agentRichBlocks` accept a `theme` `@api` prop (`'dark'` | `'light'`). CSS class `theme-light` is toggled on the root element for light-mode kiosk pages.
 

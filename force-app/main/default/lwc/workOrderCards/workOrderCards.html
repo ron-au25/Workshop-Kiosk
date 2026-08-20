@@ -53,17 +53,24 @@
                 </div>
                 <div class="filter-group filter-search">
                     <span class="filter-label">Wagon</span>
-                    <div class="search-wrap">
-                        <span class="search-icon-sm">⊞</span>
-                        <input
-                            type="search"
-                            class="wagon-search"
-                            placeholder="e.g. WG101"
-                            value={wagonSearch}
-                            oninput={handleWagonSearch}
-                            onkeydown={handleWagonKeydown}
-                            aria-label="Search by wagon number"
-                        />
+                    <div class="search-row">
+                        <div class="search-wrap">
+                            <span class="search-icon-sm">⊞</span>
+                            <input
+                                type="search"
+                                class="wagon-search"
+                                placeholder="e.g. WG101"
+                                value={wagonSearch}
+                                oninput={handleWagonSearch}
+                                onkeydown={handleWagonKeydown}
+                                aria-label="Search by wagon number"
+                            />
+                        </div>
+                        <button
+                            class="search-all-btn"
+                            onclick={handleSearchAll}
+                            title="Search all workpack work orders org-wide by wagon (at least 3 characters)"
+                        >Search All</button>
                     </div>
                 </div>
             </div>
@@ -87,7 +94,7 @@
         <template lwc:elseif={isEmpty}>
             <div class="wo-empty">
                 <span class="empty-icon">🔧</span>
-                <p>No work orders assigned for this date range.</p>
+                <p>{emptyMessage}</p>
                 <button class="btn-secondary" onclick={clearFilters}>Reset Filters</button>
             </div>
         </template>

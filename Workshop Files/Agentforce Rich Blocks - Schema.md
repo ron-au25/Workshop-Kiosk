@@ -39,11 +39,21 @@ image carousels) in addition to text. Two ways blocks are produced:
 { "type":"calendar", "title":"April", "month":"2026-04",
   "events":[ {"day":23,"label":"SA-00049"}, {"day":16,"label":"SA-00048"} ] }
 
-// Carousel of cards (with optional image). Add "workOrderId" to make an image
+// Carousel of cards (with optional image). Add "workOrderId" to make a card
 // tappable → fullscreen lightbox → "Go to work order" drills into that WO detail.
+// Add a "details" array of {label,value} rows to show full detail on drill-in
+// (works even when the card has no image — the card stays tappable for its details).
 { "type":"carousel", "title":"Assets",
-  "cards":[ {"title":"Wagon RT-100","subtitle":"Bogie 2","imageUrl":"https://…","caption":"Last inspected Apr 1","workOrderId":"0WO..."} ] }
+  "cards":[ {"title":"Wagon RT-100","subtitle":"Bogie 2","imageUrl":"https://…","caption":"Last inspected Apr 1","workOrderId":"0WO...",
+             "details":[ {"label":"Outcome","value":"Attention Required"}, {"label":"Value","value":"24.5 Width"}, {"label":"Comments","value":"crack at lug"} ]} ] }
 ```
+
+**Card drill-in detail (`details`):** any carousel card may include `details`, an array
+of `{label, value}` rows. Tapping the card (image or body) opens the fullscreen lightbox,
+which renders the image (if any) plus the detail rows as a label/value list. A card with
+`details` but no `imageUrl` is still tappable. The `measureExplorer` action uses this to
+show each matched measure's Outcome, Value, Value Type, Component, Defect Location,
+Recorded date, and Comments.
 
 **Carousel drill-down:** the `workOrderImages` action stamps each card with the parent
 `workOrderId` (measure-point and line-item images resolve up to their owning work order).
@@ -74,14 +84,15 @@ Notes:
 - Keep blocks reasonably small (the panel is ~420px wide); tables scroll horizontally.
 
 ## Phase 2 — IMPLEMENTED: agent emits blocks via Apex actions
-The Supervisor Agent (`Rio_Tinto_Shutdown_Agent`) now has an **Asset Insights** topic with 8
+The Supervisor Agent (`Rio_Tinto_Shutdown_Agent`) now has an **Asset Insights** topic with 10
 Apex-backed actions that build the `agent-blocks` fence deterministically and return it in their
 `message` output (relayed verbatim by the agent). The kiosk renders them unchanged.
 
-**Apex:** `KioskBlocks.cls` holds all logic (one method per visualization); 8 thin
+**Apex:** `KioskBlocks.cls` holds all logic (one method per visualization); 10 thin
 `@InvocableMethod` wrappers expose them (`AgentActionAssetTimeline`, `AgentActionWorkOrdersByStatus`,
 `AgentActionMeasurePointGraph`, `AgentActionWagonCondition`, `AgentActionTimeWorkedVsPlanned`,
-`AgentActionMeasureDistribution`, `AgentActionCodeFrequency`, `AgentActionShiftCalendar`) — one
+`AgentActionMeasureDistribution`, `AgentActionCodeFrequency`, `AgentActionShiftCalendar`,
+`AgentActionMeasureExplorer`, `AgentActionWorkOrderImages`) — one
 `@InvocableMethod` per class is a hard Salesforce limit. Tests: `KioskBlocksTest` (SeeAllData).
 
 **Bundle:** topic `Asset_Insights` in

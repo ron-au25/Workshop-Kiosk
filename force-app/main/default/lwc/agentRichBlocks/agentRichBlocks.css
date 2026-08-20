@@ -112,6 +112,10 @@
 /* ── Chart ───────────────────────────────────────────────────────────── */
 .rb-chart { display: block; max-height: 220px; }
 .rb-axis-label { fill: var(--rb-text-muted); font-size: 11px; }
+.rb-tick { font-size: 10px; }
+.rb-value-label { fill: var(--rb-text); font-size: 10px; font-weight: 600; }
+.rb-axis-line { stroke: var(--rb-text-muted); stroke-width: 1; opacity: 0.7; }
+.rb-gridline { stroke: var(--rb-text-muted); stroke-width: 1; opacity: 0.18; stroke-dasharray: 3 3; }
 .rb-line { fill: none; stroke-width: 2.5; }
 .rb-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
 .rb-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--rb-text-muted); }
@@ -148,9 +152,15 @@
     font-size: 14px; line-height: 24px; text-align: center;
 }
 .rb-card-body { padding: 8px 10px; }
+.rb-card-bodybtn {
+    display: block; width: 100%; text-align: left; border: 0;
+    background: none; cursor: pointer; font: inherit;
+}
+.rb-card-bodybtn:hover { background: var(--rb-surface); }
 .rb-card-title { font-weight: 700; font-size: 14px; color: var(--rb-text); }
 .rb-card-sub { font-size: 12px; color: var(--rb-text-muted); margin-top: 2px; }
 .rb-card-cap { font-size: 12px; color: var(--rb-text); margin-top: 4px; }
+.rb-card-more { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; color: var(--rb-accent, #E25822); }
 
 /* ── Fullscreen image lightbox ───────────────────────────────────────── */
 .rb-lightbox {
@@ -166,7 +176,14 @@
     background: var(--rb-surface); border: 1px solid var(--rb-border);
     border-radius: 14px; overflow: hidden;
 }
-.rb-lb-img { max-width: 90vw; max-height: 78vh; object-fit: contain; display: block; background: #000; }
+.rb-lb-img { max-width: 90vw; max-height: 60vh; object-fit: contain; display: block; background: #000; }
+.rb-lb-detail { padding: 14px 18px; overflow-y: auto; max-height: 60vh; }
+.rb-lb-title { font-size: 16px; font-weight: 700; color: var(--rb-text); margin-bottom: 10px; }
+.rb-lb-dl { margin: 0; }
+.rb-lb-row { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--rb-border); }
+.rb-lb-row:last-child { border-bottom: 0; }
+.rb-lb-dt { flex: 0 0 110px; margin: 0; font-size: 12px; font-weight: 600; color: var(--rb-text-muted); }
+.rb-lb-dd { flex: 1; margin: 0; font-size: 13px; color: var(--rb-text); word-break: break-word; }
 .rb-lb-close {
     position: absolute; top: 10px; right: 10px;
     width: 40px; height: 40px; border-radius: 50%; border: none;

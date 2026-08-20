@@ -1,5 +1,6 @@
 import { LightningElement, api, track } from 'lwc';
 import getWorkOrders from '@salesforce/apex/KioskController.getWorkOrders';
+import searchAllWorkpacks from '@salesforce/apex/KioskController.searchAllWorkpacks';
 
 const STATUS_OPTIONS = [
     { value: 'All', label: 'All' },
@@ -32,6 +33,7 @@ export default class WorkOrderCards extends LightningElement {
     @track isLoading = true;
     @track hasError = false;
     @track errorMessage = '';
+    @track searchAllActive = false;
 
     _searchDebounce;
 
@@ -47,6 +49,7 @@ export default class WorkOrderCards extends LightningElement {
     async _doFetch(dateFrom, dateTo) {
         this.isLoading = true;
         this.hasError = false;
+        this.searchAllActive = false;
         this._allRecords = [];
         try {
             const result = await getWorkOrders({
@@ -68,9 +71,41 @@ export default class WorkOrderCards extends LightningElement {
         }
     }
 
+    // Org-wide extended search for workpack WOs by wagon text. Ignores
+    // territory/status/resource scoping and the date range entirely.
+    async handleSearchAll() {
+        const term = (this.wagonSearch || '').trim();
+        if (term.length < 3) {
+            this.hasError = true;
+            this.errorMessage = 'Enter at least 3 characters to search all work orders.';
+            return;
+        }
+        this.isLoading = true;
+        this.hasError = false;
+        this._allRecords = [];
+        try {
+            const result = await searchAllWorkpacks({
+                token: this.sessionToken,
+                wagonSearch: term,
+            });
+            this._allRecords = result.records.map(r => this._enrich(r));
+            this.searchAllActive = true;
+        } catch (e) {
+            console.error('[WorkOrderCards] searchAll error:', e);
+            this.hasError = true;
+            this.errorMessage =
+                (e && e.body && e.body.message) || 'Search failed. Try again.';
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
     // Local filtering — no server call
     get workOrders() {
         let records = this._allRecords;
+        // In extended-search mode the server already returned the full
+        // org-wide result; don't re-narrow by status/priority/wagon.
+        if (this.searchAllActive) return records;
         if (this.statusFilter !== 'All') {
             records = records.filter(wo => wo.status === this.statusFilter);
         }
@@ -189,6 +224,7 @@ export default class WorkOrderCards extends LightningElement {
         this.statusFilter = 'All';
         this.priorityFilter = 'All';
         this.wagonSearch = '';
+        this.searchAllActive = false;
         const today = todayIso();
         this.dateFrom = today;
         this.dateTo = today;
@@ -209,6 +245,12 @@ export default class WorkOrderCards extends LightningElement {
     }
 
     get isEmpty() { return !this.isLoading && !this.hasError && this.workOrders.length === 0; }
+
+    get emptyMessage() {
+        return this.searchAllActive
+            ? 'No workpack work orders match that wagon search.'
+            : 'No work orders assigned for this date range.';
+    }
 
     get totalLabel() {
         const total = this._allRecords.length;

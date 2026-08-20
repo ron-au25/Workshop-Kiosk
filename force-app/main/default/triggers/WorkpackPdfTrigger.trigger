@@ -23,7 +23,7 @@ trigger WorkpackPdfTrigger on ContentDocumentLink (after insert) {
         WHERE Id IN :linkedWoIds
         WITH SECURITY_ENFORCED
     ]) {
-        if (wo.WorkType != null && wo.WorkType.Name == 'Rail Workpack') {
+        if (wo.WorkType != null && wo.WorkType.Name.contains('Workpack')) {
             WorkpackPdfProcessor.ProcessRequest req = new WorkpackPdfProcessor.ProcessRequest();
             req.contentDocumentLinkId = woIdToCdlId.get(wo.Id);
             req.parentWorkOrderId = wo.Id;

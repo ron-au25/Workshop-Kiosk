@@ -21,7 +21,7 @@ Rail wagon maintenance workshops generate dozens of work orders per shift. Previ
 
 | Class | Purpose |
 |---|---|
-| `KioskController.cls` | Core `@AuraEnabled` controller — supervisor auth, worker PIN validation, HMAC session tokens, work order queries, time tracking, measure point CRUD |
+| `KioskController.cls` | Core `@AuraEnabled` controller — supervisor auth, worker PIN validation, HMAC session tokens, work order queries (worker-scoped or territory-wide), workpack progress KPI rollups, auto clock-in/out, parts consume/add, work step completion, time tracking, measure point CRUD |
 | `WorkpackPdfProcessor.cls` | Extracts structured data from PDF workpack attachments using Einstein GenAI prompt templates and populates work order fields automatically |
 | `KioskAgentforceController.cls` | Bridges the kiosk chat LWC to the **Agentforce Agent API** (start/send/end session) via the `Agentforce_API` Named Credential; runs as the supervisor. Injects the current work order as context on every message, and extracts rich render-blocks from replies |
 | `RenderBlocks.cls` | Extracts structured `agent-blocks` JSON from an agent reply (fenced block, else heuristic parse of markdown tables / activity lists) for the chat to render as charts/tables/timelines |
@@ -39,8 +39,9 @@ Rail wagon maintenance workshops generate dozens of work orders per shift. Previ
 | `kioskDashboard` | Worker home — shift summary, quick-action tiles |
 | `kioskHeader` | Persistent top bar with station name, worker name, and idle countdown |
 | `kioskSidebar` | Navigation rail for in-session screens |
-| `workOrderCards` | Card-list view of assigned work orders for the current session |
-| `workOrderDetail` | Full work order detail — inspection fields, cause/damage/delay codes, measure points |
+| `workOrderCards` | Card-list view of work orders, defaulting to today ±3 days; **Territory** checkbox widens scope from the logged-in worker's own assignments to every work order scheduled in the kiosk's Service Territory |
+| `workOrderDetail` | Full work order detail — inspection fields, cause/damage/delay codes, measure points, and (for rail workpacks) a **Workpack Progress** panel with KPI rings for Steps/Measures/Labour/Parts/Parts Cost/Components + an Overall rollup |
+| `assetReview` | Asset-centric wagon/wheelset drill-down — work orders by category chip (repair/telematics/maintenance), work plan steps with a "Mark complete" action and per-plan progress ring, and a combined required+consumed parts table with "+ Consume" / "+ Add part" actions |
 | `workExecution` | Active task execution screen |
 | `timeTrackingDashboard` | Start/stop time entries against work orders |
 | `pdfAnnotator` | PDF.js-powered viewer for workpack documents |
@@ -90,6 +91,14 @@ See `Workshop Files/Agentforce Kiosk - Setup Guide.md` (OAuth/Named-Credential s
 Session tokens are HMAC-SHA256 signed (`base64(workerId|territoryId|expiryMs|issuedAtMs|hmacSig)`), stored only in component memory (never persisted), with a 15-minute sliding TTL and an 8-hour absolute maximum. Every Apex method validates the token before executing. PINs are stored as `SALT||HMAC-SHA256` — never plaintext.
 
 > **Note:** The HMAC key is currently hardcoded in `KioskController.cls`. It must be moved to `Kiosk_Setting__mdt` before production deployment.
+
+---
+
+## Time Tracking (auto clock-in/out)
+
+Workers don't need to manually clock in for most of a shift. Any data-writing action on a work order or asset (saving a measure point, consuming a part, marking a step complete, etc.) fires a `dataupdate` event that `workshopPortal` uses to open a `Time_Report__c` against the workpack's root work order if one isn't already open (`ensureClockedIn`). The kiosk header shows a live elapsed-time chip while clocked in.
+
+The open time report is automatically closed (`autoClockOut`) when the worker switches to a different work order, switches user, or ends the session — so time is captured without requiring an explicit "Clock In" tap, while a manual **Clock Out** button remains available on the work order detail screen for ending a report early.
 
 ---
 

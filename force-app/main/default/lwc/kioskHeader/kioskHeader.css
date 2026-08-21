@@ -71,8 +71,18 @@
     border: 1px solid var(--rt-success, #21C07A);
     border-radius: 20px;
     padding: 6px 16px;
-    max-width: 220px;
+    max-width: 340px;
     overflow: hidden;
+}
+.worker-timer {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--rt-success, #21C07A);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    padding-left: 8px;
+    border-left: 1px solid rgba(33,192,122,0.4);
 }
 .worker-chip.idle {
     background: var(--rt-surface-2, #1B2530);

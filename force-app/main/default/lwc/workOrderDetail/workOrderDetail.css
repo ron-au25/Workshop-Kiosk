@@ -123,6 +123,59 @@
 .meta-val { font-size: 15px; color: var(--rt-text, #F2F5F7); font-weight: 500; }
 .meta-val.mono { font-family: 'SF Mono', monospace; font-size: 14px; }
 
+/* ─── Workpack progress KPIs ─────────────────────────────────────────────── */
+.wp-progress-panel {
+    background: var(--rt-surface, #131A22);
+    border: 1px solid var(--rt-border, #2A3744);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+}
+.wp-progress-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--rt-text-dim, #6B7A89);
+    margin: 0 0 16px;
+}
+.wp-ring-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.wp-ring {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+.wp-ring-svg { width: 100%; max-width: 96px; height: auto; }
+.wp-ring-track { fill: none; stroke: var(--rt-border, #2A3744); stroke-width: 8; }
+.wp-ring-arc {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray .5s ease;
+}
+.wp-ring-pct { fill: var(--rt-text, #F2F5F7); font-size: 18px; font-weight: 700; }
+.wp-ring-count {
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--rt-text-muted, #A6B2BD);
+    white-space: nowrap;
+}
+.wp-ring-label {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--rt-text-dim, #6B7A89);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 /* ─── Two-column layout ──────────────────────────────────────────────────── */
 .wd-body {}
 .wd-cols {

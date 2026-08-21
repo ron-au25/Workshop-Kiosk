@@ -6,6 +6,10 @@ import clockIn from '@salesforce/apex/KioskController.clockIn';
 import clockOut from '@salesforce/apex/KioskController.clockOut';
 import saveWorkOrderNotes from '@salesforce/apex/KioskController.saveWorkOrderNotes';
 import updateWorkStepStatus from '@salesforce/apex/KioskController.updateWorkStepStatus';
+import getWorkpackProgress from '@salesforce/apex/KioskController.getWorkpackProgress';
+
+const RING_R = 30;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
 const CAUSE_OPTIONS = [
     { value: '', label: '— Select —' },
@@ -71,6 +75,12 @@ export default class WorkOrderDetail extends LightningElement {
     _workOrderId;
     @api siteBaseUrl = '';
 
+    // Called by the parent (workshopPortal) after an auto clock-in so the clock
+    // panel / time history reflect the new Time_Report without a full page refresh.
+    @api reload() {
+        if (this._workOrderId) this.loadDetail();
+    }
+
     @wire(MessageContext) messageContext;
     _flowSubscription;
     _flowResolver = null;        // resolve() of the in-flight flow promise
@@ -98,6 +108,7 @@ export default class WorkOrderDetail extends LightningElement {
     @track showAssetReview = false;
     @track wpSidebarCollapsed = false;   // Rail Workpack: Operations + Work Plans sidebar
     @track timeHistoryExpanded = false;  // Time History: collapsed shows only the most recent entry
+    @track progress = null;              // Workpack progress KPI rollup (rail workpacks only)
 
     connectedCallback() {
         if (this._workOrderId) this.loadDetail();
@@ -164,6 +175,13 @@ export default class WorkOrderDetail extends LightningElement {
             const expanded = {};
             (d.workPlans || []).forEach(p => { expanded[p.id] = true; });
             this.expandedPlanIds = expanded;
+            // Progress KPI rollup — only for rail workpacks (root WO + children).
+            this.progress = null;
+            if (this.isRailWorkpack) {
+                try {
+                    this.progress = await getWorkpackProgress({ token: this.sessionToken, workOrderId: this.workOrderId });
+                } catch (pe) { /* non-fatal: panel just hides */ }
+            }
         } catch (e) {
             this.hasError = true;
             this.errorMessage = 'Failed to load work order details.';
@@ -208,6 +226,8 @@ export default class WorkOrderDetail extends LightningElement {
         this.isClockingOut = true;
         try {
             await clockOut({ token: this.sessionToken, timeReportId: this.detail.activeTimeReport.id });
+            // Stop the header elapsed timer (parent owns clockStartMs).
+            this.dispatchEvent(new CustomEvent('clockstopped', { bubbles: true, composed: true }));
             await this.loadDetail();
         } catch (e) {
             this._showFeedback('Clock out failed. Try again.');
@@ -421,6 +441,54 @@ export default class WorkOrderDetail extends LightningElement {
 
     get backLabel() { return this.detail?.parentWorkOrderId ? (this.detail.parentWoNumber || 'Work Pack') : 'Work Orders'; }
     get isRailWorkpack() { return (this.detail?.workTypeName || '').includes('Workpack'); }
+
+    get hasProgress() { return !!this.progress; }
+
+    // Full-width row of progress rings: the 6 KPIs + an Overall ring.
+    get progressRings() {
+        const p = this.progress;
+        if (!p) return [];
+        const specs = [
+            { key: 'steps',      label: 'Steps',      kpi: p.steps,      color: '#2E8FE6' },
+            { key: 'measures',   label: 'Measures',   kpi: p.measures,   color: '#21C07A' },
+            { key: 'labour',     label: 'Labour',     kpi: p.labour,     color: '#A855F7' },
+            { key: 'parts',      label: 'Parts',      kpi: p.parts,      color: '#F2B441' },
+            { key: 'partsCost',  label: 'Parts Cost', kpi: p.partsCost,  color: '#14B8A6', currency: true },
+            { key: 'components', label: 'Components', kpi: p.components,  color: '#E84B4B' },
+        ];
+        const rings = specs.map(s => {
+            const na = !(s.kpi && (s.kpi.totalRaw || 0) > 0);
+            return this._buildRing(s.key, s.label, s.kpi ? s.kpi.percent : 0, this._countText(s), s.color, na);
+        });
+        // Overall — accent ring, percent only (no count).
+        rings.push(this._buildRing('overall', 'Overall', p.overallPercent, '', '#E25822', false));
+        return rings;
+    }
+
+    _buildRing(key, label, percent, countText, color, na) {
+        const pctClamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
+        const dash = `${(pctClamped / 100) * RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
+        return {
+            key,
+            label,
+            percentText: `${pctClamped}%`,
+            countText,
+            dash,
+            color: na ? '#2A3744' : color,
+            hasCount: !!countText,
+        };
+    }
+
+    _countText(s) {
+        const k = s.kpi;
+        if (!k) return '0/0';
+        if (s.currency) return `$${this._fmtNum(k.done)}/$${this._fmtNum(k.total)}`;
+        return `${this._fmtNum(k.done)}/${this._fmtNum(k.total)}`;
+    }
+
+    _fmtNum(n) {
+        return (n == null ? 0 : n).toLocaleString('en-AU');
+    }
     get hasAsset() { return !!this.detail?.assetId; }
     get hasChildWorkOrders() { return (this.detail?.childWorkOrders?.length || 0) > 0; }
     get hasLineItems() { return (this.detail?.lineItems?.length || 0) > 0; }

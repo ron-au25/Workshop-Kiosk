@@ -16,8 +16,10 @@ const PRIORITY_OPTIONS = [
     { value: 'Low', label: 'Low' },
 ];
 
-function todayIso() {
+// yyyy-MM-dd for today shifted by `days` (negative = past)
+function isoOffset(days) {
     const d = new Date();
+    d.setDate(d.getDate() + days);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -28,8 +30,9 @@ export default class WorkOrderCards extends LightningElement {
     @track statusFilter = 'All';
     @track priorityFilter = 'All';
     @track wagonSearch = '';
-    @track dateFrom = todayIso();
-    @track dateTo = todayIso();
+    @track dateFrom = isoOffset(-3);
+    @track dateTo = isoOffset(3);
+    @track territoryWide = false;
     @track isLoading = true;
     @track hasError = false;
     @track errorMessage = '';
@@ -57,6 +60,7 @@ export default class WorkOrderCards extends LightningElement {
                 filterJson: JSON.stringify({
                     dateFrom,
                     dateTo,
+                    territoryWide: this.territoryWide,
                     pageSize: 200,
                     pageOffset: 0,
                 }),
@@ -177,6 +181,11 @@ export default class WorkOrderCards extends LightningElement {
         evt.stopPropagation();
     }
 
+    handleTerritoryToggle(evt) {
+        this.territoryWide = evt.target.checked;
+        this._doFetch(this.dateFrom, this.dateTo);
+    }
+
     handleDateFrom(evt) {
         const from = evt.target.value;
         const to = this.dateTo < from ? from : this.dateTo;
@@ -225,10 +234,12 @@ export default class WorkOrderCards extends LightningElement {
         this.priorityFilter = 'All';
         this.wagonSearch = '';
         this.searchAllActive = false;
-        const today = todayIso();
-        this.dateFrom = today;
-        this.dateTo = today;
-        this._doFetch(today, today);
+        this.territoryWide = false;
+        const from = isoOffset(-3);
+        const to = isoOffset(3);
+        this.dateFrom = from;
+        this.dateTo = to;
+        this._doFetch(from, to);
     }
 
     get statusOptions() {

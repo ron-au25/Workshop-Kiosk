@@ -1,6 +1,9 @@
 import { LightningElement, track } from 'lwc';
 import isGuestUser from '@salesforce/user/isGuest';
 import getSupervisorContext from '@salesforce/apex/KioskController.getSupervisorContext';
+import ensureClockedIn from '@salesforce/apex/KioskController.ensureClockedIn';
+import autoClockOut from '@salesforce/apex/KioskController.autoClockOut';
+import getActiveClock from '@salesforce/apex/KioskController.getActiveClock';
 
 const STATE = {
     BOOTING: 'BOOTING',
@@ -14,7 +17,7 @@ const STATE = {
 };
 
 const IDLE_WARN_SECONDS = 30;
-const IDLE_TIMEOUT_MINUTES = 5;
+const IDLE_TIMEOUT_MINUTES = 10;
 
 // Barcode scanner: >=4 chars arriving within 100ms window ending with Enter
 const BARCODE_MIN_LEN = 4;
@@ -44,6 +47,8 @@ export default class WorkshopPortal extends LightningElement {
     @track barcodeEmployeeId;
     @track selectedWorkOrderId = null;
     @track theme = 'dark';
+    @track clockStartMs = null;      // epoch ms of the active clock's Start_Time__c (drives header timer)
+    clockedWorkOrderId = null;       // WO opened when the worker was clocked in
 
     _idleTimer;
     _idleWarnTimer;
@@ -145,18 +150,83 @@ export default class WorkshopPortal extends LightningElement {
         else if (nav === 'timetracking') this.state = STATE.TIME_TRACKING;
     }
 
-    handleOpenDetail(evt) {
-        this.selectedWorkOrderId = evt.detail.workOrderId;
+    async handleOpenDetail(evt) {
+        const woId = evt.detail.workOrderId;
+        await this._onWorkpackChange(woId);
+        this.selectedWorkOrderId = woId;
         this.state = STATE.WORK_ORDER_DETAIL;
     }
 
     // Drill-down from a tapped carousel image in the Agentforce chat.
-    handleChatDrilldown(evt) {
+    async handleChatDrilldown(evt) {
         const woId = evt.detail && evt.detail.workOrderId;
         if (!woId) return;
+        await this._onWorkpackChange(woId);
         this.selectedWorkOrderId = woId;
         this.state = STATE.WORK_ORDER_DETAIL;
         this.activeNav = 'workorders';
+    }
+
+    // ─── Auto clock (activity-driven, workpack-level) ──────────────────────────
+
+    // Fired (bubbles+composed) by asset/work-order write actions. Clock the worker
+    // in on the current workpack if they aren't already.
+    async handleDataUpdate() {
+        if (!this.sessionToken || !this.selectedWorkOrderId) return;
+        try {
+            const wasClocked = !!this.clockStartMs;
+            const c = await ensureClockedIn({ token: this.sessionToken, workOrderId: this.selectedWorkOrderId });
+            if (c && c.startTimeMs) {
+                this.clockStartMs = c.startTimeMs;
+                this.clockedWorkOrderId = this.selectedWorkOrderId;
+                // Newly clocked in → refresh the detail so the time record shows without a full refresh.
+                if (!wasClocked) this._reloadWorkOrderDetail();
+            }
+        } catch (e) { /* clock is best-effort; never block the user's action */ }
+    }
+
+    // Manual Clock Out button in workOrderDetail closed the report → stop the header timer.
+    handleClockStopped() {
+        this._clearClock();
+    }
+
+    _reloadWorkOrderDetail() {
+        const wod = this.template.querySelector('c-work-order-detail');
+        if (wod && typeof wod.reload === 'function') wod.reload();
+    }
+
+    // Switching to a different workpack clocks out the current one (no auto clock-in
+    // of the new one); then sync the header timer to whatever is still open.
+    async _onWorkpackChange(newWoId) {
+        if (this.clockStartMs && this.clockedWorkOrderId && this.clockedWorkOrderId !== newWoId) {
+            await this._doAutoClockOut();
+        }
+        await this._syncClock(newWoId);
+    }
+
+    async _syncClock(woId) {
+        if (!this.sessionToken) { this._clearClock(); return; }
+        try {
+            const c = await getActiveClock({ token: this.sessionToken });
+            if (c && c.startTimeMs) {
+                this.clockStartMs = c.startTimeMs;
+                this.clockedWorkOrderId = woId || c.workOrderId;
+            } else {
+                this._clearClock();
+            }
+        } catch (e) { /* non-fatal */ }
+    }
+
+    async _doAutoClockOut() {
+        if (this.sessionToken) {
+            try { await autoClockOut({ token: this.sessionToken }); } catch (e) { /* ignore */ }
+        }
+        this._clearClock();
+    }
+
+    _clearClock() {
+        this.clockStartMs = null;
+        this.clockedWorkOrderId = null;
     }
 
     handleDetailBack() {
@@ -172,8 +242,9 @@ export default class WorkshopPortal extends LightningElement {
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
     }
 
-    handleSwitchUser() {
+    async handleSwitchUser() {
         this._clearTimers();
+        await this._doAutoClockOut();   // close the open report before dropping the token
         this.sessionToken = null;
         this.currentWorkerName = null;
         this.currentCrewName = '';
@@ -191,8 +262,9 @@ export default class WorkshopPortal extends LightningElement {
         if (chat && typeof chat.reset === 'function') chat.reset();
     }
 
-    handleEndSession() {
-        // Full page reload ends the Salesforce session
+    async handleEndSession() {
+        // End Shift: close the open time report, then full page reload ends the SF session
+        await this._doAutoClockOut();
         window.location.reload();
     }
 

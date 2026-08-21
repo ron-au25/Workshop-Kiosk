@@ -21,6 +21,9 @@
                 <div class="worker-chip">
                     <span class="chip-dot"></span>
                     <span class="chip-name">{workerName}</span>
+                    <template lwc:if={isClocked}>
+                        <span class="worker-timer" title="Clocked time">⏱ {clockElapsed}</span>
+                    </template>
                 </div>
             </template>
             <template lwc:else>

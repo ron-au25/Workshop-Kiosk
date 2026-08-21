@@ -109,6 +109,34 @@
                     </template>
                 </div>
 
+                <!-- ─── Workpack progress KPIs (rail workpacks only) ─── -->
+                <template lwc:if={isRailWorkpack}>
+                    <template lwc:if={hasProgress}>
+                        <div class="wp-progress-panel">
+                            <h3 class="wp-progress-title">Workpack Progress</h3>
+                            <div class="wp-ring-row">
+                                <template for:each={progressRings} for:item="r">
+                                    <div key={r.key} class="wp-ring">
+                                        <svg class="wp-ring-svg" viewBox="0 0 80 80">
+                                            <circle class="wp-ring-track" cx="40" cy="40" r="30"></circle>
+                                            <circle class="wp-ring-arc" cx="40" cy="40" r="30"
+                                                stroke={r.color}
+                                                stroke-dasharray={r.dash}
+                                                transform="rotate(-90 40 40)"></circle>
+                                            <text class="wp-ring-pct" x="40" y="40"
+                                                text-anchor="middle" dominant-baseline="central">{r.percentText}</text>
+                                        </svg>
+                                        <template lwc:if={r.hasCount}>
+                                            <div class="wp-ring-count">{r.countText}</div>
+                                        </template>
+                                        <div class="wp-ring-label">{r.label}</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+
                 <!-- ─── Rail Workpack: collapsible Ops/Plans sidebar + main content ─── -->
                 <template lwc:if={isRailWorkpack}>
                   <div class={wpLayoutClass}>
@@ -204,12 +232,11 @@
                     <!-- ░░ Main content ░░ -->
                     <div class="wp-main">
 
-                    <!-- Open Wagon Asset -->
+                    <!-- Open Asset Components -->
                     <template lwc:if={hasAsset}>
                         <div class="wd-section">
                             <button class="btn-wagon-asset" onclick={handleOpenAssetReview}>
-                                <span class="wagon-asset-icon">🚆</span>
-                                <span>Open Wagon Asset</span>
+                                <span>Open Asset Components</span>
                             </button>
                         </div>
                     </template>

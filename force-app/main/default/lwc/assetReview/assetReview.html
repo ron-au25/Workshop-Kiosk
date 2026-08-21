@@ -88,7 +88,7 @@
                         </div>
                     </template>
 
-                    <template lwc:if={diagramExpanded}>
+                    <template lwc:if={showSchematic}>
                         <div class="diagram-frame">
                             <img class="diagram-img" src={wagonDiagramUrl} alt="Wagon diagram" />
                             <template for:each={diagramZones} for:item="zone">
@@ -378,7 +378,7 @@
                                 <!-- RIGHT: Tasks -->
                                 <div class="detail-col">
                                     <div class="col-header">
-                                        <span class="col-title">PM02 Tasks</span>
+                                        <span class="col-title">Work Orders</span>
                                         <button class="btn-add-entry" onclick={handleAddTask}>+ New PM02 Task</button>
                                     </div>
 
@@ -498,6 +498,9 @@
                                                             <button class="icon-btn edit-btn" data-task-id={t.id} onclick={handleEditTask} title="Edit task">✏️</button>
                                                         </div>
                                                     </div>
+                                                    <template lwc:if={t.workTypeName}>
+                                                        <span class={t.wtChipClass} title="Work type">{t.workTypeName}</span>
+                                                    </template>
                                                     <div class="task-subject">{t.subject}</div>
                                                     <template lwc:if={t.description}>
                                                         <p class="task-description">{t.description}</p>
@@ -521,7 +524,7 @@
                                             <template lwc:else>
                                                 <div class="ar-empty">
                                                     <span class="ar-empty-icon">🛠️</span>
-                                                    <p>No PM02 tasks yet.<br/>Tap "+ New PM02 Task".</p>
+                                                    <p>No work orders yet.<br/>Tap "+ New PM02 Task".</p>
                                                 </div>
                                             </template>
                                         </template>
@@ -540,6 +543,9 @@
                         </button>
                         <template lwc:if={plansExpanded}>
                             <template lwc:if={hasPlans}>
+                                <template lwc:if={planActionError}>
+                                    <p class="ar-plan-error">{planActionError}</p>
+                                </template>
                                 <div class="plan-list">
                                     <template for:each={workPlansEnriched} for:item="plan">
                                         <div key={plan.id} class="plan-card">
@@ -551,6 +557,17 @@
                                             >
                                                 <span class="plan-order">{plan.executionOrder}</span>
                                                 <span class="plan-name">{plan.name}</span>
+                                                <span class="ar-plan-ring">
+                                                    <svg viewBox="0 0 44 44" class="ar-ring-svg">
+                                                        <circle class="ar-ring-track" cx="22" cy="22" r="18"></circle>
+                                                        <circle class="ar-ring-arc" cx="22" cy="22" r="18"
+                                                            stroke-dasharray={plan.ringDash}
+                                                            stroke-dashoffset={plan.ringOffset}
+                                                            transform="rotate(-90 22 22)"></circle>
+                                                        <text class="ar-ring-pct" x="22" y="22"
+                                                            text-anchor="middle" dominant-baseline="central">{plan.ringPercentText}</text>
+                                                    </svg>
+                                                </span>
                                                 <span class="plan-chevron">{plan.chevron}</span>
                                             </button>
                                             <template lwc:if={plan.isExpanded}>
@@ -565,6 +582,11 @@
                                                                 </template>
                                                             </div>
                                                             <span class="step-status">{step.status}</span>
+                                                            <template lwc:if={step.canComplete}>
+                                                                <button class="ar-step-complete-btn"
+                                                                    data-step-id={step.id}
+                                                                    onclick={handleMarkStepComplete}>Mark complete</button>
+                                                            </template>
                                                         </div>
                                                     </template>
                                                     <template lwc:if={plan.hasNoSteps}>
@@ -588,22 +610,38 @@
                     <!-- ─── Required Parts for the selected asset ─── -->
                     <div class="ar-section">
                         <button class="collapse-header" onclick={handleToggleParts} aria-expanded={partsExpanded}>
-                            <span class="section-title nomargin">{detailHeading} — Required Parts</span>
+                            <span class="section-title nomargin">{detailHeading} — Parts</span>
                             <span class="collapse-icon">{partsToggleIcon}</span>
                         </button>
                         <template lwc:if={partsExpanded}>
+                            <template lwc:if={partActionError}>
+                                <p class="ar-plan-error">{partActionError}</p>
+                            </template>
                             <template lwc:if={hasParts}>
                                 <div class="parts-table">
                                     <div class="parts-head">
                                         <span class="parts-col-name">Part</span>
-                                        <span class="parts-col-qty">Qty</span>
-                                        <span class="parts-col-wo">Work Order</span>
+                                        <span class="parts-col-num">Consumed</span>
+                                        <span class="parts-col-num">Required</span>
+                                        <span class="parts-col-num">Cost</span>
+                                        <span class="parts-col-act"></span>
                                     </div>
                                     <template for:each={partsEnriched} for:item="part">
                                         <div key={part.key} class="parts-row">
                                             <span class="parts-col-name">{part.productName}</span>
-                                            <span class="parts-col-qty">{part.qtyDisplay}</span>
-                                            <span class="parts-col-wo">{part.workOrderNumber}</span>
+                                            <span class="parts-col-num">{part.consumedText}</span>
+                                            <span class="parts-col-num">{part.requiredText}</span>
+                                            <span class="parts-col-num">{part.costText}</span>
+                                            <span class="parts-col-act">
+                                                <template lwc:if={part.canConsume}>
+                                                    <button class="ar-consume-btn"
+                                                        data-wo-id={part.workOrderId}
+                                                        data-product-id={part.product2Id}
+                                                        data-pbe-id={part.pricebookEntryId}
+                                                        data-unit-price={part.unitPrice}
+                                                        onclick={handleConsumePart}>+ Consume</button>
+                                                </template>
+                                            </span>
                                         </div>
                                     </template>
                                 </div>
@@ -611,7 +649,24 @@
                             <template lwc:else>
                                 <div class="ar-empty">
                                     <span class="ar-empty-icon">📦</span>
-                                    <p>No required parts recorded for this asset.</p>
+                                    <p>No parts recorded for this asset.</p>
+                                </div>
+                            </template>
+
+                            <template lwc:if={canAddPart}>
+                                <div class="ar-addpart">
+                                    <button class="ar-addpart-toggle" onclick={handleToggleAddPart}>+ Add part</button>
+                                    <template lwc:if={showAddPart}>
+                                        <div class="ar-addpart-row">
+                                            <select class="form-select" onchange={handleAddProductChange} onkeydown={handleInputKeydown}>
+                                                <option value="">Select a part…</option>
+                                                <template for:each={productOptions} for:item="opt">
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                </template>
+                                            </select>
+                                            <button class="ar-consume-btn" onclick={handleAddPart} disabled={addPartDisabled}>Add</button>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </template>

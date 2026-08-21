@@ -37,6 +37,17 @@
                         </template>
                     </div>
                 </div>
+                <div class="filter-group filter-territory">
+                    <label class="territory-toggle">
+                        <input
+                            type="checkbox"
+                            checked={territoryWide}
+                            onchange={handleTerritoryToggle}
+                            onkeydown={handleWagonKeydown}
+                        />
+                        <span class="filter-label">Territory</span>
+                    </label>
+                </div>
             </div>
             <div class="filter-row">
                 <div class="filter-group filter-date">

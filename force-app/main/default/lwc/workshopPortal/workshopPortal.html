@@ -67,6 +67,7 @@
                         supervisor-name={supervisorName}
                         worker-name={currentWorkerName}
                         crew-name={currentCrewName}
+                        clock-start-ms={clockStartMs}
                         is-portrait={isPortrait}
                         onhamburger={handleSidebarToggle}
                     ></c-kiosk-header>
@@ -83,6 +84,8 @@
                                     worker-name={currentWorkerName}
                                     onback={handleDetailBack}
                                     onopendetail={handleOpenDetail}
+                                    ondataupdate={handleDataUpdate}
+                                    onclockstopped={handleClockStopped}
                                 ></c-work-order-detail>
                             </div>
                         </template>

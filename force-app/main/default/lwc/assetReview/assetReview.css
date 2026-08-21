@@ -690,6 +690,38 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
     padding: 3px 10px;
 }
 
+/* Work-type chip, colour-coded by WorkTypeGroup signal category */
+.wt-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+}
+.wt-chip.cat-repair {
+    color: #FF8A8A;
+    background: rgba(214, 69, 69, 0.16);
+    border-color: rgba(214, 69, 69, 0.45);
+}
+.wt-chip.cat-telematics {
+    color: #7FC1FF;
+    background: rgba(45, 128, 214, 0.16);
+    border-color: rgba(45, 128, 214, 0.45);
+}
+.wt-chip.cat-maintenance {
+    color: #7FE0A6;
+    background: rgba(43, 168, 104, 0.16);
+    border-color: rgba(43, 168, 104, 0.45);
+}
+.wt-chip.cat-other {
+    color: var(--rt-text-muted, #A6B2BD);
+    background: var(--rt-surface-2, #1B2530);
+    border-color: var(--rt-border, #2A3744);
+}
+
 .status-pill {
     font-size: 12px;
     font-weight: 700;
@@ -876,6 +908,37 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
 .ar-step-row.status-in-progress .step-status { color: var(--rt-accent-2, #2E8FE6); }
 .no-steps { color: var(--rt-text-muted, #A6B2BD); font-size: 13px; padding: 10px 14px; margin: 0; }
 
+/* Per-plan progress ring in the plan header */
+.ar-plan-ring { display: inline-flex; width: 40px; height: 40px; flex: 0 0 auto; }
+.ar-ring-svg { width: 40px; height: 40px; }
+.ar-ring-track { fill: none; stroke: var(--rt-border, #2A3744); stroke-width: 5; }
+.ar-ring-arc {
+    fill: none;
+    stroke: var(--rt-accent-2, #2E8FE6);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset .4s ease;
+}
+.ar-plan-ring .ar-ring-arc[stroke-dashoffset="0"] { stroke: var(--rt-success, #21C07A); }
+.ar-ring-pct { fill: var(--rt-text, #F2F5F7); font-size: 13px; font-weight: 800; }
+
+/* Mark-step-complete button */
+.ar-step-complete-btn {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid var(--rt-accent-2, #2E8FE6);
+    color: var(--rt-accent-2, #2E8FE6);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ar-step-complete-btn:hover { background: rgba(46,143,230,0.12); border-color: var(--rt-accent-2, #2E8FE6); }
+.ar-plan-error { color: var(--rt-danger, #E5484D); font-size: 13px; padding: 6px 14px; margin: 0; }
+
 /* ─── Required Parts table ───────────────────────────────────────────────── */
 .parts-table {
     border: 1px solid var(--rt-border, #2A3744);
@@ -884,8 +947,8 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
 }
 .parts-head, .parts-row {
     display: grid;
-    grid-template-columns: 1fr 90px 120px;
-    gap: 12px;
+    grid-template-columns: 1fr 84px 84px 84px 110px;
+    gap: 10px;
     padding: 10px 14px;
     align-items: center;
 }
@@ -903,5 +966,38 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
     font-size: 14px;
 }
 .parts-col-name { font-weight: 600; }
-.parts-col-qty { font-variant-numeric: tabular-nums; }
-.parts-col-wo { color: var(--rt-text-muted, #A6B2BD); font-variant-numeric: tabular-nums; }
+.parts-col-num { font-variant-numeric: tabular-nums; text-align: right; }
+.parts-head .parts-col-num { text-align: right; }
+.parts-col-act { text-align: right; }
+
+.ar-consume-btn {
+    background: transparent;
+    border: 1px solid var(--rt-accent-2, #2E8FE6);
+    color: var(--rt-accent-2, #2E8FE6);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ar-consume-btn:hover:not(:disabled) { background: rgba(46,143,230,0.12); }
+.ar-consume-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.ar-addpart { margin-top: 12px; }
+.ar-addpart-toggle {
+    background: transparent;
+    border: 1px dashed var(--rt-border, #2A3744);
+    color: var(--rt-text-muted, #A6B2BD);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+}
+.ar-addpart-toggle:hover { border-color: var(--rt-accent-2, #2E8FE6); color: var(--rt-accent-2, #2E8FE6); }
+.ar-addpart-row { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+.ar-addpart-row .form-select { flex: 1; }

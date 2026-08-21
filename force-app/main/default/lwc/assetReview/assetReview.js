@@ -11,6 +11,13 @@ import getAssetReviewDetail from '@salesforce/apex/KioskController.getAssetRevie
 import createAssetTask from '@salesforce/apex/KioskController.createAssetTask';
 import updateAssetTask from '@salesforce/apex/KioskController.updateAssetTask';
 import updateAssetSerial from '@salesforce/apex/KioskController.updateAssetSerial';
+import markWorkStepCompleted from '@salesforce/apex/KioskController.markWorkStepCompleted';
+import consumePart from '@salesforce/apex/KioskController.consumePart';
+import getConsumableProducts from '@salesforce/apex/KioskController.getConsumableProducts';
+
+// Per-plan progress ring geometry (small inline donut).
+const RING_R = 18;
+const RING_CIRC = 2 * Math.PI * RING_R;
 
 const MEASURE_TYPES = ['Attention Required', 'Measure', 'OK', 'Scrap'];
 const VALUE_TYPES = ['Depth', 'Temperature', 'Pressure', 'Level', 'Width', 'Length'];
@@ -93,6 +100,13 @@ export default class AssetReview extends LightningElement {
     @track selectedChildId = null;      // level-3 sub-asset (terminal selection)
     @track assetDetail = { workPlans: [], parts: [] };  // work plans + parts for active asset
     @track expandedPlanIds = {};
+    @track planActionError = '';
+    markingStepId = null;
+    @track partActionError = '';
+    consuming = false;
+    @track showAddPart = false;
+    @track productOptions = [];
+    selectedAddProductId = '';
     @track plansExpanded = true;
     @track partsExpanded = true;
     @track wheelsetPoints = [];     // measure points for the selected wheelset
@@ -221,7 +235,7 @@ export default class AssetReview extends LightningElement {
         try {
             const [points, tasks, detail] = await Promise.all([
                 getMeasurePointsByAsset({ token: this.sessionToken, assetId }),
-                getAssetTasks({ token: this.sessionToken, assetId }),
+                getAssetTasks({ token: this.sessionToken, assetId, workOrderId: this.workOrderId }),
                 getAssetReviewDetail({ token: this.sessionToken, workOrderId: this.workOrderId, assetId }),
             ]);
             this.wheelsetPoints = points || [];
@@ -264,6 +278,103 @@ export default class AssetReview extends LightningElement {
         this.expandedPlanIds = { ...this.expandedPlanIds, [planId]: !this.expandedPlanIds[planId] };
     }
 
+    // Notify the portal that the worker made a data change → auto clock-in.
+    // Bubbles across shadow boundaries (via workOrderDetail) up to workshopPortal.
+    _notifyDataUpdate() {
+        this.dispatchEvent(new CustomEvent('dataupdate', { bubbles: true, composed: true }));
+    }
+
+    async handleMarkStepComplete(evt) {
+        evt.stopPropagation();
+        const stepId = evt.currentTarget.dataset.stepId;
+        if (!stepId || this.markingStepId) return;
+        this.markingStepId = stepId;
+        this.planActionError = '';
+        try {
+            await markWorkStepCompleted({ token: this.sessionToken, workStepId: stepId });
+            this._notifyDataUpdate();
+            // Reflect locally: step → Completed (ring recomputes via workPlansEnriched).
+            const plans = (this.assetDetail.workPlans || []).map(p => ({
+                ...p,
+                steps: (p.steps || []).map(s => (s.id === stepId ? { ...s, status: 'Completed' } : s)),
+            }));
+            this.assetDetail = { ...this.assetDetail, workPlans: plans };
+        } catch (e) {
+            this.planActionError = (e && e.body && e.body.message) || 'Could not update step.';
+        } finally {
+            this.markingStepId = null;
+        }
+    }
+
+    // ─── Parts: consume + add ────────────────────────────────────────────────
+    async handleConsumePart(evt) {
+        const ds = evt.currentTarget.dataset;
+        if (this.consuming) return;
+        this.consuming = true;
+        this.partActionError = '';
+        try {
+            await consumePart({
+                token: this.sessionToken,
+                workOrderId: ds.woId,
+                product2Id: ds.productId,
+                pricebookEntryId: ds.pbeId,
+                unitPrice: ds.unitPrice ? Number(ds.unitPrice) : null,
+            });
+            this._notifyDataUpdate();
+            await this.loadDetail(this.activeAssetId);
+        } catch (e) {
+            this.partActionError = (e && e.body && e.body.message) || 'Could not consume part.';
+        } finally {
+            this.consuming = false;
+        }
+    }
+
+    async handleToggleAddPart() {
+        this.showAddPart = !this.showAddPart;
+        this.partActionError = '';
+        if (this.showAddPart && !this.productOptions.length) {
+            try {
+                const opts = await getConsumableProducts({ token: this.sessionToken });
+                this.productOptions = (opts || []).map(o => ({
+                    label: `${o.productName} — $${this._fmtNum(o.unitPrice)}`,
+                    value: o.productId,
+                    productId: o.productId,
+                    pricebookEntryId: o.pricebookEntryId,
+                    unitPrice: o.unitPrice,
+                }));
+            } catch (e) {
+                this.partActionError = 'Could not load products.';
+            }
+        }
+    }
+
+    handleAddProductChange(evt) { this.selectedAddProductId = evt.target.value; }
+
+    async handleAddPart() {
+        const opt = this.productOptions.find(o => o.value === this.selectedAddProductId);
+        const woId = this.assetDetail && this.assetDetail.consumeWorkOrderId;
+        if (!opt || !woId) { this.partActionError = 'Select a part first.'; return; }
+        this.consuming = true;
+        this.partActionError = '';
+        try {
+            await consumePart({
+                token: this.sessionToken,
+                workOrderId: woId,
+                product2Id: opt.productId,
+                pricebookEntryId: opt.pricebookEntryId,
+                unitPrice: opt.unitPrice,
+            });
+            this._notifyDataUpdate();
+            this.showAddPart = false;
+            this.selectedAddProductId = '';
+            await this.loadDetail(this.activeAssetId);
+        } catch (e) {
+            this.partActionError = (e && e.body && e.body.message) || 'Could not add part.';
+        } finally {
+            this.consuming = false;
+        }
+    }
+
     // ─── Serial edit ─────────────────────────────────────────────────────────
     handleSerialChange(evt) { this.serialDraft = evt.target.value; }
 
@@ -277,6 +388,7 @@ export default class AssetReview extends LightningElement {
                 assetId,
                 serialNumber: this.serialDraft,
             });
+            this._notifyDataUpdate();
             // Reflect locally on whichever asset (component or sub-asset) is active
             this._patchAsset(assetId, { serialNumber: this.serialDraft });
         } catch (e) {
@@ -393,6 +505,7 @@ export default class AssetReview extends LightningElement {
                 assetId: this.activeAssetId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
+            this._notifyDataUpdate();
             this.wheelsetPoints = this.wheelsetPoints.map(x => x.id === saved.id ? saved : x);
             this.allPoints = this.allPoints.map(x => x.id === saved.id ? saved : x);
             this._recomputeWheelsetStatus();
@@ -431,6 +544,7 @@ export default class AssetReview extends LightningElement {
                 assetId: this.activeAssetId,
             };
             const saved = await saveMeasurePoint({ token: this.sessionToken, reqJson: JSON.stringify(req) });
+            this._notifyDataUpdate();
 
             // Upload a staged image (camera/file) against the saved record's id.
             if (this._pendingImageBase64 && saved.id) {
@@ -599,6 +713,7 @@ export default class AssetReview extends LightningElement {
             const saved = this.taskEditId
                 ? await updateAssetTask({ token: this.sessionToken, reqJson: JSON.stringify(req) })
                 : await createAssetTask({ token: this.sessionToken, reqJson: JSON.stringify(req) });
+            this._notifyDataUpdate();
             if (this.taskEditId) {
                 this.tasks = this.tasks.map(t => t.id === saved.id ? saved : t);
                 this._taskFb('Task updated.', false);
@@ -633,6 +748,11 @@ export default class AssetReview extends LightningElement {
             // eslint-disable-next-line @lwc/lwc/no-async-operation
             setTimeout(() => { this.taskFeedback = ''; }, 2500);
         }
+    }
+
+    // Wagon schematic shows only when expanded AND the workpack has a Wagon Number.
+    get showSchematic() {
+        return this.diagramExpanded && !!(this.wagon && this.wagon.hasWagonNumber);
     }
 
     // ─── Derived: diagram zones ──────────────────────────────────────────────
@@ -685,10 +805,18 @@ export default class AssetReview extends LightningElement {
         const plans = (this.assetDetail && this.assetDetail.workPlans) || [];
         return plans.map(p => {
             const isExpanded = !!this.expandedPlanIds[p.id];
-            const steps = (p.steps || []).map(s => ({
-                ...s,
-                stepClass: 'ar-step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-'),
-            }));
+            const steps = (p.steps || []).map(s => {
+                const isCompleted = s.status === 'Completed';
+                return {
+                    ...s,
+                    stepClass: 'ar-step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-'),
+                    isCompleted,
+                    canComplete: !isCompleted,
+                };
+            });
+            const total = steps.length;
+            const done = steps.filter(s => s.isCompleted).length;
+            const percent = total > 0 ? Math.round((done / total) * 100) : 0;
             return {
                 ...p,
                 steps,
@@ -696,20 +824,35 @@ export default class AssetReview extends LightningElement {
                 hasNoSteps: steps.length === 0,
                 toggleClass: 'plan-toggle' + (isExpanded ? ' expanded' : ''),
                 chevron: isExpanded ? '▾' : '›',
+                ringPercentText: percent + '%',
+                ringDash: String(RING_CIRC),
+                ringOffset: String(RING_CIRC * (1 - percent / 100)),
+                ringComplete: percent === 100,
             };
         });
     }
 
     get partsEnriched() {
         const parts = (this.assetDetail && this.assetDetail.parts) || [];
-        return parts.map((p, i) => ({
-            key: p.id || `part-${i}`,
-            productName: p.productName,
-            qtyDisplay: p.quantity != null ? `${this._fmtNum(p.quantity)}${p.unit ? ' ' + p.unit : ''}` : '',
-            workOrderNumber: p.workOrderNumber,
-            source: p.source,
-        }));
+        return parts.map((p, i) => {
+            const unit = p.unit ? ' ' + p.unit : '';
+            return {
+                key: p.productId || `part-${i}`,
+                productName: p.productName,
+                requiredText: this._fmtNum(p.requiredQty || 0) + unit,
+                consumedText: this._fmtNum(p.consumedQty || 0) + unit,
+                costText: p.unitPrice != null ? `$${this._fmtNum(p.unitPrice)}` : '—',
+                product2Id: p.productId,
+                pricebookEntryId: p.pricebookEntryId,
+                workOrderId: p.workOrderId,
+                unitPrice: p.unitPrice != null ? String(p.unitPrice) : '',
+                canConsume: !!(p.pricebookEntryId && p.workOrderId),
+            };
+        });
     }
+
+    get canAddPart() { return !!(this.assetDetail && this.assetDetail.consumeWorkOrderId); }
+    get addPartDisabled() { return !this.selectedAddProductId || this.consuming; }
 
     get hasPlans() { return this.workPlansEnriched.length > 0; }
     get hasParts() { return this.partsEnriched.length > 0; }
@@ -845,6 +988,7 @@ export default class AssetReview extends LightningElement {
             ...t,
             statusClass: statusMap[t.status] || 'status-pill new',
             durationDisplay: t.durationHours != null ? `${t.durationHours}h` : null,
+            wtChipClass: 'wt-chip cat-' + (t.category || 'other'),
         }));
     }
 

@@ -58,6 +58,26 @@ public with sharing class KioskController {
         @AuraEnabled public Integer count;
     }
 
+    // One progress KPI: done vs total (Integer for display, Decimal raw for qty/cost), plus percent 0-100.
+    public class KpiDTO {
+        @AuraEnabled public Integer done;
+        @AuraEnabled public Integer total;
+        @AuraEnabled public Integer percent;
+        @AuraEnabled public Decimal doneRaw;
+        @AuraEnabled public Decimal totalRaw;
+    }
+
+    // Workpack progress rollup across the root WO + all its child WOs.
+    public class WorkpackProgressDTO {
+        @AuraEnabled public KpiDTO steps;
+        @AuraEnabled public KpiDTO measures;
+        @AuraEnabled public KpiDTO labour;
+        @AuraEnabled public KpiDTO parts;
+        @AuraEnabled public KpiDTO partsCost;
+        @AuraEnabled public KpiDTO components;
+        @AuraEnabled public Integer overallPercent;
+    }
+
     public class JobDay {
         @AuraEnabled public String day;     // ISO date yyyy-MM-dd
         @AuraEnabled public Integer count;  // jobs scheduled that day
@@ -101,6 +121,7 @@ public with sharing class KioskController {
         @AuraEnabled public String wagonSearch;
         @AuraEnabled public String dateFrom;   // ISO date string yyyy-MM-dd
         @AuraEnabled public String dateTo;     // ISO date string yyyy-MM-dd
+        @AuraEnabled public Boolean territoryWide; // true = all WOs scheduled in the kiosk territory
         @AuraEnabled public Integer pageSize;
         @AuraEnabled public Integer pageOffset;
     }
@@ -251,6 +272,7 @@ public with sharing class KioskController {
         @AuraEnabled public String warrantyStatus;
         @AuraEnabled public String floc;
         @AuraEnabled public String assetType;
+        @AuraEnabled public Boolean hasWagonNumber; // workpack WO has a non-blank Wagon_Number__c
         @AuraEnabled public List<WheelsetDTO> wheelsets;
     }
 
@@ -273,16 +295,28 @@ public with sharing class KioskController {
     // Work plans + required parts for a single selected asset (loaded on demand).
     public class AssetReviewDetailDTO {
         @AuraEnabled public List<WorkPlanDTO> workPlans;
-        @AuraEnabled public List<PartDTO> parts;
+        @AuraEnabled public List<PartLineDTO> parts;
+        @AuraEnabled public String consumeWorkOrderId;   // WO that newly-added consumed parts attach to
     }
 
-    public class PartDTO {
-        @AuraEnabled public String id;
+    // One combined line per product: required + consumed + unit cost, for the asset's WOs.
+    public class PartLineDTO {
+        @AuraEnabled public String productId;
         @AuraEnabled public String productName;
-        @AuraEnabled public Decimal quantity;
+        @AuraEnabled public Decimal requiredQty;
+        @AuraEnabled public Decimal consumedQty;
+        @AuraEnabled public Decimal unitPrice;
+        @AuraEnabled public String pricebookEntryId;
+        @AuraEnabled public String workOrderId;      // WO to consume against for this line
         @AuraEnabled public String unit;
-        @AuraEnabled public String workOrderNumber;
-        @AuraEnabled public String source;         // 'Work Order' | 'Work Type'
+    }
+
+    // Product option for the "add a part" picker (standard active price book).
+    public class ProductOptionDTO {
+        @AuraEnabled public String productId;
+        @AuraEnabled public String productName;
+        @AuraEnabled public Decimal unitPrice;
+        @AuraEnabled public String pricebookEntryId;
     }
 
     public class TaskWoDTO {
@@ -298,6 +332,8 @@ public with sharing class KioskController {
         @AuraEnabled public String component;        // SAP_FLOC_Desc__c
         @AuraEnabled public Decimal durationHours;   // Duration (DurationType = Hours)
         @AuraEnabled public String comments;         // Comment__c
+        @AuraEnabled public String workTypeName;     // WorkType.Name
+        @AuraEnabled public String category;         // repair | telematics | maintenance | other (from WorkTypeGroup)
     }
 
     public class CreateTaskRequest {
@@ -559,59 +595,75 @@ public with sharing class KioskController {
 
         String workerId = payload.workerId;
 
-        // Collect candidate SA IDs from AssignedResource — no cross-object date filter here
-        // to avoid SECURITY_ENFORCED stripping the filter when SA fields lack FLS.
-        // Date range is applied on the ServiceAppointment query below.
-        Set<Id> candidateSaIds = new Set<Id>();
+        Map<Id, ServiceAppointment> saMap;
 
-        for (AssignedResource ar : [
-            SELECT ServiceAppointmentId
-            FROM AssignedResource
-            WHERE ServiceResourceId = :workerId
-            WITH USER_MODE
-        ]) {
-            candidateSaIds.add(ar.ServiceAppointmentId);
-        }
+        if (filter.territoryWide == true) {
+            // Territory-wide: every WorkOrder ServiceAppointment scheduled in the
+            // kiosk's territory within the date range, regardless of worker.
+            saMap = new Map<Id, ServiceAppointment>([
+                SELECT Id, ParentRecordId, ParentRecordType, SchedStartTime, SchedEndTime
+                FROM ServiceAppointment
+                WHERE ServiceTerritoryId = :payload.territoryId
+                  AND ParentRecordType = 'WorkOrder'
+                  AND SchedStartTime >= :fromDt
+                  AND SchedStartTime < :toDt
+                WITH USER_MODE
+            ]);
+        } else {
+            // Collect candidate SA IDs from AssignedResource — no cross-object date filter here
+            // to avoid SECURITY_ENFORCED stripping the filter when SA fields lack FLS.
+            // Date range is applied on the ServiceAppointment query below.
+            Set<Id> candidateSaIds = new Set<Id>();
 
-        // Crew-based assignments
-        List<ServiceCrewMember> crewMemberships = [
-            SELECT ServiceCrewId
-            FROM ServiceCrewMember
-            WHERE ServiceResourceId = :workerId
-              AND (EndDate = NULL OR EndDate >= :DateTime.now())
-            WITH USER_MODE
-        ];
-        if (!crewMemberships.isEmpty()) {
-            Set<Id> crewIds = new Set<Id>();
-            for (ServiceCrewMember scm : crewMemberships) crewIds.add(scm.ServiceCrewId);
             for (AssignedResource ar : [
                 SELECT ServiceAppointmentId
                 FROM AssignedResource
-                WHERE ServiceCrewId IN :crewIds
+                WHERE ServiceResourceId = :workerId
                 WITH USER_MODE
             ]) {
                 candidateSaIds.add(ar.ServiceAppointmentId);
             }
-        }
 
-        if (candidateSaIds.isEmpty()) {
-            WorkOrderPage empty = new WorkOrderPage();
-            empty.records = new List<WorkOrderCard>();
-            empty.totalCount = 0;
-            empty.hasMore = false;
-            return empty;
-        }
+            // Crew-based assignments
+            List<ServiceCrewMember> crewMemberships = [
+                SELECT ServiceCrewId
+                FROM ServiceCrewMember
+                WHERE ServiceResourceId = :workerId
+                  AND (EndDate = NULL OR EndDate >= :DateTime.now())
+                WITH USER_MODE
+            ];
+            if (!crewMemberships.isEmpty()) {
+                Set<Id> crewIds = new Set<Id>();
+                for (ServiceCrewMember scm : crewMemberships) crewIds.add(scm.ServiceCrewId);
+                for (AssignedResource ar : [
+                    SELECT ServiceAppointmentId
+                    FROM AssignedResource
+                    WHERE ServiceCrewId IN :crewIds
+                    WITH USER_MODE
+                ]) {
+                    candidateSaIds.add(ar.ServiceAppointmentId);
+                }
+            }
 
-        // Apply date range filter here, on ServiceAppointment directly
-        Map<Id, ServiceAppointment> saMap = new Map<Id, ServiceAppointment>([
-            SELECT Id, ParentRecordId, ParentRecordType, SchedStartTime, SchedEndTime
-            FROM ServiceAppointment
-            WHERE Id IN :candidateSaIds
-              AND ParentRecordType = 'WorkOrder'
-              AND SchedStartTime >= :fromDt
-              AND SchedStartTime < :toDt
-            WITH USER_MODE
-        ]);
+            if (candidateSaIds.isEmpty()) {
+                WorkOrderPage empty = new WorkOrderPage();
+                empty.records = new List<WorkOrderCard>();
+                empty.totalCount = 0;
+                empty.hasMore = false;
+                return empty;
+            }
+
+            // Apply date range filter here, on ServiceAppointment directly
+            saMap = new Map<Id, ServiceAppointment>([
+                SELECT Id, ParentRecordId, ParentRecordType, SchedStartTime, SchedEndTime
+                FROM ServiceAppointment
+                WHERE Id IN :candidateSaIds
+                  AND ParentRecordType = 'WorkOrder'
+                  AND SchedStartTime >= :fromDt
+                  AND SchedStartTime < :toDt
+                WITH USER_MODE
+            ]);
+        }
 
         Set<Id> woIds = new Set<Id>();
         for (ServiceAppointment sa : saMap.values()) {
@@ -928,6 +980,38 @@ public with sharing class KioskController {
         update steps[0];
     }
 
+    // Mark a single work step Completed and move its work order to In Progress.
+    // WorkStep is ControlledByParent(WorkPlan, Private OWD) — the kiosk member has no
+    // edit-share on the step, so read + write it in SYSTEM_MODE (same visibility fix as
+    // the Work Plans panel). The WorkOrder itself is member-editable (OWD ReadWrite).
+    @AuraEnabled
+    public static void markWorkStepCompleted(String token, String workStepId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(workStepId)) throw new AuraHandledException('WORK_STEP_NOT_FOUND');
+
+        List<WorkStep> steps = (List<WorkStep>) Database.query(
+            'SELECT Id, Status, WorkOrderId FROM WorkStep WHERE Id = :workStepId LIMIT 1',
+            AccessLevel.SYSTEM_MODE
+        );
+        if (steps.isEmpty()) throw new AuraHandledException('WORK_STEP_NOT_FOUND');
+
+        WorkStep ws = steps[0];
+        ws.Status = 'Completed';
+        Database.update(ws, AccessLevel.SYSTEM_MODE);
+
+        if (ws.WorkOrderId != null) {
+            List<WorkOrder> wos = [
+                SELECT Id, Status FROM WorkOrder WHERE Id = :ws.WorkOrderId
+                WITH SECURITY_ENFORCED LIMIT 1
+            ];
+            if (!wos.isEmpty() && wos[0].Status != 'In Progress') {
+                wos[0].Status = 'In Progress';
+                update wos[0];
+            }
+        }
+    }
+
     // ─── Clock in ─────────────────────────────────────────────────────────────
 
     @AuraEnabled
@@ -992,6 +1076,95 @@ public with sharing class KioskController {
         dto.durationMinutes = mins;
         dto.isActive = false;
         return dto;
+    }
+
+    // ─── Auto clock (workpack-level, activity-driven) ──────────────────────────
+    // A worker who makes any data change on a workpack is clocked in automatically
+    // at the workpack ROOT WorkOrder; auto-clocked-out on idle logout / switch /
+    // end shift / switching workpacks. See ensureClockedIn / autoClockOut / getActiveClock.
+
+    public class ClockDTO {
+        @AuraEnabled public String timeReportId;
+        @AuraEnabled public String workOrderId;   // workpack root
+        @AuraEnabled public Long   startTimeMs;    // Start_Time__c epoch ms (client timer base)
+    }
+
+    // Ensure the worker has an open time report on the workpack root. Idempotent:
+    // returns the existing open report if one exists, else creates one.
+    @AuraEnabled
+    public static ClockDTO ensureClockedIn(String token, String workOrderId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(workOrderId)) throw new AuraHandledException('MISSING_INPUT');
+
+        String workerName = getWorkerName(payload.workerId);
+
+        // Resolve the workpack root for the opened WO.
+        Id rootWoId = (Id) workOrderId;
+        List<WorkOrder> wos = [
+            SELECT RootWorkOrderId FROM WorkOrder WHERE Id = :workOrderId
+            WITH SECURITY_ENFORCED LIMIT 1
+        ];
+        if (!wos.isEmpty() && wos[0].RootWorkOrderId != null) rootWoId = wos[0].RootWorkOrderId;
+
+        // Existing open report wins (one clock per worker).
+        List<Time_Report__c> open = [
+            SELECT Id, Start_Time__c, Work_Order__c FROM Time_Report__c
+            WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
+            WITH SECURITY_ENFORCED ORDER BY Start_Time__c DESC LIMIT 1
+        ];
+        if (!open.isEmpty()) return toClockDTO(open[0]);
+
+        Time_Report__c tr = new Time_Report__c(
+            Work_Order__c = rootWoId,
+            Resource_Name__c = workerName,
+            Start_Time__c = DateTime.now(),
+            Related_To__c = rootWoId,
+            Status__c = 'New'
+        );
+        insert tr;
+        return toClockDTO(tr);
+    }
+
+    // Close every open report for the worker (set End_Time__c). Duration is a formula.
+    @AuraEnabled
+    public static void autoClockOut(String token) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        String workerName = getWorkerName(payload.workerId);
+        List<Time_Report__c> open = [
+            SELECT Id, End_Time__c FROM Time_Report__c
+            WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
+            WITH SECURITY_ENFORCED
+        ];
+        if (open.isEmpty()) return;
+        DateTime endNow = DateTime.now();
+        for (Time_Report__c tr : open) tr.End_Time__c = endNow;
+        update open;
+    }
+
+    // Current open report for the worker (reflects manual and auto clock-in), or null.
+    @AuraEnabled
+    public static ClockDTO getActiveClock(String token) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        String workerName = getWorkerName(payload.workerId);
+        List<Time_Report__c> open = [
+            SELECT Id, Start_Time__c, Work_Order__c FROM Time_Report__c
+            WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
+            WITH SECURITY_ENFORCED ORDER BY Start_Time__c DESC LIMIT 1
+        ];
+        return open.isEmpty() ? null : toClockDTO(open[0]);
+    }
+
+    private static ClockDTO toClockDTO(Time_Report__c tr) {
+        ClockDTO c = new ClockDTO();
+        c.timeReportId = tr.Id;
+        c.workOrderId = String.valueOf(tr.Work_Order__c);
+        c.startTimeMs = (tr.Start_Time__c != null) ? tr.Start_Time__c.getTime() : null;
+        return c;
     }
 
     // ─── Save notes + codes ───────────────────────────────────────────────────
@@ -1663,7 +1836,7 @@ public with sharing class KioskController {
 
         // 1. Resolve the wagon asset from the workpack work order.
         List<WorkOrder> wos = [
-            SELECT Id, AssetId FROM WorkOrder WHERE Id = :workOrderId
+            SELECT Id, AssetId, Wagon_Number__c FROM WorkOrder WHERE Id = :workOrderId
             WITH SECURITY_ENFORCED LIMIT 1
         ];
         if (wos.isEmpty() || wos[0].AssetId == null) throw new AuraHandledException('NO_ASSET');
@@ -1750,14 +1923,19 @@ public with sharing class KioskController {
         dto.warrantyStatus = wagon.Entitlement_Status__c;
         dto.floc = wagon.FLOC__c;
         dto.assetType = wagon.Asset_Type__c;
+        dto.hasWagonNumber = String.isNotBlank(wos[0].Wagon_Number__c);
         dto.wheelsets = new List<WheelsetDTO>();
 
         for (Asset a : children) {
             WheelsetDTO w = mapAsset(a, hasAttention, hasMeasure, woCountByAsset);
             w.children = new List<WheelsetDTO>();
+            Integer rolled = w.workOrderCount;   // own WOs
             for (Asset g : grandByParent.get(a.Id) != null ? grandByParent.get(a.Id) : new List<Asset>()) {
-                w.children.add(mapAsset(g, hasAttention, hasMeasure, woCountByAsset));
+                WheelsetDTO gd = mapAsset(g, hasAttention, hasMeasure, woCountByAsset);
+                rolled += (gd.workOrderCount == null ? 0 : gd.workOrderCount);
+                w.children.add(gd);
             }
+            w.workOrderCount = rolled;           // rolled-up total shown on the parent badge
             dto.wheelsets.add(w);
         }
         return dto;
@@ -1810,26 +1988,83 @@ public with sharing class KioskController {
         t.component = wo.SAP_FLOC_Desc__c;
         t.durationHours = wo.DurationType == 'Minutes' && wo.Duration != null ? (wo.Duration / 60).setScale(2) : wo.Duration;
         t.comments = wo.Comment__c;
+        t.workTypeName = wo.WorkType != null ? wo.WorkType.Name : null;
         return t;
     }
 
     private static final String TASK_FIELDS =
         'Id, WorkOrderNumber, Subject, Status, Priority, Description, Cause_Codes__c, ' +
-        'Work_Delay_Codes__c, StartDate, SAP_FLOC_Desc__c, Duration, DurationType, Comment__c';
+        'Work_Delay_Codes__c, StartDate, SAP_FLOC_Desc__c, Duration, DurationType, Comment__c, ' +
+        'WorkTypeId, WorkType.Name';
+
+    // Map a WorkTypeGroup name to a signal category. Breakdown = repair,
+    // Condition (Monitoring) = telematics, (Preventive) Maintenance = maintenance.
+    private static String categoryFromGroup(String groupName) {
+        if (String.isBlank(groupName)) return null;
+        String n = groupName.toLowerCase();
+        if (n.contains('breakdown')) return 'repair';
+        if (n.contains('condition')) return 'telematics';
+        if (n.contains('maintenance')) return 'maintenance';
+        return null;
+    }
+
+    // Deterministic precedence when a WorkType belongs to several groups (lower wins).
+    private static Integer catRank(String cat) {
+        if (cat == 'repair') return 0;
+        if (cat == 'telematics') return 1;
+        if (cat == 'maintenance') return 2;
+        return 3;
+    }
 
     @AuraEnabled(cacheable=false)
-    public static List<TaskWoDTO> getAssetTasks(String token, String assetId) {
+    public static List<TaskWoDTO> getAssetTasks(String token, String assetId, String workOrderId) {
         TokenPayload payload = validateToken(token);
         if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
 
-        List<TaskWoDTO> result = new List<TaskWoDTO>();
+        // Match the component's WO-count badge: WorkOrders in THIS workpack (the root WO
+        // or its direct children) whose AssetId is the selected component OR any of its
+        // sub-components (one level down, same roll-up the badge uses). All WorkTypes.
+        Set<Id> assetIds = new Set<Id>{ (Id) assetId };
+        for (Asset child : [
+            SELECT Id FROM Asset WHERE ParentId = :assetId WITH SECURITY_ENFORCED
+        ]) {
+            assetIds.add(child.Id);
+        }
+        Id woId = (Id) workOrderId;
+
         List<WorkOrder> rows = (List<WorkOrder>) Database.query(
             'SELECT ' + TASK_FIELDS + ' FROM WorkOrder ' +
-            'WHERE AssetId = :assetId AND WorkType.Name = \'PM02\' ' +
+            'WHERE (Id = :woId OR ParentWorkOrderId = :woId) AND AssetId IN :assetIds ' +
             'WITH SECURITY_ENFORCED ORDER BY CreatedDate DESC'
         );
+
+        // Classify each WorkType via its WorkTypeGroup(s): repair / telematics / maintenance.
+        Set<Id> wtIds = new Set<Id>();
         for (WorkOrder wo : rows) {
-            result.add(mapTask(wo));
+            if (wo.WorkTypeId != null) wtIds.add(wo.WorkTypeId);
+        }
+        Map<Id, String> catByWorkType = new Map<Id, String>();
+        if (!wtIds.isEmpty()) {
+            for (WorkTypeGroupMember m : [
+                SELECT WorkTypeId, WorkTypeGroup.Name FROM WorkTypeGroupMember
+                WHERE WorkTypeId IN :wtIds
+                WITH SECURITY_ENFORCED
+            ]) {
+                String cat = categoryFromGroup(m.WorkTypeGroup.Name);
+                if (cat == null) continue;
+                String existing = catByWorkType.get(m.WorkTypeId);
+                if (existing == null || catRank(cat) < catRank(existing)) {
+                    catByWorkType.put(m.WorkTypeId, cat);
+                }
+            }
+        }
+
+        List<TaskWoDTO> result = new List<TaskWoDTO>();
+        for (WorkOrder wo : rows) {
+            TaskWoDTO t = mapTask(wo);
+            t.category = (wo.WorkTypeId != null && catByWorkType.containsKey(wo.WorkTypeId))
+                ? catByWorkType.get(wo.WorkTypeId) : 'other';
+            result.add(t);
         }
         return result;
     }
@@ -1842,14 +2077,23 @@ public with sharing class KioskController {
 
         AssetReviewDetailDTO dto = new AssetReviewDetailDTO();
         dto.workPlans = new List<WorkPlanDTO>();
-        dto.parts = new List<PartDTO>();
+        dto.parts = new List<PartLineDTO>();
         if (String.isBlank(workOrderId) || String.isBlank(assetId)) return dto;
 
-        // WOs in this workpack (root or a direct child of it) that reference the asset.
+        // WOs in this workpack (root or a direct child of it) that reference the selected
+        // component OR any of its sub-components — same asset roll-up as the Work Orders panel.
+        Set<Id> assetIds = new Set<Id>{ (Id) assetId };
+        for (Asset child : [
+            SELECT Id FROM Asset WHERE ParentId = :assetId WITH SECURITY_ENFORCED
+        ]) {
+            assetIds.add(child.Id);
+        }
+        Id woId = (Id) workOrderId;
+
         Map<Id, WorkOrder> assocWos = new Map<Id, WorkOrder>();
         for (WorkOrder wo : [
             SELECT Id, WorkOrderNumber, WorkTypeId FROM WorkOrder
-            WHERE (Id = :workOrderId OR ParentWorkOrderId = :workOrderId) AND AssetId = :assetId
+            WHERE (Id = :woId OR ParentWorkOrderId = :woId) AND AssetId IN :assetIds
             WITH SECURITY_ENFORCED
         ]) {
             assocWos.put(wo.Id, wo);
@@ -1858,12 +2102,15 @@ public with sharing class KioskController {
         Set<Id> woIds = assocWos.keySet();
 
         // ── Work plans + steps for the associated WOs ──
+        // WorkPlan OWD is Private and WorkStep is ControlledByParent, so a `with sharing`
+        // query returns 0 rows for the kiosk site user (they don't own the records).
+        // Read in system mode — same pattern as getWorkpackProgress — since access is
+        // already gated by the validated session token + workpack scope.
         Map<Id, WorkPlanDTO> planMap = new Map<Id, WorkPlanDTO>();
-        for (WorkPlan wp : [
-            SELECT Id, Name, ExecutionOrder FROM WorkPlan
-            WHERE WorkOrderId IN :woIds
-            WITH SECURITY_ENFORCED ORDER BY ExecutionOrder ASC NULLS LAST
-        ]) {
+        for (WorkPlan wp : (List<WorkPlan>) Database.query(
+            'SELECT Id, Name, ExecutionOrder FROM WorkPlan WHERE WorkOrderId IN :woIds ' +
+            'ORDER BY ExecutionOrder ASC NULLS LAST', AccessLevel.SYSTEM_MODE
+        )) {
             WorkPlanDTO wpDto = new WorkPlanDTO();
             wpDto.id = wp.Id;
             wpDto.name = wp.Name;
@@ -1873,12 +2120,11 @@ public with sharing class KioskController {
             planMap.put(wp.Id, wpDto);
         }
         if (!planMap.isEmpty()) {
-            for (WorkStep ws : [
-                SELECT Id, Name, Status, ExecutionOrder, Description, WorkPlanId, ActionType, ActionDefinition
-                FROM WorkStep
-                WHERE WorkOrderId IN :woIds
-                WITH SECURITY_ENFORCED ORDER BY WorkPlanExecutionOrder ASC, ExecutionOrder ASC
-            ]) {
+            for (WorkStep ws : (List<WorkStep>) Database.query(
+                'SELECT Id, Name, Status, ExecutionOrder, Description, WorkPlanId, ActionType, ActionDefinition ' +
+                'FROM WorkStep WHERE WorkOrderId IN :woIds ' +
+                'ORDER BY WorkPlanExecutionOrder ASC, ExecutionOrder ASC', AccessLevel.SYSTEM_MODE
+            )) {
                 if (!planMap.containsKey(ws.WorkPlanId)) continue;
                 WorkStepDTO sdto = new WorkStepDTO();
                 sdto.id = ws.Id;
@@ -1892,48 +2138,359 @@ public with sharing class KioskController {
             }
         }
 
-        // ── Required parts: COALESCE(WO.ProductRequired, WorkType.ProductRequired) ──
-        // Direct parts on the WO win; WOs with none fall back to their WorkType's parts.
+        // ── Combined parts: required (ProductRequired) + consumed (ProductConsumed),
+        //    one line per product, with unit cost from the standard active price book. ──
+        Map<Id, PartLineDTO> byProduct = new Map<Id, PartLineDTO>();
+
+        // Required — direct WO parts win; WOs with none fall back to their WorkType's parts.
         Set<Id> wosWithDirectParts = new Set<Id>();
         for (ProductRequired pr : [
-            SELECT Id, ParentRecordId, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
-            FROM ProductRequired
-            WHERE ParentRecordId IN :woIds
-            WITH SECURITY_ENFORCED
+            SELECT Id, ParentRecordId, Product2Id, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
+            FROM ProductRequired WHERE ParentRecordId IN :woIds WITH SECURITY_ENFORCED
         ]) {
             wosWithDirectParts.add(pr.ParentRecordId);
-            dto.parts.add(mapPart(pr, assocWos.get(pr.ParentRecordId), 'Work Order'));
+            addRequired(byProduct, pr, pr.ParentRecordId);
         }
-
-        // Fallback to WorkType parts for associated WOs that carry no direct parts.
         Map<Id, Id> workTypeToWo = new Map<Id, Id>();
         for (WorkOrder wo : assocWos.values()) {
-            if (wo.WorkTypeId != null && !wosWithDirectParts.contains(wo.Id)) {
-                workTypeToWo.put(wo.WorkTypeId, wo.Id);
-            }
+            if (wo.WorkTypeId != null && !wosWithDirectParts.contains(wo.Id)) workTypeToWo.put(wo.WorkTypeId, wo.Id);
         }
         if (!workTypeToWo.isEmpty()) {
             for (ProductRequired pr : [
-                SELECT Id, ParentRecordId, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
-                FROM ProductRequired
-                WHERE ParentRecordId IN :workTypeToWo.keySet()
-                WITH SECURITY_ENFORCED
+                SELECT Id, ParentRecordId, Product2Id, Product2.Name, QuantityRequired, QuantityUnitOfMeasure
+                FROM ProductRequired WHERE ParentRecordId IN :workTypeToWo.keySet() WITH SECURITY_ENFORCED
             ]) {
-                dto.parts.add(mapPart(pr, assocWos.get(workTypeToWo.get(pr.ParentRecordId)), 'Work Type'));
+                addRequired(byProduct, pr, workTypeToWo.get(pr.ParentRecordId));
             }
         }
+
+        // Consumed — ProductConsumed is a detail of WorkOrder; read in system mode.
+        for (ProductConsumed pc : (List<ProductConsumed>) Database.query(
+            'SELECT Product2Id, Product2.Name, QuantityConsumed, WorkOrderId ' +
+            'FROM ProductConsumed WHERE WorkOrderId IN :woIds', AccessLevel.SYSTEM_MODE
+        )) {
+            if (pc.Product2Id == null) continue;
+            PartLineDTO line = byProduct.get(pc.Product2Id);
+            if (line == null) {
+                line = newPartLine(pc.Product2Id, (pc.Product2 != null ? pc.Product2.Name : null));
+                byProduct.put(pc.Product2Id, line);
+            }
+            line.consumedQty += (pc.QuantityConsumed != null ? pc.QuantityConsumed : 0);
+            if (line.workOrderId == null) line.workOrderId = String.valueOf(pc.WorkOrderId);
+        }
+
+        // Unit cost + PricebookEntryId per product from the standard active price book.
+        // Multi-currency org: pick the PBE in the supervisor's currency so the price shown
+        // matches the currency ProductConsumed will be inserted with.
+        if (!byProduct.isEmpty()) {
+            Set<Id> pids = byProduct.keySet();
+            String supCurrency = UserInfo.getDefaultCurrency();
+            try {
+                for (PricebookEntry pbe : (List<PricebookEntry>) Database.query(
+                    'SELECT Id, Product2Id, UnitPrice FROM PricebookEntry ' +
+                    'WHERE Product2Id IN :pids AND Pricebook2.IsStandard = true AND IsActive = true ' +
+                    'AND CurrencyIsoCode = :supCurrency',
+                    AccessLevel.SYSTEM_MODE
+                )) {
+                    PartLineDTO line = byProduct.get(pbe.Product2Id);
+                    if (line != null && line.pricebookEntryId == null) {
+                        line.pricebookEntryId = pbe.Id;
+                        line.unitPrice = pbe.UnitPrice;
+                    }
+                }
+            } catch (Exception e) { /* price is optional */ }
+        }
+        dto.parts = byProduct.values();
+
+        // Target WO for newly-added consumed parts: the opened WO if in scope, else first.
+        dto.consumeWorkOrderId = woIds.contains(woId) ? String.valueOf(woId) : String.valueOf(new List<Id>(woIds)[0]);
         return dto;
     }
 
-    private static PartDTO mapPart(ProductRequired pr, WorkOrder wo, String source) {
-        PartDTO p = new PartDTO();
-        p.id = pr.Id;
-        p.productName = (pr.Product2 != null && pr.Product2.Name != null) ? pr.Product2.Name : 'Unnamed part';
-        p.quantity = pr.QuantityRequired;
-        p.unit = pr.QuantityUnitOfMeasure;
-        p.workOrderNumber = wo != null ? wo.WorkOrderNumber : null;
-        p.source = source;
-        return p;
+    private static PartLineDTO newPartLine(Id productId, String name) {
+        PartLineDTO line = new PartLineDTO();
+        line.productId = productId;
+        line.productName = String.isNotBlank(name) ? name : 'Unnamed part';
+        line.requiredQty = 0;
+        line.consumedQty = 0;
+        return line;
+    }
+
+    private static void addRequired(Map<Id, PartLineDTO> byProduct, ProductRequired pr, Id woId) {
+        if (pr.Product2Id == null) return;
+        PartLineDTO line = byProduct.get(pr.Product2Id);
+        if (line == null) {
+            line = newPartLine(pr.Product2Id, (pr.Product2 != null ? pr.Product2.Name : null));
+            byProduct.put(pr.Product2Id, line);
+        }
+        line.requiredQty += (pr.QuantityRequired != null ? pr.QuantityRequired : 0);
+        if (String.isNotBlank(pr.QuantityUnitOfMeasure)) line.unit = pr.QuantityUnitOfMeasure;
+        if (line.workOrderId == null) line.workOrderId = String.valueOf(woId);
+    }
+
+    // Consume 1 unit of a product against a WO. Updates the existing ProductConsumed for
+    // that product on the WO, or inserts a new one. ProductConsumed is a WorkOrder detail
+    // (member has no create/edit share) → DML in SYSTEM_MODE.
+    @AuraEnabled
+    public static void consumePart(String token, String workOrderId, String product2Id, String pricebookEntryId, Decimal unitPrice) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        if (String.isBlank(workOrderId) || String.isBlank(product2Id)) {
+            throw new AuraHandledException('MISSING_INPUT');
+        }
+        List<ProductConsumed> existing = (List<ProductConsumed>) Database.query(
+            'SELECT Id, QuantityConsumed FROM ProductConsumed ' +
+            'WHERE WorkOrderId = :workOrderId AND Product2Id = :product2Id LIMIT 1',
+            AccessLevel.SYSTEM_MODE
+        );
+        if (!existing.isEmpty()) {
+            ProductConsumed pc = existing[0];
+            pc.QuantityConsumed = (pc.QuantityConsumed != null ? pc.QuantityConsumed : 0) + 1;
+            Database.update(pc, AccessLevel.SYSTEM_MODE);
+            return;
+        }
+        // New consumption line. ProductConsumed requires a PBE whose currency matches the
+        // WorkOrder's — resolve the standard active PBE for this product in the supervisor's
+        // currency rather than trusting the id passed from the client.
+        String supCurrency = UserInfo.getDefaultCurrency();
+        List<PricebookEntry> pbes = (List<PricebookEntry>) Database.query(
+            'SELECT Id, UnitPrice FROM PricebookEntry ' +
+            'WHERE Product2Id = :product2Id AND Pricebook2.IsStandard = true AND IsActive = true ' +
+            'AND CurrencyIsoCode = :supCurrency LIMIT 1',
+            AccessLevel.SYSTEM_MODE
+        );
+        if (pbes.isEmpty()) throw new AuraHandledException('NO_PRICEBOOK_ENTRY');
+        // Note: do NOT set IsConsumed — the org requires Product Consumed State records
+        // for that flag ("You can select Consumed after the Product is consumed"); the
+        // quantity alone represents consumption.
+        ProductConsumed pc = new ProductConsumed(
+            WorkOrderId = workOrderId,
+            PricebookEntryId = pbes[0].Id,
+            QuantityConsumed = 1,
+            UnitPrice = (unitPrice != null ? unitPrice : pbes[0].UnitPrice)
+        );
+        Database.insert(pc, AccessLevel.SYSTEM_MODE);
+    }
+
+    // Products available to add to the consumed list (standard active price book).
+    @AuraEnabled(cacheable=false)
+    public static List<ProductOptionDTO> getConsumableProducts(String token) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+        List<ProductOptionDTO> opts = new List<ProductOptionDTO>();
+        String supCurrency = UserInfo.getDefaultCurrency();
+        for (PricebookEntry pbe : (List<PricebookEntry>) Database.query(
+            'SELECT Id, Product2Id, Product2.Name, UnitPrice FROM PricebookEntry ' +
+            'WHERE Pricebook2.IsStandard = true AND IsActive = true AND Product2.IsActive = true ' +
+            'AND CurrencyIsoCode = :supCurrency ' +
+            'ORDER BY Product2.Name ASC', AccessLevel.SYSTEM_MODE
+        )) {
+            if (pbe.Product2Id == null) continue;
+            ProductOptionDTO o = new ProductOptionDTO();
+            o.productId = pbe.Product2Id;
+            o.productName = (pbe.Product2 != null && pbe.Product2.Name != null) ? pbe.Product2.Name : 'Unnamed';
+            o.unitPrice = pbe.UnitPrice;
+            o.pricebookEntryId = pbe.Id;
+            opts.add(o);
+        }
+        return opts;
+    }
+
+    // Workpack progress KPIs — rolled up across the root WO + all its child WOs.
+    @AuraEnabled(cacheable=false)
+    public static WorkpackProgressDTO getWorkpackProgress(String token, String workOrderId) {
+        TokenPayload payload = validateToken(token);
+        if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
+
+        WorkpackProgressDTO dto = new WorkpackProgressDTO();
+        dto.steps      = newKpi();
+        dto.measures   = newKpi();
+        dto.labour     = newKpi();
+        dto.parts      = newKpi();
+        dto.partsCost  = newKpi();
+        dto.components = newKpi();
+        dto.overallPercent = 0;
+        if (String.isBlank(workOrderId)) return dto;
+
+        // 1. Root WO + all direct children (the workpack span). Root has no parent.
+        Set<Id> woIds = new Set<Id>();
+        Integer plannedMins = 0;
+        Integer childTotal = 0;
+        Integer childInProgress = 0;
+        for (WorkOrder wo : [
+            SELECT Id, Status, DurationInMinutes, ParentWorkOrderId
+            FROM WorkOrder
+            WHERE (Id = :workOrderId OR ParentWorkOrderId = :workOrderId)
+            WITH SECURITY_ENFORCED
+        ]) {
+            woIds.add(wo.Id);
+            if (wo.DurationInMinutes != null) plannedMins += wo.DurationInMinutes.intValue();
+            if (wo.ParentWorkOrderId != null) {   // a child of the workpack
+                childTotal++;
+                if (wo.Status != 'New') childInProgress++;
+            }
+        }
+        if (woIds.isEmpty()) return dto;
+
+        // 2. Steps — completed vs total, across all WOs (root + children) AND their
+        //    associated work plans. A WorkStep may link to its WorkOrder directly
+        //    (WorkOrderId) OR only through its WorkPlan (WorkStep.WorkOrderId null),
+        //    so count via both paths (a single row per step — no double count).
+        //    WorkStep is ControlledByParent(WorkPlan), and WorkPlan OWD is Private, so
+        //    the running Experience member has no row-share to the pack's WorkPlans and
+        //    a member-mode query returns 0 (WITH SECURITY_ENFORCED does NOT throw on
+        //    row sharing — it just returns nothing). This is a pure completion rollup,
+        //    so read it in SYSTEM_MODE (same precedent as the dashboard counts and the
+        //    PricebookEntry reference read below).
+        Set<Id> planIds = new Set<Id>();
+        for (WorkPlan wp : (List<WorkPlan>) Database.query(
+            'SELECT Id FROM WorkPlan WHERE WorkOrderId IN :woIds', AccessLevel.SYSTEM_MODE
+        )) {
+            planIds.add(wp.Id);
+        }
+        Integer stepsDone = 0, stepsTotal = 0;
+        for (AggregateResult ar : (List<AggregateResult>) Database.query(
+            'SELECT Status st, COUNT(Id) cnt FROM WorkStep ' +
+            'WHERE WorkOrderId IN :woIds OR WorkPlanId IN :planIds GROUP BY Status',
+            AccessLevel.SYSTEM_MODE
+        )) {
+            Integer cnt = (Integer) ar.get('cnt');
+            stepsTotal += cnt;
+            if ((String) ar.get('st') == 'Completed') stepsDone += cnt;
+        }
+        setKpi(dto.steps, stepsDone, stepsTotal);
+
+        // 3. Measures — taken vs total. Taken = a value recorded OR a measure type other than 'Measure'.
+        Integer mTaken = 0, mTotal = 0;
+        for (Measure_Point__c mp : [
+            SELECT Measure_Value__c, Measure_Type__c FROM Measure_Point__c
+            WHERE Work_Order__c IN :woIds
+            WITH SECURITY_ENFORCED
+        ]) {
+            mTotal++;
+            if (mp.Measure_Value__c != null ||
+                (mp.Measure_Type__c != null && mp.Measure_Type__c != 'Measure')) {
+                mTaken++;
+            }
+        }
+        setKpi(dto.measures, mTaken, mTotal);
+
+        // 4. Labour — actual confirmed minutes vs planned minutes.
+        Integer actualMins = 0;
+        for (AggregateResult ar : [
+            SELECT SUM(Duration_in_Minutes__c) mins FROM Time_Report__c
+            WHERE Work_Order__c IN :woIds AND End_Time__c != null
+            WITH SECURITY_ENFORCED
+        ]) {
+            Object v = ar.get('mins');
+            if (v != null) actualMins = ((Decimal) v).intValue();
+        }
+        setKpiRaw(dto.labour, actualMins, plannedMins);
+
+        // 5a. Required parts — sum of quantities + per-product totals for cost.
+        Decimal reqQty = 0;
+        Map<Id, Decimal> reqQtyByProduct = new Map<Id, Decimal>();
+        for (ProductRequired pr : [
+            SELECT Product2Id, QuantityRequired FROM ProductRequired
+            WHERE ParentRecordId IN :woIds
+            WITH SECURITY_ENFORCED
+        ]) {
+            Decimal q = pr.QuantityRequired != null ? pr.QuantityRequired : 0;
+            reqQty += q;
+            if (pr.Product2Id != null) {
+                Decimal cur = reqQtyByProduct.containsKey(pr.Product2Id) ? reqQtyByProduct.get(pr.Product2Id) : 0;
+                reqQtyByProduct.put(pr.Product2Id, cur + q);
+            }
+        }
+        // Unit price per product from the standard active price book. PricebookEntry
+        // cannot be granted via a permission set (access keys off price-book sharing),
+        // so read this reference price data in SYSTEM_MODE. The products themselves are
+        // already gated by the member's ProductRequired access above.
+        Decimal reqCost = 0;
+        if (!reqQtyByProduct.isEmpty()) {
+            Set<Id> pids = reqQtyByProduct.keySet();
+            Map<Id, Decimal> priceByProduct = new Map<Id, Decimal>();
+            try {
+                List<PricebookEntry> pbes = Database.query(
+                    'SELECT Product2Id, UnitPrice FROM PricebookEntry ' +
+                    'WHERE Product2Id IN :pids AND Pricebook2.IsStandard = true AND IsActive = true',
+                    AccessLevel.SYSTEM_MODE
+                );
+                for (PricebookEntry pbe : pbes) {
+                    if (!priceByProduct.containsKey(pbe.Product2Id)) {
+                        priceByProduct.put(pbe.Product2Id, pbe.UnitPrice);
+                    }
+                }
+            } catch (Exception e) { priceByProduct.clear(); }
+            for (Id pid : pids) {
+                Decimal price = priceByProduct.containsKey(pid) ? priceByProduct.get(pid) : null;
+                if (price != null) reqCost += reqQtyByProduct.get(pid) * price;
+            }
+        }
+
+        // 5b. Consumed parts — quantity + cost from ProductConsumed. Same defensive
+        // guard: this object is new to the app and may not be readable by the member.
+        Decimal consumedQty = 0, consumedCost = 0;
+        if (Schema.sObjectType.ProductConsumed.isAccessible()) {
+            try {
+                for (AggregateResult ar : [
+                    SELECT SUM(QuantityConsumed) qty, SUM(TotalPrice) amt FROM ProductConsumed
+                    WHERE WorkOrderId IN :woIds
+                    WITH SECURITY_ENFORCED
+                ]) {
+                    Object q = ar.get('qty');
+                    Object amt = ar.get('amt');
+                    if (q != null) consumedQty = (Decimal) q;
+                    if (amt != null) consumedCost = (Decimal) amt;
+                }
+            } catch (Exception e) { consumedQty = 0; consumedCost = 0; }
+        }
+        setKpiRaw(dto.parts, consumedQty, reqQty);
+        setKpiRaw(dto.partsCost, consumedCost, reqCost);
+
+        // 6. Components — child WOs in progress (not New) vs total children.
+        setKpi(dto.components, childInProgress, childTotal);
+
+        // 7. Overall — mean of the KPI percentages that have a denominator.
+        List<KpiDTO> kpis = new List<KpiDTO>{
+            dto.steps, dto.measures, dto.labour, dto.parts, dto.partsCost, dto.components
+        };
+        Integer sumPct = 0, n = 0;
+        for (KpiDTO k : kpis) {
+            if (k.totalRaw != null && k.totalRaw > 0) { sumPct += k.percent; n++; }
+        }
+        dto.overallPercent = n > 0 ? (Integer) Math.round(100.0 * sumPct / (100 * n)) : 0;
+        return dto;
+    }
+
+    private static KpiDTO newKpi() {
+        KpiDTO k = new KpiDTO();
+        k.done = 0; k.total = 0; k.percent = 0; k.doneRaw = 0; k.totalRaw = 0;
+        return k;
+    }
+
+    // Integer-count KPI (steps, measures, components).
+    private static void setKpi(KpiDTO k, Integer done, Integer total) {
+        k.done = done; k.total = total;
+        k.doneRaw = done; k.totalRaw = total;
+        k.percent = pct(done, total);
+    }
+
+    // Decimal-magnitude KPI (minutes, quantities, cost). done/total shown rounded.
+    private static void setKpiRaw(KpiDTO k, Decimal done, Decimal total) {
+        Decimal d = done != null ? done : 0;
+        Decimal t = total != null ? total : 0;
+        k.doneRaw = d; k.totalRaw = t;
+        k.done = (Integer) Math.round(d.doubleValue());
+        k.total = (Integer) Math.round(t.doubleValue());
+        k.percent = pct(d.doubleValue(), t.doubleValue());
+    }
+
+    // Clamp a done/total ratio to an integer percent in [0,100].
+    private static Integer pct(Double done, Double total) {
+        if (total == null || total <= 0) return 0;
+        Integer p = (Integer) Math.round(100.0 * done / total);
+        return p > 100 ? 100 : (p < 0 ? 0 : p);
     }
 
     // Apply the editable fields from a request onto a WorkOrder (shared by create + update).

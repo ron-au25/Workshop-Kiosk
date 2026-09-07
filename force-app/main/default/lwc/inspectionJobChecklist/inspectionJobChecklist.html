@@ -1,0 +1,381 @@
+<template>
+    <div class="shell">
+        <template if:false={hasRecordId}>
+            <div class="state state-neutral">
+                <p class="state-title">No Work Step</p>
+                <p class="state-body">
+                    Open this checklist from a Work Step on a Work Order. The host screen supplies the
+                    Work Step record Id.
+                </p>
+            </div>
+        </template>
+
+        <template if:true={hasRecordId}>
+            <template if:true={loadError}>
+                <div class="state state-error">
+                    <p class="state-title">Could not load checklist</p>
+                    <p class="state-body">{loadErrorMessage}</p>
+                </div>
+            </template>
+
+            <template if:true={hasContext}>
+                <div class="toolbar">
+                    <div class="toolbar-wo">
+                        <span class="toolbar-wo-number">{workOrderNumber}</span>
+                        <template if:true={hasWorkOrderSubject}>
+                            <span class="toolbar-wo-sep" aria-hidden="true">·</span>
+                            <span class="toolbar-wo-subject">{workOrderSubject}</span>
+                        </template>
+                    </div>
+                    <div class="toolbar-actions">
+                        <lightning-button
+                            variant="neutral"
+                            label="Refresh"
+                            title="Reload checklist and work order images"
+                            onclick={handleRefresh}
+                            disabled={refreshing}
+                        ></lightning-button>
+                        <lightning-button
+                            variant="neutral"
+                            label="Partially Complete"
+                            title="Exit and continue later"
+                            class="toolbar-spaced"
+                            onclick={handlePartiallyComplete}
+                        ></lightning-button>
+                        <lightning-button
+                            variant="brand"
+                            label="Completed"
+                            title="Exit when finished"
+                            class="toolbar-spaced"
+                            onclick={handleCompleted}
+                        ></lightning-button>
+                    </div>
+                </div>
+
+                <div class="layout">
+                    <section class="panel panel-form" aria-label="Measure points and new entry">
+                        <div class="mp-list-section">
+                            <div class="mp-list-toolbar">
+                                <span class="mp-list-title">Existing measure points</span>
+                                <span class="mp-count">({tableRows.length})</span>
+                            </div>
+
+                            <p class="mp-list-hint">
+                                Set the type for each row. Use the filter to focus on a
+                                type, select rows, then mark them OK in bulk if needed.
+                            </p>
+
+                            <template if:true={hasAnyMeasurePoints}>
+                                <div class="mp-filter-row">
+                                    <span class="mp-filter-label">Filter</span>
+                                    <div
+                                        class="mp-inline-btn-row"
+                                        role="radiogroup"
+                                        aria-label="Filter by measure type"
+                                    >
+                                        <template for:each={filterButtons} for:item="opt">
+                                            <lightning-button
+                                                key={opt.value}
+                                                class="mp-inline-btn"
+                                                data-value={opt.value}
+                                                label={opt.label}
+                                                variant={opt.buttonVariant}
+                                                onclick={handleFilterClick}
+                                            ></lightning-button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="mp-bulk-row">
+                                    <lightning-button
+                                        variant="neutral"
+                                        label={selectAllLabel}
+                                        title="Applies to rows visible with the current filter"
+                                        onclick={handleSelectAllVisible}
+                                    ></lightning-button>
+                                    <lightning-button
+                                        variant="brand"
+                                        label="Mark selected as OK"
+                                        title="Sets Measure Type to OK and clears measure values"
+                                        onclick={handleMarkSelectedOk}
+                                        disabled={bulkMarkingDisabled}
+                                        class="bulk-ok-btn"
+                                    ></lightning-button>
+                                </div>
+
+                                <template if:true={listFilterEmpty}>
+                                    <p class="empty-hint">No rows match this filter.</p>
+                                </template>
+
+                                <template if:false={listFilterEmpty}>
+                                    <div class="mp-table" role="list">
+                                        <template for:each={listedRows} for:item="row">
+
+
+
+                                            <div key={row.rowKey} class="mp-row slds-grid slds-grid_vertical-align-center slds-var-p-around_small" role="listitem">
+            
+                                                <div class="mp-cell mp-cell-check slds-col slds-grow-none slds-var-m-right_small">
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        variant="label-hidden"
+                                                        label="Select row"
+                                                        data-row-id={row.id}
+                                                        checked={row.isSelected}
+                                                        onchange={handleRowSelectChange}
+                                                    ></lightning-input>
+                                                </div>
+                                    
+                                                <div class="mp-cell mp-cell-main slds-col">
+                                                    <div class="slds-grid slds-grid_vertical-align-center">
+                                                        
+                                                        <div class="slds-col">
+                                                            <strong class="mp-name">{row.name}</strong>
+                                                        </div>
+                                                    
+                                                        <div class="slds-col slds-grow-none slds-text-align_right">
+                                                            <div class="mp-inline-btn-row" role="radiogroup">
+                                                                <template for:each={row.typeButtons} for:item="opt">
+                                                                    <lightning-button
+                                                                        key={opt.btnKey}
+                                                                        class="slds-var-m-left_xx-small"
+                                                                        data-row-id={row.id}
+                                                                        data-value={opt.value}
+                                                                        label={opt.label}
+                                                                        variant={opt.buttonVariant}
+                                                                        onclick={handleRowTypeButtonClick}
+                                                                    ></lightning-button>
+                                                                </template>
+                                                                <span class="mp-photo-host" data-row-id={row.id}>
+                                                                    <lightning-button
+                                                                        class="slds-var-m-left_xx-small"
+                                                                        variant="neutral"
+                                                                        label="Photos"
+                                                                        title="Attach photos to this measure point"
+                                                                        onclick={handleRowPhotosClick}
+                                                                    ></lightning-button>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        </div>
+
+                                                    <div class="mp-component">{row.componentLabel}</div>
+                                                    <template if:true={row.hasReviewNotes}>
+                                                        <div class="mp-review-notes">{row.reviewNotesText}</div>
+                                                    </template>
+                                                    <template if:false={row.showMeasureRowEdit}>
+                                                        <template if:true={row.measureDisplay}>
+                                                            <div class="mp-measure">{row.measureDisplay}</div>
+                                                        </template>
+                                                    </template>
+                                                    <template if:true={row.showAttentionComments}>
+                                                        <div class="mp-row-edit mp-row-edit-inline">
+                                                            <div class="mp-row-edit-field">
+                                                                <lightning-textarea
+                                                                    label="Comments"
+                                                                    value={row.commentInputValue}
+                                                                    data-row-id={row.id}
+                                                                    max-length="32000"
+                                                                    rows="2"
+                                                                    disabled={row.rowFieldSaving}
+                                                                    onchange={handleRowCommentDraftChange}
+                                                                ></lightning-textarea>
+                                                            </div>
+                                                            <div class="mp-row-edit-btn">
+                                                                <lightning-button
+                                                                    variant="neutral"
+                                                                    label="Save comments"
+                                                                    data-row-id={row.id}
+                                                                    disabled={row.rowFieldSaving}
+                                                                    onclick={handleSaveRowComments}
+                                                                ></lightning-button>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template if:false={row.showAttentionComments}>
+                                                        <template if:true={row.showReadOnlyComments}>
+                                                            <div class="mp-comments">{row.comments}</div>
+                                                        </template>
+                                                    </template>
+                                                    <template if:true={row.showMeasureRowEdit}>
+                                                        <div class="mp-row-edit mp-row-measure">
+                                                            <lightning-input
+                                                                type="number"
+                                                                label="Measure value"
+                                                                step="0.01"
+                                                                value={row.measureValueInput}
+                                                                data-row-id={row.id}
+                                                                disabled={row.rowFieldSaving}
+                                                                onchange={handleRowMeasureValueDraftChange}
+                                                            ></lightning-input>
+                                                            <lightning-combobox
+                                                                name={row.rowKey}
+                                                                label="Measure value type"
+                                                                value={row.measureTypeInput}
+                                                                placeholder="Select type"
+                                                                options={measureValueTypeOptions}
+                                                                data-row-id={row.id}
+                                                                disabled={row.rowFieldSaving}
+                                                                dropdown-alignment="auto"
+                                                                onchange={handleRowMeasureTypeDraftChange}
+                                                            ></lightning-combobox>
+                                                            <lightning-button
+                                                                variant="neutral"
+                                                                label="Save measure"
+                                                                data-row-id={row.id}
+                                                                disabled={row.rowFieldSaving}
+                                                                onclick={handleSaveRowMeasure}
+                                                            ></lightning-button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+
+                                               
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </template>
+                            <template if:false={hasAnyMeasurePoints}>
+                                <p class="empty-hint">No measure points yet for this job.</p>
+                            </template>
+                        </div>
+
+                        <div class="divider" role="separator"></div>
+
+                        <div class="add-entry-section" aria-label="Add new measure point">
+                            <div class="segmented" role="group" aria-label="Entry type">
+                                <span class="segmented-label">Add entry</span>
+                                <div class="mp-inline-btn-row" role="radiogroup" aria-label="Entry type">
+                                    <template for:each={addEntryButtons} for:item="opt">
+                                        <lightning-button
+                                            key={opt.value}
+                                            class="mp-inline-btn"
+                                            data-value={opt.value}
+                                            label={opt.label}
+                                            variant={opt.buttonVariant}
+                                            onclick={handleAddEntryTypeClick}
+                                        ></lightning-button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <lightning-input
+                                type="text"
+                                label="Component name"
+                                value={selectedComponent}
+                                onchange={handleComponentInput}
+                                max-length="255"
+                                required
+                                placeholder="Enter the full component name"
+                            ></lightning-input>
+
+                            <template if:true={isMeasureMode}>
+                                <div class="measure-row">
+                                    <lightning-input
+                                        type="number"
+                                        label="Measure value"
+                                        step="0.01"
+                                        value={measureValue}
+                                        onchange={handleMeasureValueChange}
+                                    ></lightning-input>
+                                    <lightning-combobox
+                                        name="measureValueType"
+                                        label="Measure value type"
+                                        value={measureType}
+                                        placeholder="Select type"
+                                        options={measureValueTypeOptions}
+                                        onchange={handleMeasureValueTypeChange}
+                                        dropdown-alignment="auto"
+                                    ></lightning-combobox>
+                                </div>
+                            </template>
+
+                            <lightning-textarea
+                                name="comments"
+                                label="Comments"
+                                value={comments}
+                                onchange={handleCommentsChange}
+                                max-length="32000"
+                            ></lightning-textarea>
+
+                            <div class="actions-row">
+                                <lightning-button
+                                    variant="brand"
+                                    label="Save entry"
+                                    onclick={handleSaveEntry}
+                                    disabled={saving}
+                                ></lightning-button>
+                            </div>
+                        </div>
+
+                        <template if:true={showUploader}>
+                            <div class="photo-card">
+                                <p class="photo-title">{photoPanelTitle}</p>
+                                <p class="photo-help">
+                                    Choose one or more images. Each file is saved immediately on the Measure
+                                    Point (server upload, up to about 4 MB per file).
+                                </p>
+                                <lightning-input
+                                    type="file"
+                                    label="Attach photos"
+                                    accept={acceptedFormats}
+                                    multiple
+                                    disabled={photoUploading}
+                                    onchange={handlePhotoFilesChange}
+                                ></lightning-input>
+                                <lightning-button
+                                    variant="neutral"
+                                    label="Done adding photos"
+                                    class="photo-done"
+                                    onclick={handleDonePhotos}
+                                ></lightning-button>
+                            </div>
+                        </template>
+                    </section>
+
+                    <section class="panel panel-instructions" aria-label="Work order instruction images">
+                        <div class="panel-header panel-instructions-header">
+                            <p class="panel-subtitle">{instructionPanelSubtitle}</p>
+                        </div>
+
+                        <template if:true={hasInstructionImages}>
+                            <div
+                                class="wo-images-scroll"
+                                role="region"
+                                aria-label="PNG instructions from Work Order files"
+                            >
+                                <template for:each={instructionImages} for:item="img">
+                                    <a
+                                        key={img.key}
+                                        href={img.downloadUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="wo-image-link"
+                                        title={img.title}
+                                    >
+                                        <img
+                                            src={img.downloadUrl}
+                                            alt={img.title}
+                                            class="wo-image"
+                                            loading="lazy"
+                                        />
+                                    </a>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasInstructionImages}>
+                            <div class="state state-neutral wo-images-placeholder">
+                                <p class="state-title">No PNG images on Work Order</p>
+                                <p class="state-body">
+                                    Attach .png files to the Work Order. They appear here in alphabetical
+                                    order by file name.
+                                </p>
+                            </div>
+                        </template>
+                    </section>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

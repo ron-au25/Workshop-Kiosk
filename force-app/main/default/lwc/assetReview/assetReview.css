@@ -622,7 +622,25 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
 .ok-btn { color: var(--rt-success, #21C07A); border-color: rgba(33,192,122,0.3); font-weight: 700; }
 .ok-btn:hover { background: rgba(33,192,122,0.12); border-color: var(--rt-success, #21C07A); }
 
-.point-component { font-size: 14px; font-weight: 600; color: var(--rt-text, #F2F5F7); line-height: 1.3; }
+.point-meta-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+.point-component {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--rt-text, #F2F5F7);
+    line-height: 1.3;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.point-meta-line .point-wo { flex: 0 0 auto; }
+.point-meta-line .point-date { flex: 0 0 auto; }
 .point-measure { display: flex; align-items: baseline; gap: 6px; }
 .measure-value { font-size: 22px; font-weight: 700; color: var(--rt-warning, #F2B441); }
 .measure-unit { font-size: 14px; color: var(--rt-text-muted, #A6B2BD); }
@@ -666,6 +684,68 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+}
+/* Selectable work-order card (tap to filter measures + work plans to this WO) */
+.task-card.selectable { cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.task-card.selectable:hover { border-color: var(--rt-accent-2, #2E8FE6); }
+.task-card.selected {
+    border-color: var(--rt-accent-2, #2E8FE6);
+    background: rgba(46,143,230,0.10);
+    box-shadow: inset 0 0 0 1px var(--rt-accent-2, #2E8FE6);
+}
+.wo-filter-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--rt-accent-2, #2E8FE6);
+    color: #fff;
+}
+
+/* WO filter banner + clear control */
+.wo-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(46,143,230,0.10);
+    border: 1px solid var(--rt-accent-2, #2E8FE6);
+}
+.wo-filter-text { font-size: 13px; color: var(--rt-text, #F2F5F7); }
+.wo-filter-clear {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--rt-accent-2, #2E8FE6);
+    color: var(--rt-accent-2, #2E8FE6);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.wo-filter-clear:hover { background: rgba(46,143,230,0.14); }
+
+/* WO reference chips on measure cards + work plan headers */
+.point-wo {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--rt-accent-2, #2E8FE6);
+    font-family: monospace;
+}
+.plan-wo {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(46,143,230,0.12);
+    color: var(--rt-accent-2, #2E8FE6);
+    font-family: monospace;
+    margin-right: 8px;
+    white-space: nowrap;
 }
 .task-num { font-size: 13px; font-weight: 700; color: var(--rt-text-muted, #A6B2BD); font-family: monospace; }
 .task-subject { font-size: 15px; font-weight: 600; color: var(--rt-text, #F2F5F7); line-height: 1.3; }
@@ -937,6 +1017,21 @@ span.ok .type-badge { background: rgba(33,192,122,0.12); color: var(--rt-success
     white-space: nowrap;
 }
 .ar-step-complete-btn:hover { background: rgba(46,143,230,0.12); border-color: var(--rt-accent-2, #2E8FE6); }
+/* Action steps (linked flow) — solid accent to read as the primary tap target. */
+.ar-step-action-btn {
+    flex: 0 0 auto;
+    background: var(--rt-accent-2, #2E8FE6);
+    border: 1px solid var(--rt-accent-2, #2E8FE6);
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ar-step-action-btn:hover { filter: brightness(1.08); }
 .ar-plan-error { color: var(--rt-danger, #E5484D); font-size: 13px; padding: 6px 14px; margin: 0; }
 
 /* ─── Required Parts table ───────────────────────────────────────────────── */

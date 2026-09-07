@@ -1,4 +1,6 @@
-import { LightningElement, api, track } from 'lwc';
+import { LightningElement, api, track, wire } from 'lwc';
+import { publish, subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
+import FLOW_LAUNCHER from '@salesforce/messageChannel/FlowLauncher__c';
 import WAGON_DIAGRAM from '@salesforce/resourceUrl/WagonDiagramTop';
 import getWagonAsset from '@salesforce/apex/KioskController.getWagonAsset';
 import getMeasurePointsByAsset from '@salesforce/apex/KioskController.getMeasurePointsByAsset';
@@ -12,6 +14,7 @@ import createAssetTask from '@salesforce/apex/KioskController.createAssetTask';
 import updateAssetTask from '@salesforce/apex/KioskController.updateAssetTask';
 import updateAssetSerial from '@salesforce/apex/KioskController.updateAssetSerial';
 import markWorkStepCompleted from '@salesforce/apex/KioskController.markWorkStepCompleted';
+import updateWorkStepStatus from '@salesforce/apex/KioskController.updateWorkStepStatus';
 import consumePart from '@salesforce/apex/KioskController.consumePart';
 import getConsumableProducts from '@salesforce/apex/KioskController.getConsumableProducts';
 
@@ -102,6 +105,14 @@ export default class AssetReview extends LightningElement {
     @track expandedPlanIds = {};
     @track planActionError = '';
     markingStepId = null;
+
+    // ── Flow launch (screen flows on work steps, via the Aura flowHost bridge) ──
+    @wire(MessageContext) messageContext;
+    _flowSubscription;
+    _flowResolver = null;        // resolve() of the in-flight flow promise
+    _flowRequestId = null;       // correlation id for the in-flight flow
+    _flowSeq = 0;                // monotonic counter for unique request ids
+    launchingStepId = null;      // step whose flow is currently open (guards double-tap)
     @track partActionError = '';
     consuming = false;
     @track showAddPart = false;
@@ -116,6 +127,10 @@ export default class AssetReview extends LightningElement {
     _pendingImageName = null;
     @track tasks = [];
     @track loadingDetail = false;
+
+    // WO filter: tap a work order (task) card to filter measures + work plans to that WO.
+    @track selectedFilterWoId = null;
+    @track selectedFilterWoNumber = '';
 
     // Collapsible sections
     @track overviewExpanded = true;
@@ -160,6 +175,90 @@ export default class AssetReview extends LightningElement {
 
     connectedCallback() {
         this.loadWagon();
+        if (!this._flowSubscription) {
+            this._flowSubscription = subscribe(
+                this.messageContext,
+                FLOW_LAUNCHER,
+                (msg) => this._handleFlowMessage(msg)
+            );
+        }
+    }
+
+    disconnectedCallback() {
+        if (this._flowSubscription) {
+            unsubscribe(this._flowSubscription);
+            this._flowSubscription = null;
+        }
+    }
+
+    // Result coming back from the Aura flow host.
+    _handleFlowMessage(msg) {
+        if (!msg || msg.messageType !== 'result') return;
+        if (!this._flowResolver || msg.requestId !== this._flowRequestId) return;
+        const resolve = this._flowResolver;
+        this._flowResolver = null;
+        this._flowRequestId = null;
+        resolve(msg.status === 'success' ? 'success' : 'cancel');
+    }
+
+    // Publishes a launch request and resolves when the host reports a result.
+    _launchFlow(flowApiName, recordId) {
+        const requestId = `ar-${this.workOrderId || 'wo'}-${this._flowSeq++}`;
+        this._flowRequestId = requestId;
+        return new Promise((resolve) => {
+            this._flowResolver = resolve;
+            publish(this.messageContext, FLOW_LAUNCHER, {
+                messageType: 'open',
+                flowApiName,
+                recordId,
+                requestId,
+            });
+        });
+    }
+
+    // Step tapped: if it has a linked action (flow), mark In Progress and open the
+    // flow; on finish → Completed, on cancel → revert to New. Mirrors workOrderDetail.
+    async handleStepClick(evt) {
+        const stepId = evt.currentTarget.dataset.stepId;
+        const actionDef = evt.currentTarget.dataset.actionDef;
+        if (!stepId || !actionDef) return;
+        if (this._flowResolver || this.launchingStepId) return;   // one flow at a time
+        if (evt.currentTarget && typeof evt.currentTarget.blur === 'function') {
+            evt.currentTarget.blur();
+        }
+        this.launchingStepId = stepId;
+        this.planActionError = '';
+        try {
+            await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'In Progress' });
+            this._updateStepStatusLocally(stepId, 'In Progress');
+        } catch (e) { /* continue regardless — still open the flow */ }
+
+        try {
+            const result = await this._launchFlow(actionDef, stepId);
+            if (result === 'success') {
+                try {
+                    await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'Completed' });
+                    this._updateStepStatusLocally(stepId, 'Completed');
+                } catch (e) {
+                    this.planActionError = 'Step finished but status update failed.';
+                }
+            } else {
+                try {
+                    await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'New' });
+                    this._updateStepStatusLocally(stepId, 'New');
+                } catch (e) { /* ignore */ }
+            }
+        } finally {
+            this.launchingStepId = null;
+        }
+    }
+
+    _updateStepStatusLocally(stepId, status) {
+        const plans = (this.assetDetail.workPlans || []).map(p => ({
+            ...p,
+            steps: (p.steps || []).map(s => (s.id === stepId ? { ...s, status } : s)),
+        }));
+        this.assetDetail = { ...this.assetDetail, workPlans: plans };
     }
 
     async loadWagon() {
@@ -195,6 +294,7 @@ export default class AssetReview extends LightningElement {
         const firstSelection = !this.selectedWheelsetId;
         this.selectedWheelsetId = id;
         this.selectedChildId = null;     // reset the level-3 drill on a new component
+        this._clearWoFilter();           // WO filter is per-asset — reset on a new component
         this.overviewExpanded = true;
         this.detailExpanded = true;
         // On the first selection, collapse the big top panels down to the indicator strip
@@ -215,6 +315,7 @@ export default class AssetReview extends LightningElement {
         const id = evt.currentTarget.dataset.id;
         if (!id) return;
         this.selectedChildId = id;
+        this._clearWoFilter();           // WO filter is per-asset — reset on a new sub-asset
         this.overviewExpanded = true;
         this.detailExpanded = true;
         this.showMeasureForm = false;
@@ -636,7 +737,31 @@ export default class AssetReview extends LightningElement {
         this.showTaskForm = true;
     }
 
+    // Tap a work order (task) card → filter measures + work plans to that WO.
+    // Tapping the already-selected WO clears the filter (toggle).
+    handleSelectWorkOrder(evt) {
+        const woId = evt.currentTarget.dataset.woId;
+        if (!woId) return;
+        if (this.selectedFilterWoId === woId) {
+            this._clearWoFilter();
+            return;
+        }
+        const t = this.tasks.find(x => x.id === woId);
+        this.selectedFilterWoId = woId;
+        this.selectedFilterWoNumber = t ? (t.woNumber || '') : '';
+    }
+
+    handleClearWoFilter() {
+        this._clearWoFilter();
+    }
+
+    _clearWoFilter() {
+        this.selectedFilterWoId = null;
+        this.selectedFilterWoNumber = '';
+    }
+
     handleEditTask(evt) {
+        evt.stopPropagation();   // don't trigger the card's WO-filter click
         const id = evt.currentTarget.dataset.taskId;
         const t = this.tasks.find(x => x.id === id);
         if (!t) return;
@@ -802,16 +927,24 @@ export default class AssetReview extends LightningElement {
 
     // ─── Derived: work plans + required parts ────────────────────────────────
     get workPlansEnriched() {
-        const plans = (this.assetDetail && this.assetDetail.workPlans) || [];
+        let plans = (this.assetDetail && this.assetDetail.workPlans) || [];
+        if (this.selectedFilterWoId) {
+            plans = plans.filter(p => p.workOrderId === this.selectedFilterWoId);
+        }
         return plans.map(p => {
             const isExpanded = !!this.expandedPlanIds[p.id];
             const steps = (p.steps || []).map(s => {
                 const isCompleted = s.status === 'Completed';
+                const hasAction = !!s.actionDefinition;
                 return {
                     ...s,
-                    stepClass: 'ar-step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-'),
+                    stepClass: 'ar-step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-')
+                        + (hasAction ? ' has-action' : ''),
                     isCompleted,
-                    canComplete: !isCompleted,
+                    hasAction,
+                    // Manual "Mark complete" only for steps without a linked action; action
+                    // steps complete via the flow (handleStepClick).
+                    canComplete: !isCompleted && !hasAction,
                 };
             });
             const total = steps.length;
@@ -959,7 +1092,11 @@ export default class AssetReview extends LightningElement {
 
     // ─── Derived: enriched measure point cards ───────────────────────────────
     get enrichedPoints() {
-        return this.wheelsetPoints.map(p => {
+        let points = this.wheelsetPoints;
+        if (this.selectedFilterWoId) {
+            points = points.filter(p => p.workOrderId === this.selectedFilterWoId);
+        }
+        return points.map(p => {
             let typeClass = 'ok';
             if (p.measureType === 'Attention Required') typeClass = 'attention';
             else if (p.measureType === 'Scrap') typeClass = 'scrap';
@@ -984,12 +1121,17 @@ export default class AssetReview extends LightningElement {
             'In Progress': 'status-pill inprogress', 'Partially Completed': 'status-pill inprogress',
             'Completed': 'status-pill completed', 'Closed': 'status-pill completed',
         };
-        return this.tasks.map(t => ({
-            ...t,
-            statusClass: statusMap[t.status] || 'status-pill new',
-            durationDisplay: t.durationHours != null ? `${t.durationHours}h` : null,
-            wtChipClass: 'wt-chip cat-' + (t.category || 'other'),
-        }));
+        return this.tasks.map(t => {
+            const isSelected = this.selectedFilterWoId === t.id;
+            return {
+                ...t,
+                statusClass: statusMap[t.status] || 'status-pill new',
+                durationDisplay: t.durationHours != null ? `${t.durationHours}h` : null,
+                wtChipClass: 'wt-chip cat-' + (t.category || 'other'),
+                cardClass: 'task-card selectable' + (isSelected ? ' selected' : ''),
+                isSelected,
+            };
+        });
     }
 
     get measureTypeOptions() {
@@ -1024,7 +1166,8 @@ export default class AssetReview extends LightningElement {
         return this.activeAsset;
     }
     get hasSelection() { return !!this.selectedWheelsetId; }
-    get hasPoints() { return this.wheelsetPoints.length > 0; }
+    get hasPoints() { return this.enrichedPoints.length > 0; }
+    get woFilterActive() { return !!this.selectedFilterWoId; }
     get hasTasks() { return this.tasks.length > 0; }
     get hasCharts() { return this.charts.length > 0; }
 

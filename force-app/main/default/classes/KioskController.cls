@@ -166,6 +166,8 @@ public with sharing class KioskController {
         @AuraEnabled public String id;
         @AuraEnabled public String name;
         @AuraEnabled public Integer executionOrder;
+        @AuraEnabled public String workOrderId;       // WorkOrderId of the plan
+        @AuraEnabled public String workOrderNumber;    // WorkOrderNumber (display + WO filter)
         @AuraEnabled public List<WorkStepDTO> steps;
     }
 
@@ -257,6 +259,7 @@ public with sharing class KioskController {
         @AuraEnabled public String measureValueType; // Temperature / Pressure / Level / Width / Length / Depth
         @AuraEnabled public String createdDate;
         @AuraEnabled public String workOrderId;       // Work_Order__c
+        @AuraEnabled public String workOrderNumber;    // Work_Order__r.WorkOrderNumber
         @AuraEnabled public String assetId;           // Asset__c (wheelset)
         @AuraEnabled public String defectLocation;    // Defect_Location__c
         @AuraEnabled public String updateDate;        // Update_Date__c
@@ -974,10 +977,18 @@ public with sharing class KioskController {
     public static void updateWorkStepStatus(String token, String workStepId, String status) {
         TokenPayload payload = validateToken(token);
         if (payload == null) throw new AuraHandledException('SESSION_EXPIRED');
-        List<WorkStep> steps = [SELECT Id, Status FROM WorkStep WHERE Id = :workStepId WITH SECURITY_ENFORCED LIMIT 1];
+        if (String.isBlank(workStepId)) throw new AuraHandledException('WORK_STEP_NOT_FOUND');
+        // WorkStep is ControlledByParent(WorkPlan, Private OWD) — the kiosk site user has
+        // no share on the step, so a user-mode read returns 0 rows and a user-mode update
+        // throws INSUFFICIENT_ACCESS. Read + write in SYSTEM_MODE (same as markWorkStepCompleted);
+        // access is already gated by the validated session token.
+        List<WorkStep> steps = (List<WorkStep>) Database.query(
+            'SELECT Id, Status FROM WorkStep WHERE Id = :workStepId LIMIT 1',
+            AccessLevel.SYSTEM_MODE
+        );
         if (steps.isEmpty()) throw new AuraHandledException('WORK_STEP_NOT_FOUND');
         steps[0].Status = status;
-        update steps[0];
+        Database.update(steps[0], AccessLevel.SYSTEM_MODE);
     }
 
     // Mark a single work step Completed and move its work order to In Progress.
@@ -1621,6 +1632,7 @@ public with sharing class KioskController {
         dto.measureValueType = mp.MeasureValue_Type__c;
         dto.createdDate = String.valueOf(mp.CreatedDate);
         dto.workOrderId = mp.Work_Order__c;
+        dto.workOrderNumber = mp.Work_Order__c != null && mp.Work_Order__r != null ? mp.Work_Order__r.WorkOrderNumber : null;
         dto.assetId = mp.Asset__c;
         dto.defectLocation = mp.Defect_Location__c;
         dto.updateDate = mp.Update_Date__c == null ? null : String.valueOf(mp.Update_Date__c);
@@ -1635,7 +1647,7 @@ public with sharing class KioskController {
         List<Measure_Point__c> records = [
             SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
                    Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
-                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
+                   Work_Order__c, Work_Order__r.WorkOrderNumber, Asset__c, Defect_Location__c, Update_Date__c
             FROM Measure_Point__c
             WHERE Work_Order__c = :workOrderId
             WITH SECURITY_ENFORCED
@@ -1657,7 +1669,7 @@ public with sharing class KioskController {
         List<Measure_Point__c> records = [
             SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
                    Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
-                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
+                   Work_Order__c, Work_Order__r.WorkOrderNumber, Asset__c, Defect_Location__c, Update_Date__c
             FROM Measure_Point__c
             WHERE Asset__c = :assetId
             WITH SECURITY_ENFORCED
@@ -1801,7 +1813,7 @@ public with sharing class KioskController {
         List<Measure_Point__c> saved = [
             SELECT Id, Name, Component_Name__c, Measure_Type__c, Comments__c,
                    Review_Notes__c, Measure_Value__c, MeasureValue_Type__c, CreatedDate,
-                   Work_Order__c, Asset__c, Defect_Location__c, Update_Date__c
+                   Work_Order__c, Work_Order__r.WorkOrderNumber, Asset__c, Defect_Location__c, Update_Date__c
             FROM Measure_Point__c
             WHERE Id = :mp.Id
             WITH SECURITY_ENFORCED
@@ -2108,13 +2120,16 @@ public with sharing class KioskController {
         // already gated by the validated session token + workpack scope.
         Map<Id, WorkPlanDTO> planMap = new Map<Id, WorkPlanDTO>();
         for (WorkPlan wp : (List<WorkPlan>) Database.query(
-            'SELECT Id, Name, ExecutionOrder FROM WorkPlan WHERE WorkOrderId IN :woIds ' +
+            'SELECT Id, Name, ExecutionOrder, WorkOrderId FROM WorkPlan WHERE WorkOrderId IN :woIds ' +
             'ORDER BY ExecutionOrder ASC NULLS LAST', AccessLevel.SYSTEM_MODE
         )) {
             WorkPlanDTO wpDto = new WorkPlanDTO();
             wpDto.id = wp.Id;
             wpDto.name = wp.Name;
             wpDto.executionOrder = wp.ExecutionOrder;
+            wpDto.workOrderId = wp.WorkOrderId;
+            WorkOrder planWo = assocWos.get(wp.WorkOrderId);
+            wpDto.workOrderNumber = planWo != null ? planWo.WorkOrderNumber : null;
             wpDto.steps = new List<WorkStepDTO>();
             dto.workPlans.add(wpDto);
             planMap.put(wp.Id, wpDto);

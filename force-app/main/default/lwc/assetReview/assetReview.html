@@ -212,6 +212,12 @@
                             <span class="collapse-icon">{detailToggleIcon}</span>
                         </button>
                         <template lwc:if={detailExpanded}>
+                            <template lwc:if={woFilterActive}>
+                                <div class="wo-filter-bar">
+                                    <span class="wo-filter-text">Filtered to work order <strong>{selectedFilterWoNumber}</strong> — measures &amp; work plans below show only this WO.</span>
+                                    <button class="wo-filter-clear" onclick={handleClearWoFilter}>✕ Clear filter</button>
+                                </div>
+                            </template>
                             <div class="detail-cols">
 
                                 <!-- LEFT: Measure Points -->
@@ -341,7 +347,13 @@
                                                             <button class="icon-btn edit-btn" data-point-id={pt.id} onclick={handleEditMeasure} title="Edit">✏️</button>
                                                         </div>
                                                     </div>
-                                                    <div class="point-component">{pt.componentName}</div>
+                                                    <div class="point-meta-line">
+                                                        <span class="point-component">{pt.componentName}</span>
+                                                        <template lwc:if={pt.workOrderNumber}>
+                                                            <span class="point-wo" title="Related work order">🔧 WO {pt.workOrderNumber}</span>
+                                                        </template>
+                                                        <span class="point-date">{pt.formattedDate}</span>
+                                                    </div>
                                                     <template lwc:if={pt.showMeasure}>
                                                         <div class="point-measure">
                                                             <span class="measure-value">{pt.measureValue}</span>
@@ -359,7 +371,6 @@
                                                     <template lwc:if={pt.comments}>
                                                         <p class="point-comments">{pt.comments}</p>
                                                     </template>
-                                                    <span class="point-date">{pt.formattedDate}</span>
                                                 </div>
                                             </template>
                                         </template>
@@ -490,10 +501,15 @@
                                     <div class="points-list">
                                         <template lwc:if={hasTasks}>
                                             <template for:each={enrichedTasks} for:item="t">
-                                                <div key={t.id} class="task-card">
+                                                <div key={t.id} class={t.cardClass}
+                                                    data-wo-id={t.id} onclick={handleSelectWorkOrder}
+                                                    title="Tap to filter measures & work plans to this work order">
                                                     <div class="task-card-header">
                                                         <span class="task-num">{t.woNumber}</span>
                                                         <div class="task-header-right">
+                                                            <template lwc:if={t.isSelected}>
+                                                                <span class="wo-filter-tag">Filtering</span>
+                                                            </template>
                                                             <span class={t.statusClass}>{t.status}</span>
                                                             <button class="icon-btn edit-btn" data-task-id={t.id} onclick={handleEditTask} title="Edit task">✏️</button>
                                                         </div>
@@ -557,6 +573,9 @@
                                             >
                                                 <span class="plan-order">{plan.executionOrder}</span>
                                                 <span class="plan-name">{plan.name}</span>
+                                                <template lwc:if={plan.workOrderNumber}>
+                                                    <span class="plan-wo" title="Related work order">WO {plan.workOrderNumber}</span>
+                                                </template>
                                                 <span class="ar-plan-ring">
                                                     <svg viewBox="0 0 44 44" class="ar-ring-svg">
                                                         <circle class="ar-ring-track" cx="22" cy="22" r="18"></circle>
@@ -582,6 +601,12 @@
                                                                 </template>
                                                             </div>
                                                             <span class="step-status">{step.status}</span>
+                                                            <template lwc:if={step.hasAction}>
+                                                                <button class="ar-step-action-btn"
+                                                                    data-step-id={step.id}
+                                                                    data-action-def={step.actionDefinition}
+                                                                    onclick={handleStepClick}>Open action</button>
+                                                            </template>
                                                             <template lwc:if={step.canComplete}>
                                                                 <button class="ar-step-complete-btn"
                                                                     data-step-id={step.id}

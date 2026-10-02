@@ -1,538 +1,706 @@
-import { LightningElement, api, track, wire } from 'lwc';
-import { publish, subscribe, unsubscribe, MessageContext } from 'lightning/messageService';
-import FLOW_LAUNCHER from '@salesforce/messageChannel/FlowLauncher__c';
-import getWorkOrderDetail from '@salesforce/apex/KioskController.getWorkOrderDetail';
-import clockIn from '@salesforce/apex/KioskController.clockIn';
-import clockOut from '@salesforce/apex/KioskController.clockOut';
-import saveWorkOrderNotes from '@salesforce/apex/KioskController.saveWorkOrderNotes';
-import updateWorkStepStatus from '@salesforce/apex/KioskController.updateWorkStepStatus';
-import getWorkpackProgress from '@salesforce/apex/KioskController.getWorkpackProgress';
+import { LightningElement, api, track, wire } from "lwc";
+import {
+  publish,
+  subscribe,
+  unsubscribe,
+  MessageContext
+} from "lightning/messageService";
+import FLOW_LAUNCHER from "@salesforce/messageChannel/FlowLauncher__c";
+import getWorkOrderDetail from "@salesforce/apex/KioskController.getWorkOrderDetail";
+import clockIn from "@salesforce/apex/KioskController.clockIn";
+import clockOut from "@salesforce/apex/KioskController.clockOut";
+import saveWorkOrderNotes from "@salesforce/apex/KioskController.saveWorkOrderNotes";
+import updateWorkStepStatus from "@salesforce/apex/KioskController.updateWorkStepStatus";
+import getWorkpackProgress from "@salesforce/apex/KioskController.getWorkpackProgress";
 
 const RING_R = 30;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
 const CAUSE_OPTIONS = [
-    { value: '', label: '— Select —' },
-    { value: '0001, Accidental Damage', label: '0001 – Accidental Damage' },
-    { value: '0003, Inadequate design', label: '0003 – Inadequate Design' },
-    { value: '0004, Fire Damage', label: '0004 – Fire Damage' },
-    { value: '0007, lubrication', label: '0007 – Lubrication' },
-    { value: '0008, maint inadequate', label: '0008 – Maint Inadequate' },
-    { value: '0009, Improper Operation', label: '0009 – Improper Operation' },
-    { value: '0010, Wear and Tear', label: '0010 – Wear and Tear' },
-    { value: '1002, Incorrect Adjustment', label: '1002 – Incorrect Adjustment' },
-    { value: '1015, Blocked', label: '1015 – Blocked' },
-    { value: '1049, Charge, End Of Battery Life', label: '1049 – End Of Battery Life' },
-    { value: '1148, Environment, Conditions', label: '1148 – Environment/Conditions' },
-    { value: '1350, vibration', label: '1350 – Vibration' },
-    { value: '9997, No fault found', label: '9997 – No Fault Found' },
-    { value: '9998, not known', label: '9998 – Not Known' },
-    { value: '9999, not suitable code', label: '9999 – Not Suitable Code' },
+  { value: "", label: "— Select —" },
+  { value: "0001, Accidental Damage", label: "0001 – Accidental Damage" },
+  { value: "0003, Inadequate design", label: "0003 – Inadequate Design" },
+  { value: "0004, Fire Damage", label: "0004 – Fire Damage" },
+  { value: "0007, lubrication", label: "0007 – Lubrication" },
+  { value: "0008, maint inadequate", label: "0008 – Maint Inadequate" },
+  { value: "0009, Improper Operation", label: "0009 – Improper Operation" },
+  { value: "0010, Wear and Tear", label: "0010 – Wear and Tear" },
+  { value: "1002, Incorrect Adjustment", label: "1002 – Incorrect Adjustment" },
+  { value: "1015, Blocked", label: "1015 – Blocked" },
+  {
+    value: "1049, Charge, End Of Battery Life",
+    label: "1049 – End Of Battery Life"
+  },
+  {
+    value: "1148, Environment, Conditions",
+    label: "1148 – Environment/Conditions"
+  },
+  { value: "1350, vibration", label: "1350 – Vibration" },
+  { value: "9997, No fault found", label: "9997 – No Fault Found" },
+  { value: "9998, not known", label: "9998 – Not Known" },
+  { value: "9999, not suitable code", label: "9999 – Not Suitable Code" }
 ];
 const DELAY_OPTIONS = [
-    { value: '', label: '— Select —' },
-    { value: '1, Plant not in agreed condition', label: '1 – Plant Not In Agreed Condition' },
-    { value: '2, Permit Not Available', label: '2 – Permit Not Available' },
-    { value: '3, Insufficient Capacity Available', label: '3 – Insufficient Capacity Available' },
-    { value: '4, Materials Not Available', label: '4 – Materials Not Available' },
-    { value: '5, Correct Tooling Unavailable', label: '5 – Correct Tooling Unavailable' },
-    { value: '6, External Labour Not Available', label: '6 – External Labour Not Available' },
-    { value: '7, Cranage Unavailable', label: '7 – Cranage Unavailable' },
-    { value: '8, Access Staging / Equipment Unavailable', label: '8 – Access/Staging Unavailable' },
-    { value: '9, Task Conflicts', label: '9 – Task Conflicts' },
-    { value: '10, Work Took Longer than Planned', label: '10 – Work Took Longer Than Planned' },
-    { value: '11, Unscheduled Work', label: '11 – Unscheduled Work' },
-    { value: '12, Inclement Weather', label: '12 – Inclement Weather' },
-    { value: '13, Higher priority work took Preference', label: '13 – Higher Priority Preference' },
-    { value: '14, Services not Available', label: '14 – Services Not Available' },
-    { value: '16, Work Cancelled', label: '16 – Work Cancelled' },
+  { value: "", label: "— Select —" },
+  {
+    value: "1, Plant not in agreed condition",
+    label: "1 – Plant Not In Agreed Condition"
+  },
+  { value: "2, Permit Not Available", label: "2 – Permit Not Available" },
+  {
+    value: "3, Insufficient Capacity Available",
+    label: "3 – Insufficient Capacity Available"
+  },
+  { value: "4, Materials Not Available", label: "4 – Materials Not Available" },
+  {
+    value: "5, Correct Tooling Unavailable",
+    label: "5 – Correct Tooling Unavailable"
+  },
+  {
+    value: "6, External Labour Not Available",
+    label: "6 – External Labour Not Available"
+  },
+  { value: "7, Cranage Unavailable", label: "7 – Cranage Unavailable" },
+  {
+    value: "8, Access Staging / Equipment Unavailable",
+    label: "8 – Access/Staging Unavailable"
+  },
+  { value: "9, Task Conflicts", label: "9 – Task Conflicts" },
+  {
+    value: "10, Work Took Longer than Planned",
+    label: "10 – Work Took Longer Than Planned"
+  },
+  { value: "11, Unscheduled Work", label: "11 – Unscheduled Work" },
+  { value: "12, Inclement Weather", label: "12 – Inclement Weather" },
+  {
+    value: "13, Higher priority work took Preference",
+    label: "13 – Higher Priority Preference"
+  },
+  { value: "14, Services not Available", label: "14 – Services Not Available" },
+  { value: "16, Work Cancelled", label: "16 – Work Cancelled" }
 ];
 const DAMAGE_OPTIONS = [
-    { value: '', label: '— Select —' },
-    { value: '0001, Blocked', label: '0001 – Blocked' },
-    { value: '0004, Cracked', label: '0004 – Cracked' },
-    { value: '0010, leaking', label: '0010 – Leaking' },
-    { value: '0012, Overheated', label: '0012 – Overheated' },
-    { value: '0016, Short Circuit', label: '0016 – Short Circuit' },
-    { value: '1025, Burnt', label: '1025 – Burnt' },
-    { value: '1135, Noisy', label: '1135 – Noisy' },
-    { value: '9997, No fault found', label: '9997 – No Fault Found' },
-    { value: '9998, not known', label: '9998 – Not Known' },
-    { value: '9999, not suitable code', label: '9999 – Not Suitable Code' },
+  { value: "", label: "— Select —" },
+  { value: "0001, Blocked", label: "0001 – Blocked" },
+  { value: "0004, Cracked", label: "0004 – Cracked" },
+  { value: "0010, leaking", label: "0010 – Leaking" },
+  { value: "0012, Overheated", label: "0012 – Overheated" },
+  { value: "0016, Short Circuit", label: "0016 – Short Circuit" },
+  { value: "1025, Burnt", label: "1025 – Burnt" },
+  { value: "1135, Noisy", label: "1135 – Noisy" },
+  { value: "9997, No fault found", label: "9997 – No Fault Found" },
+  { value: "9998, not known", label: "9998 – Not Known" },
+  { value: "9999, not suitable code", label: "9999 – Not Suitable Code" }
 ];
 
 export default class WorkOrderDetail extends LightningElement {
-    @api sessionToken;
-    @api workerName;
-    @api
-    get workOrderId() { return this._workOrderId; }
-    set workOrderId(val) {
-        if (val && val !== this._workOrderId) {
-            this._workOrderId = val;
-            this.loadDetail();
+  @api sessionToken;
+  @api workerName;
+  @api
+  get workOrderId() {
+    return this._workOrderId;
+  }
+  set workOrderId(val) {
+    if (val && val !== this._workOrderId) {
+      this._workOrderId = val;
+      this.loadDetail();
+    }
+  }
+  _workOrderId;
+  @api siteBaseUrl = "";
+
+  // Called by the parent (workshopPortal) after an auto clock-in so the clock
+  // panel / time history reflect the new Time_Report without a full page refresh.
+  @api reload() {
+    if (this._workOrderId) this.loadDetail();
+  }
+
+  @wire(MessageContext) messageContext;
+  _flowSubscription;
+  _flowResolver = null; // resolve() of the in-flight flow promise
+  _flowRequestId = null; // correlation id for the in-flight flow
+  _flowSeq = 0; // monotonic counter for unique request ids
+
+  @track detail = null;
+  @track isLoading = true;
+  @track hasError = false;
+  @track errorMessage = "";
+  @track isClockingIn = false;
+  @track isClockingOut = false;
+  @track isSaving = false;
+  @track saveFeedback = "";
+  @track expandedPlanIds = {};
+
+  // editable notes/codes
+  @track existingNotes = "";
+  @track newNoteText = "";
+  @track causeCodes = "";
+  @track workDelayCodes = "";
+  @track damageCodes = "";
+  @track saveFeedbackIsError = false;
+  @track showExecution = false;
+  @track showAssetReview = false;
+  @track wpSidebarCollapsed = false; // Rail Workpack: Operations + Work Plans sidebar
+  @track timeHistoryExpanded = false; // Time History: collapsed shows only the most recent entry
+  @track progress = null; // Workpack progress KPI rollup (rail workpacks only)
+
+  connectedCallback() {
+    if (this._workOrderId) this.loadDetail();
+    if (!this._flowSubscription) {
+      this._flowSubscription = subscribe(
+        this.messageContext,
+        FLOW_LAUNCHER,
+        (msg) => this._handleFlowMessage(msg)
+      );
+    }
+  }
+
+  disconnectedCallback() {
+    if (this._flowSubscription) {
+      unsubscribe(this._flowSubscription);
+      this._flowSubscription = null;
+    }
+  }
+
+  // Result coming back from the Aura flow host.
+  _handleFlowMessage(msg) {
+    if (!msg || msg.messageType !== "result") return;
+    if (!this._flowResolver || msg.requestId !== this._flowRequestId) return;
+    const resolve = this._flowResolver;
+    this._flowResolver = null;
+    this._flowRequestId = null;
+    resolve(msg.status === "success" ? "success" : "cancel");
+  }
+
+  // Publishes a launch request and resolves when the host reports a result.
+  _launchFlow(flowApiName, recordId) {
+    const requestId = `${this._workOrderId || "wo"}-${this._flowSeq++}`;
+    this._flowRequestId = requestId;
+    return new Promise((resolve) => {
+      this._flowResolver = resolve;
+      publish(this.messageContext, FLOW_LAUNCHER, {
+        messageType: "open",
+        flowApiName,
+        recordId,
+        requestId
+      });
+    });
+  }
+
+  handleToggleWpSidebar() {
+    this.wpSidebarCollapsed = !this.wpSidebarCollapsed;
+  }
+  get wpSidebarExpanded() {
+    return !this.wpSidebarCollapsed;
+  }
+  get wpSidebarClass() {
+    return "wp-sidebar" + (this.wpSidebarCollapsed ? " collapsed" : "");
+  }
+  get wpLayoutClass() {
+    return "wp-layout" + (this.wpSidebarCollapsed ? " sidebar-collapsed" : "");
+  }
+  get wpSidebarToggleIcon() {
+    return this.wpSidebarCollapsed ? "‹" : "›";
+  }
+  get wpSidebarToggleTitle() {
+    return this.wpSidebarCollapsed
+      ? "Show Operations & Work Plans"
+      : "Hide Operations & Work Plans";
+  }
+
+  async loadDetail() {
+    this.isLoading = true;
+    this.hasError = false;
+    try {
+      const d = await getWorkOrderDetail({
+        token: this.sessionToken,
+        workOrderId: this.workOrderId
+      });
+      this.detail = d;
+      this.existingNotes = d.supervisorNotes || "";
+      this.newNoteText = "";
+      this.causeCodes = d.causeCodes || "";
+      this.workDelayCodes = d.workDelayCodes || "";
+      this.damageCodes = d.damageCodes || "";
+      // Expand all plans by default
+      const expanded = {};
+      (d.workPlans || []).forEach((p) => {
+        expanded[p.id] = true;
+      });
+      this.expandedPlanIds = expanded;
+      // Progress KPI rollup — only for rail workpacks (root WO + children).
+      this.progress = null;
+      if (this.isRailWorkpack) {
+        try {
+          this.progress = await getWorkpackProgress({
+            token: this.sessionToken,
+            workOrderId: this.workOrderId
+          });
+        } catch {
+          /* non-fatal: panel just hides */
         }
+      }
+    } catch {
+      this.hasError = true;
+      this.errorMessage = "Failed to load work order details.";
+    } finally {
+      this.isLoading = false;
     }
-    _workOrderId;
-    @api siteBaseUrl = '';
+  }
 
-    // Called by the parent (workshopPortal) after an auto clock-in so the clock
-    // panel / time history reflect the new Time_Report without a full page refresh.
-    @api reload() {
-        if (this._workOrderId) this.loadDetail();
+  handleBack() {
+    if (this.detail?.parentWorkOrderId) {
+      this.dispatchEvent(
+        new CustomEvent("opendetail", {
+          detail: { workOrderId: this.detail.parentWorkOrderId }
+        })
+      );
+    } else {
+      this.dispatchEvent(new CustomEvent("back"));
     }
+  }
 
-    @wire(MessageContext) messageContext;
-    _flowSubscription;
-    _flowResolver = null;        // resolve() of the in-flight flow promise
-    _flowRequestId = null;       // correlation id for the in-flight flow
-    _flowSeq = 0;                // monotonic counter for unique request ids
+  handleOpenExecution() {
+    this.showExecution = true;
+  }
+  handleExecutionBack() {
+    this.showExecution = false;
+  }
 
-    @track detail = null;
-    @track isLoading = true;
-    @track hasError = false;
-    @track errorMessage = '';
-    @track isClockingIn = false;
-    @track isClockingOut = false;
-    @track isSaving = false;
-    @track saveFeedback = '';
-    @track expandedPlanIds = {};
+  handleOpenAssetReview() {
+    this.showAssetReview = true;
+  }
+  handleAssetReviewBack() {
+    this.showAssetReview = false;
+  }
 
-    // editable notes/codes
-    @track existingNotes = '';
-    @track newNoteText = '';
-    @track causeCodes = '';
-    @track workDelayCodes = '';
-    @track damageCodes = '';
-    @track saveFeedbackIsError = false;
-    @track showExecution = false;
-    @track showAssetReview = false;
-    @track wpSidebarCollapsed = false;   // Rail Workpack: Operations + Work Plans sidebar
-    @track timeHistoryExpanded = false;  // Time History: collapsed shows only the most recent entry
-    @track progress = null;              // Workpack progress KPI rollup (rail workpacks only)
-
-    connectedCallback() {
-        if (this._workOrderId) this.loadDetail();
-        if (!this._flowSubscription) {
-            this._flowSubscription = subscribe(
-                this.messageContext,
-                FLOW_LAUNCHER,
-                (msg) => this._handleFlowMessage(msg)
-            );
-        }
+  async handleClockIn() {
+    this.isClockingIn = true;
+    try {
+      await clockIn({
+        token: this.sessionToken,
+        workOrderId: this.workOrderId
+      });
+      await this.loadDetail();
+    } catch (e) {
+      const msg = e.body?.message || "";
+      if (msg.includes("ALREADY_CLOCKED_IN")) {
+        this._showFeedback("Already clocked in on this work order.");
+      } else {
+        this._showFeedback("Clock in failed. Try again.");
+      }
+    } finally {
+      this.isClockingIn = false;
     }
+  }
 
-    disconnectedCallback() {
-        if (this._flowSubscription) {
-            unsubscribe(this._flowSubscription);
-            this._flowSubscription = null;
-        }
+  async handleClockOut() {
+    if (!this.detail?.activeTimeReport?.id) return;
+    this.isClockingOut = true;
+    try {
+      await clockOut({
+        token: this.sessionToken,
+        timeReportId: this.detail.activeTimeReport.id
+      });
+      // Stop the header elapsed timer (parent owns clockStartMs).
+      this.dispatchEvent(
+        new CustomEvent("clockstopped", { bubbles: true, composed: true })
+      );
+      await this.loadDetail();
+    } catch {
+      this._showFeedback("Clock out failed. Try again.");
+    } finally {
+      this.isClockingOut = false;
     }
+  }
 
-    // Result coming back from the Aura flow host.
-    _handleFlowMessage(msg) {
-        if (!msg || msg.messageType !== 'result') return;
-        if (!this._flowResolver || msg.requestId !== this._flowRequestId) return;
-        const resolve = this._flowResolver;
-        this._flowResolver = null;
-        this._flowRequestId = null;
-        resolve(msg.status === 'success' ? 'success' : 'cancel');
+  handleNewNoteChange(evt) {
+    this.newNoteText = evt.target.value;
+  }
+  handleNewNoteKeydown(evt) {
+    evt.stopPropagation();
+  }
+  handleCauseChange(evt) {
+    this.causeCodes = evt.target.value;
+  }
+  handleDelayChange(evt) {
+    this.workDelayCodes = evt.target.value;
+  }
+  handleDamageChange(evt) {
+    this.damageCodes = evt.target.value;
+  }
+
+  async handleSaveNotes() {
+    this.isSaving = true;
+    try {
+      let combinedNotes = this.existingNotes;
+      if (this.newNoteText.trim()) {
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, "0");
+        const mm = String(today.getMonth() + 1).padStart(2, "0");
+        const yy = String(today.getFullYear()).slice(-2);
+        const entry = `[${this.workerInitials} ${dd}/${mm}/${yy}]: ${this.newNoteText.trim()}`;
+        combinedNotes = this.existingNotes
+          ? `${entry}\n${this.existingNotes}`
+          : entry;
+      }
+      await saveWorkOrderNotes({
+        token: this.sessionToken,
+        reqJson: JSON.stringify({
+          workOrderId: this.workOrderId,
+          supervisorNotes: combinedNotes,
+          causeCodes: this.causeCodes,
+          workDelayCodes: this.workDelayCodes,
+          damageCodes: this.damageCodes
+        })
+      });
+      this.existingNotes = combinedNotes;
+      this.newNoteText = "";
+      this._showFeedback("Saved successfully.", false);
+    } catch (e) {
+      const msg = e.body?.message || "";
+      if (msg.includes("SESSION_EXPIRED")) {
+        this._showFeedback("Session expired. Please sign in again.", true);
+      } else {
+        this._showFeedback("Save failed. Try again.", true);
+      }
+    } finally {
+      this.isSaving = false;
     }
+  }
 
-    // Publishes a launch request and resolves when the host reports a result.
-    _launchFlow(flowApiName, recordId) {
-        const requestId = `${this._workOrderId || 'wo'}-${this._flowSeq++}`;
-        this._flowRequestId = requestId;
-        return new Promise((resolve) => {
-            this._flowResolver = resolve;
-            publish(this.messageContext, FLOW_LAUNCHER, {
-                messageType: 'open',
-                flowApiName,
-                recordId,
-                requestId,
-            });
+  handleTogglePlan(evt) {
+    const planId = evt.currentTarget.dataset.planId;
+    this.expandedPlanIds = {
+      ...this.expandedPlanIds,
+      [planId]: !this.expandedPlanIds[planId]
+    };
+  }
+
+  async handleStepClick(evt) {
+    const stepId = evt.currentTarget.dataset.stepId;
+    const actionDef = evt.currentTarget.dataset.actionDef;
+    // Drop focus from the triggering button before the modal overlay applies
+    // aria-hidden to the background. A focused element inside an aria-hidden
+    // ancestor is blocked by the browser (WAI-ARIA aria-hidden rule) and logs
+    // a console warning. Blurring first keeps focus out of the hidden subtree.
+    if (evt.currentTarget && typeof evt.currentTarget.blur === "function") {
+      evt.currentTarget.blur();
+    }
+    if (actionDef) {
+      try {
+        await updateWorkStepStatus({
+          token: this.sessionToken,
+          workStepId: stepId,
+          status: "In Progress"
         });
-    }
+        this._updateStepStatusLocally(stepId, "In Progress");
+      } catch {
+        /* continue regardless */
+      }
 
-    handleToggleWpSidebar() { this.wpSidebarCollapsed = !this.wpSidebarCollapsed; }
-    get wpSidebarExpanded() { return !this.wpSidebarCollapsed; }
-    get wpSidebarClass() { return 'wp-sidebar' + (this.wpSidebarCollapsed ? ' collapsed' : ''); }
-    get wpLayoutClass() { return 'wp-layout' + (this.wpSidebarCollapsed ? ' sidebar-collapsed' : ''); }
-    get wpSidebarToggleIcon() { return this.wpSidebarCollapsed ? '‹' : '›'; }
-    get wpSidebarToggleTitle() { return this.wpSidebarCollapsed ? 'Show Operations & Work Plans' : 'Hide Operations & Work Plans'; }
+      const result = await this._launchFlow(actionDef, stepId);
 
-    async loadDetail() {
-        this.isLoading = true;
-        this.hasError = false;
+      if (result === "success") {
         try {
-            const d = await getWorkOrderDetail({ token: this.sessionToken, workOrderId: this.workOrderId });
-            this.detail = d;
-            this.existingNotes = d.supervisorNotes || '';
-            this.newNoteText = '';
-            this.causeCodes = d.causeCodes || '';
-            this.workDelayCodes = d.workDelayCodes || '';
-            this.damageCodes = d.damageCodes || '';
-            // Expand all plans by default
-            const expanded = {};
-            (d.workPlans || []).forEach(p => { expanded[p.id] = true; });
-            this.expandedPlanIds = expanded;
-            // Progress KPI rollup — only for rail workpacks (root WO + children).
-            this.progress = null;
-            if (this.isRailWorkpack) {
-                try {
-                    this.progress = await getWorkpackProgress({ token: this.sessionToken, workOrderId: this.workOrderId });
-                } catch (pe) { /* non-fatal: panel just hides */ }
-            }
-        } catch (e) {
-            this.hasError = true;
-            this.errorMessage = 'Failed to load work order details.';
-        } finally {
-            this.isLoading = false;
+          await updateWorkStepStatus({
+            token: this.sessionToken,
+            workStepId: stepId,
+            status: "Completed"
+          });
+          this._updateStepStatusLocally(stepId, "Completed");
+        } catch {
+          this._showFeedback("Step finished but status update failed.", true);
         }
-    }
-
-    handleBack() {
-        if (this.detail?.parentWorkOrderId) {
-            this.dispatchEvent(new CustomEvent('opendetail', { detail: { workOrderId: this.detail.parentWorkOrderId } }));
-        } else {
-            this.dispatchEvent(new CustomEvent('back'));
-        }
-    }
-
-    handleOpenExecution() { this.showExecution = true; }
-    handleExecutionBack() { this.showExecution = false; }
-
-    handleOpenAssetReview() { this.showAssetReview = true; }
-    handleAssetReviewBack() { this.showAssetReview = false; }
-
-    async handleClockIn() {
-        this.isClockingIn = true;
+      } else {
+        // User cancelled — revert to New
         try {
-            const tr = await clockIn({ token: this.sessionToken, workOrderId: this.workOrderId });
-            await this.loadDetail();
-        } catch (e) {
-            const msg = e.body?.message || '';
-            if (msg.includes('ALREADY_CLOCKED_IN')) {
-                this._showFeedback('Already clocked in on this work order.');
-            } else {
-                this._showFeedback('Clock in failed. Try again.');
-            }
-        } finally {
-            this.isClockingIn = false;
+          await updateWorkStepStatus({
+            token: this.sessionToken,
+            workStepId: stepId,
+            status: "New"
+          });
+          this._updateStepStatusLocally(stepId, "New");
+        } catch {
+          /* ignore */
         }
-    }
-
-    async handleClockOut() {
-        if (!this.detail?.activeTimeReport?.id) return;
-        this.isClockingOut = true;
-        try {
-            await clockOut({ token: this.sessionToken, timeReportId: this.detail.activeTimeReport.id });
-            // Stop the header elapsed timer (parent owns clockStartMs).
-            this.dispatchEvent(new CustomEvent('clockstopped', { bubbles: true, composed: true }));
-            await this.loadDetail();
-        } catch (e) {
-            this._showFeedback('Clock out failed. Try again.');
-        } finally {
-            this.isClockingOut = false;
-        }
-    }
-
-    handleNewNoteChange(evt) { this.newNoteText = evt.target.value; }
-    handleNewNoteKeydown(evt) { evt.stopPropagation(); }
-    handleCauseChange(evt) { this.causeCodes = evt.target.value; }
-    handleDelayChange(evt) { this.workDelayCodes = evt.target.value; }
-    handleDamageChange(evt) { this.damageCodes = evt.target.value; }
-
-    async handleSaveNotes() {
-        this.isSaving = true;
-        try {
-            let combinedNotes = this.existingNotes;
-            if (this.newNoteText.trim()) {
-                const today = new Date();
-                const dd = String(today.getDate()).padStart(2, '0');
-                const mm = String(today.getMonth() + 1).padStart(2, '0');
-                const yy = String(today.getFullYear()).slice(-2);
-                const entry = `[${this.workerInitials} ${dd}/${mm}/${yy}]: ${this.newNoteText.trim()}`;
-                combinedNotes = this.existingNotes ? `${entry}\n${this.existingNotes}` : entry;
-            }
-            await saveWorkOrderNotes({
-                token: this.sessionToken,
-                reqJson: JSON.stringify({
-                    workOrderId: this.workOrderId,
-                    supervisorNotes: combinedNotes,
-                    causeCodes: this.causeCodes,
-                    workDelayCodes: this.workDelayCodes,
-                    damageCodes: this.damageCodes,
-                }),
-            });
-            this.existingNotes = combinedNotes;
-            this.newNoteText = '';
-            this._showFeedback('Saved successfully.', false);
-        } catch (e) {
-            const msg = e.body?.message || '';
-            if (msg.includes('SESSION_EXPIRED')) {
-                this._showFeedback('Session expired. Please sign in again.', true);
-            } else {
-                this._showFeedback('Save failed. Try again.', true);
-            }
-        } finally {
-            this.isSaving = false;
-        }
-    }
-
-    handleTogglePlan(evt) {
-        const planId = evt.currentTarget.dataset.planId;
-        this.expandedPlanIds = {
-            ...this.expandedPlanIds,
-            [planId]: !this.expandedPlanIds[planId],
-        };
-    }
-
-    async handleStepClick(evt) {
-        const stepId = evt.currentTarget.dataset.stepId;
-        const actionDef = evt.currentTarget.dataset.actionDef;
-        // Drop focus from the triggering button before the modal overlay applies
-        // aria-hidden to the background. A focused element inside an aria-hidden
-        // ancestor is blocked by the browser (WAI-ARIA aria-hidden rule) and logs
-        // a console warning. Blurring first keeps focus out of the hidden subtree.
-        if (evt.currentTarget && typeof evt.currentTarget.blur === 'function') {
-            evt.currentTarget.blur();
-        }
-        if (actionDef) {
-            try {
-                await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'In Progress' });
-                this._updateStepStatusLocally(stepId, 'In Progress');
-            } catch (e) { /* continue regardless */ }
-
-            const result = await this._launchFlow(actionDef, stepId);
-
-            if (result === 'success') {
-                try {
-                    await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'Completed' });
-                    this._updateStepStatusLocally(stepId, 'Completed');
-                } catch (e) {
-                    this._showFeedback('Step finished but status update failed.', true);
-                }
-            } else {
-                // User cancelled — revert to New
-                try {
-                    await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'New' });
-                    this._updateStepStatusLocally(stepId, 'New');
-                } catch (e) { /* ignore */ }
-            }
-        } else {
-            // No action — mark Completed immediately
-            try {
-                await updateWorkStepStatus({ token: this.sessionToken, workStepId: stepId, status: 'Completed' });
-                this._updateStepStatusLocally(stepId, 'Completed');
-            } catch (e) {
-                this._showFeedback('Could not update step. Try again.', true);
-            }
-        }
-    }
-
-    _updateStepStatusLocally(stepId, status) {
-        this.detail = {
-            ...this.detail,
-            workPlans: this.detail.workPlans.map(p => ({
-                ...p,
-                steps: p.steps.map(s => s.id === stepId ? { ...s, status } : s),
-            })),
-        };
-    }
-
-    _showFeedback(msg, isError) {
-        this.saveFeedback = msg;
-        this.saveFeedbackIsError = !!isError;
-        // eslint-disable-next-line @lwc/lwc/no-async-operation
-        setTimeout(() => { this.saveFeedback = ''; this.saveFeedbackIsError = false; }, 3000);
-    }
-
-    _formatDt(isoStr) {
-        if (!isoStr) return '—';
-        const d = new Date(isoStr);
-        return d.toLocaleString('en-AU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
-    }
-
-    get workerInitials() {
-        if (!this.workerName) return 'XX';
-        const parts = this.workerName.trim().split(' ');
-        return parts.length >= 2
-            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-            : this.workerName.substring(0, 2).toUpperCase();
-    }
-
-    get hasExistingNotes() { return !!this.existingNotes; }
-
-    get causeOptions() { return CAUSE_OPTIONS.map(o => ({ ...o, selected: o.value === this.causeCodes })); }
-    get delayOptions() { return DELAY_OPTIONS.map(o => ({ ...o, selected: o.value === this.workDelayCodes })); }
-    get damageOptions() { return DAMAGE_OPTIONS.map(o => ({ ...o, selected: o.value === this.damageCodes })); }
-
-    get workPlansEnriched() {
-        if (!this.detail?.workPlans) return [];
-        return this.detail.workPlans.map(p => {
-            const steps = (p.steps || []).map(s => ({
-                ...s,
-                stepClass: 'step-row status-' + (s.status || 'not-started').toLowerCase().replace(/ /g, '-') + (s.actionDefinition ? ' has-action' : ''),
-                hasAction: !!s.actionDefinition,
-            }));
-            const isExpanded = !!this.expandedPlanIds[p.id];
-            return {
-                ...p,
-                isExpanded,
-                toggleClass: 'plan-toggle' + (isExpanded ? ' expanded' : ''),
-                chevron: isExpanded ? '▾' : '›',
-                steps,
-                hasNoSteps: steps.length === 0,
-            };
+      }
+    } else {
+      // No action — mark Completed immediately
+      try {
+        await updateWorkStepStatus({
+          token: this.sessionToken,
+          workStepId: stepId,
+          status: "Completed"
         });
+        this._updateStepStatusLocally(stepId, "Completed");
+      } catch {
+        this._showFeedback("Could not update step. Try again.", true);
+      }
     }
+  }
 
-    get timeReportsEnriched() {
-        if (!this.detail?.timeReports) return [];
-        // Reports arrive newest-first (Start_Time__c DESC). When collapsed, show
-        // only the most recent entry; expand to reveal the full list.
-        const source = this.timeHistoryExpanded
-            ? this.detail.timeReports
-            : this.detail.timeReports.slice(0, 1);
-        return source.map(tr => ({
-            ...tr,
-            startDisplay: this._formatDt(tr.startTime),
-            endDisplay: tr.endTime ? this._formatDt(tr.endTime) : 'Active',
-            durationDisplay: tr.durationMinutes != null ? `${tr.durationMinutes}m` : '—',
-            rowClass: 'tr-row' + (tr.isActive ? ' active' : ''),
-        }));
-    }
+  _updateStepStatusLocally(stepId, status) {
+    this.detail = {
+      ...this.detail,
+      workPlans: this.detail.workPlans.map((p) => ({
+        ...p,
+        steps: p.steps.map((s) => (s.id === stepId ? { ...s, status } : s))
+      }))
+    };
+  }
 
-    handleToggleTimeHistory() {
-        this.timeHistoryExpanded = !this.timeHistoryExpanded;
-    }
+  _showFeedback(msg, isError) {
+    this.saveFeedback = msg;
+    this.saveFeedbackIsError = !!isError;
+    // eslint-disable-next-line @lwc/lwc/no-async-operation
+    setTimeout(() => {
+      this.saveFeedback = "";
+      this.saveFeedbackIsError = false;
+    }, 3000);
+  }
 
-    // True when there is more than one report (a toggle is only useful then).
-    get hasMultipleTimeReports() { return this.detail?.timeReports?.length > 1; }
+  _formatDt(isoStr) {
+    if (!isoStr) return "—";
+    const d = new Date(isoStr);
+    return d.toLocaleString("en-AU", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+  }
 
-    get timeHistoryToggleClass() {
-        return 'section-title tr-toggle' + (this.timeHistoryExpanded ? ' expanded' : '');
-    }
-    get timeHistoryChevron() { return this.timeHistoryExpanded ? '▾' : '›'; }
-    get timeHistoryToggleLabel() {
-        if (this.timeHistoryExpanded) return 'Show less';
-        const n = this.detail?.timeReports?.length || 0;
-        return `Show all ${n}`;
-    }
+  get workerInitials() {
+    if (!this.workerName) return "XX";
+    const parts = this.workerName.trim().split(" ");
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : this.workerName.substring(0, 2).toUpperCase();
+  }
 
-    get isClocked() { return !!this.detail?.activeTimeReport; }
-    get clockBtnLabel() { return this.isClockingIn ? 'Clocking in…' : 'Clock In'; }
-    get clockOutLabel() { return this.isClockingOut ? 'Clocking out…' : 'Clock Out'; }
-    get saveBtnLabel() { return this.isSaving ? 'Saving…' : 'Save Notes & Codes'; }
-    get saveFeedbackClass() { return this.saveFeedbackIsError ? 'save-feedback error' : 'save-feedback'; }
+  get hasExistingNotes() {
+    return !!this.existingNotes;
+  }
 
-    get activeClockDisplay() {
-        if (!this.detail?.activeTimeReport) return null;
-        return this._formatDt(this.detail.activeTimeReport.startTime);
-    }
+  get causeOptions() {
+    return CAUSE_OPTIONS.map((o) => ({
+      ...o,
+      selected: o.value === this.causeCodes
+    }));
+  }
+  get delayOptions() {
+    return DELAY_OPTIONS.map((o) => ({
+      ...o,
+      selected: o.value === this.workDelayCodes
+    }));
+  }
+  get damageOptions() {
+    return DAMAGE_OPTIONS.map((o) => ({
+      ...o,
+      selected: o.value === this.damageCodes
+    }));
+  }
 
-    get hasMeta() {
-        if (!this.detail) return false;
-        return this.detail.sapWorkCenter || this.detail.flocDesc || this.detail.externalId;
-    }
-    get hasPlans() { return this.detail?.workPlans?.length > 0; }
-    get hasTimeReports() { return this.detail?.timeReports?.length > 0; }
-    get hasFeedback() { return !!this.saveFeedback; }
+  get workPlansEnriched() {
+    if (!this.detail?.workPlans) return [];
+    return this.detail.workPlans.map((p) => {
+      const steps = (p.steps || []).map((s) => ({
+        ...s,
+        stepClass:
+          "step-row status-" +
+          (s.status || "not-started").toLowerCase().replace(/ /g, "-") +
+          (s.actionDefinition ? " has-action" : ""),
+        hasAction: !!s.actionDefinition
+      }));
+      const isExpanded = !!this.expandedPlanIds[p.id];
+      return {
+        ...p,
+        isExpanded,
+        toggleClass: "plan-toggle" + (isExpanded ? " expanded" : ""),
+        chevron: isExpanded ? "▾" : "›",
+        steps,
+        hasNoSteps: steps.length === 0
+      };
+    });
+  }
 
-    get backLabel() { return this.detail?.parentWorkOrderId ? (this.detail.parentWoNumber || 'Work Pack') : 'Work Orders'; }
-    get isRailWorkpack() { return (this.detail?.workTypeName || '').includes('Workpack'); }
+  get timeReportsEnriched() {
+    if (!this.detail?.timeReports) return [];
+    // Reports arrive newest-first (Start_Time__c DESC). When collapsed, show
+    // only the most recent entry; expand to reveal the full list.
+    const source = this.timeHistoryExpanded
+      ? this.detail.timeReports
+      : this.detail.timeReports.slice(0, 1);
+    return source.map((tr) => ({
+      ...tr,
+      startDisplay: this._formatDt(tr.startTime),
+      endDisplay: tr.endTime ? this._formatDt(tr.endTime) : "Active",
+      durationDisplay:
+        tr.durationMinutes != null ? `${tr.durationMinutes}m` : "—",
+      rowClass: "tr-row" + (tr.isActive ? " active" : "")
+    }));
+  }
 
-    get hasProgress() { return !!this.progress; }
+  handleToggleTimeHistory() {
+    this.timeHistoryExpanded = !this.timeHistoryExpanded;
+  }
 
-    // Full-width row of progress rings: the 6 KPIs + an Overall ring.
-    get progressRings() {
-        const p = this.progress;
-        if (!p) return [];
-        const specs = [
-            { key: 'steps',      label: 'Steps',      kpi: p.steps,      color: '#2E8FE6' },
-            { key: 'measures',   label: 'Measures',   kpi: p.measures,   color: '#21C07A' },
-            { key: 'labour',     label: 'Labour',     kpi: p.labour,     color: '#A855F7' },
-            { key: 'parts',      label: 'Parts',      kpi: p.parts,      color: '#F2B441' },
-            { key: 'partsCost',  label: 'Parts Cost', kpi: p.partsCost,  color: '#14B8A6', currency: true },
-            { key: 'components', label: 'Components', kpi: p.components,  color: '#E84B4B' },
-        ];
-        const rings = specs.map(s => {
-            const na = !(s.kpi && (s.kpi.totalRaw || 0) > 0);
-            return this._buildRing(s.key, s.label, s.kpi ? s.kpi.percent : 0, this._countText(s), s.color, na);
-        });
-        // Overall — accent ring, percent only (no count).
-        rings.push(this._buildRing('overall', 'Overall', p.overallPercent, '', '#E25822', false));
-        return rings;
-    }
+  // True when there is more than one report (a toggle is only useful then).
+  get hasMultipleTimeReports() {
+    return this.detail?.timeReports?.length > 1;
+  }
 
-    _buildRing(key, label, percent, countText, color, na) {
-        const pctClamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
-        const dash = `${(pctClamped / 100) * RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
-        return {
-            key,
-            label,
-            percentText: `${pctClamped}%`,
-            countText,
-            dash,
-            color: na ? '#2A3744' : color,
-            hasCount: !!countText,
-        };
-    }
+  get timeHistoryToggleClass() {
+    return (
+      "section-title tr-toggle" + (this.timeHistoryExpanded ? " expanded" : "")
+    );
+  }
+  get timeHistoryChevron() {
+    return this.timeHistoryExpanded ? "▾" : "›";
+  }
+  get timeHistoryToggleLabel() {
+    if (this.timeHistoryExpanded) return "Show less";
+    const n = this.detail?.timeReports?.length || 0;
+    return `Show all ${n}`;
+  }
 
-    _countText(s) {
-        const k = s.kpi;
-        if (!k) return '0/0';
-        if (s.currency) return `$${this._fmtNum(k.done)}/$${this._fmtNum(k.total)}`;
-        return `${this._fmtNum(k.done)}/${this._fmtNum(k.total)}`;
-    }
+  get isClocked() {
+    return !!this.detail?.activeTimeReport;
+  }
+  get clockBtnLabel() {
+    return this.isClockingIn ? "Clocking in…" : "Clock In";
+  }
+  get clockOutLabel() {
+    return this.isClockingOut ? "Clocking out…" : "Clock Out";
+  }
+  get saveBtnLabel() {
+    return this.isSaving ? "Saving…" : "Save Notes & Codes";
+  }
+  get saveFeedbackClass() {
+    return this.saveFeedbackIsError ? "save-feedback error" : "save-feedback";
+  }
 
-    _fmtNum(n) {
-        return (n == null ? 0 : n).toLocaleString('en-AU');
-    }
-    get hasAsset() { return !!this.detail?.assetId; }
-    get hasChildWorkOrders() { return (this.detail?.childWorkOrders?.length || 0) > 0; }
-    get hasLineItems() { return (this.detail?.lineItems?.length || 0) > 0; }
+  get activeClockDisplay() {
+    if (!this.detail?.activeTimeReport) return null;
+    return this._formatDt(this.detail.activeTimeReport.startTime);
+  }
 
-    get childWorkOrdersEnriched() {
-        if (!this.detail?.childWorkOrders) return [];
-        return this.detail.childWorkOrders.map(wo => this._enrichCard(wo));
-    }
+  get hasMeta() {
+    if (!this.detail) return false;
+    return (
+      this.detail.sapWorkCenter ||
+      this.detail.flocDesc ||
+      this.detail.externalId
+    );
+  }
+  get hasPlans() {
+    return this.detail?.workPlans?.length > 0;
+  }
+  get hasTimeReports() {
+    return this.detail?.timeReports?.length > 0;
+  }
+  get hasFeedback() {
+    return !!this.saveFeedback;
+  }
 
-    handleChildCardClick(evt) {
-        const id = evt.currentTarget.dataset.id;
-        this.dispatchEvent(new CustomEvent('opendetail', { detail: { workOrderId: id } }));
-    }
+  get backLabel() {
+    return this.detail?.parentWorkOrderId
+      ? this.detail.parentWoNumber || "Work Pack"
+      : "Work Orders";
+  }
+  get isRailWorkpack() {
+    return (this.detail?.workTypeName || "").includes("Workpack");
+  }
 
-    _enrichCard(wo) {
-        const priorityColorMap = {
-            Critical: 'priority-badge critical',
-            High: 'priority-badge high',
-            Medium: 'priority-badge medium',
-            Low: 'priority-badge low',
-        };
-        const statusColorMap = {
-            'New': 'status-pill new',
-            'Open': 'status-pill new',
-            'In Progress': 'status-pill inprogress',
-            'Completed': 'status-pill completed',
-            'Closed': 'status-pill completed',
-        };
-        const durationMins = wo.durationMinutes || 0;
-        const durationDisplay = durationMins >= 60
-            ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
-            : durationMins > 0 ? `${durationMins}m` : null;
-        return {
-            ...wo,
-            wagonDisplay: wo.wagonNumber || '—',
-            subjectDisplay: wo.subject || 'No description',
-            workTypeDisplay: wo.workTypeName || null,
-            flocDisplay: wo.flocDesc || null,
-            sapDisplay: wo.sapWorkCenter || null,
-            extIdDisplay: wo.externalId || null,
-            durationDisplay,
-            priorityClass: priorityColorMap[wo.priority] || 'priority-badge medium',
-            statusClass: statusColorMap[wo.status] || 'status-pill new',
-            cardClass: 'wo-card priority-' + (wo.priority || 'medium').toLowerCase(),
-        };
-    }
+  get hasProgress() {
+    return !!this.progress;
+  }
+
+  // Full-width row of progress rings: the 6 KPIs + an Overall ring.
+  get progressRings() {
+    const p = this.progress;
+    if (!p) return [];
+    const specs = [
+      { key: "steps", label: "Steps", kpi: p.steps, color: "#2E8FE6" },
+      { key: "measures", label: "Measures", kpi: p.measures, color: "#21C07A" },
+      { key: "labour", label: "Labour", kpi: p.labour, color: "#A855F7" },
+      { key: "parts", label: "Parts", kpi: p.parts, color: "#F2B441" },
+      {
+        key: "partsCost",
+        label: "Parts Cost",
+        kpi: p.partsCost,
+        color: "#14B8A6",
+        currency: true
+      },
+      {
+        key: "components",
+        label: "Components",
+        kpi: p.components,
+        color: "#E84B4B"
+      }
+    ];
+    const rings = specs.map((s) => {
+      const na = !(s.kpi && (s.kpi.totalRaw || 0) > 0);
+      return this._buildRing(
+        s.key,
+        s.label,
+        s.kpi ? s.kpi.percent : 0,
+        this._countText(s),
+        s.color,
+        na
+      );
+    });
+    // Overall — accent ring, percent only (no count).
+    rings.push(
+      this._buildRing(
+        "overall",
+        "Overall",
+        p.overallPercent,
+        "",
+        "#E25822",
+        false
+      )
+    );
+    return rings;
+  }
+
+  _buildRing(key, label, percent, countText, color, na) {
+    const pctClamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
+    const dash = `${(pctClamped / 100) * RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
+    return {
+      key,
+      label,
+      percentText: `${pctClamped}%`,
+      countText,
+      dash,
+      color: na ? "#2A3744" : color,
+      hasCount: !!countText
+    };
+  }
+
+  _countText(s) {
+    const k = s.kpi;
+    if (!k) return "0/0";
+    if (s.currency) return `$${this._fmtNum(k.done)}/$${this._fmtNum(k.total)}`;
+    return `${this._fmtNum(k.done)}/${this._fmtNum(k.total)}`;
+  }
+
+  _fmtNum(n) {
+    return (n == null ? 0 : n).toLocaleString("en-AU");
+  }
+  get hasAsset() {
+    return !!this.detail?.assetId;
+  }
+  get hasChildWorkOrders() {
+    return (this.detail?.childWorkOrders?.length || 0) > 0;
+  }
+  get hasLineItems() {
+    return (this.detail?.lineItems?.length || 0) > 0;
+  }
+
+  handleChildOpen(evt) {
+    this.dispatchEvent(new CustomEvent("opendetail", { detail: evt.detail }));
+  }
 }

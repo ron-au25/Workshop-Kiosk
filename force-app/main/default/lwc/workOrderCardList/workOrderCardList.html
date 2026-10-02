@@ -1,0 +1,55 @@
+<template>
+  <div class="wo-grid">
+    <template for:each={cards} for:item="wo">
+      <button
+        key={wo.id}
+        class={wo.cardClass}
+        data-id={wo.id}
+        onclick={handleCardClick}
+        aria-label={wo.subjectDisplay}
+      >
+        <div class="card-left">
+          <template lwc:if={wo.isAssetFallback}>
+            <span class="micro-label">Asset</span>
+          </template>
+          <span class="wagon-num">{wo.wagonDisplay}</span>
+          <span class={wo.priorityClass}>{wo.priority}</span>
+        </div>
+        <div class="card-id">
+          <p class="wo-number">{wo.woNumber}</p>
+          <span class={wo.statusClass}>{wo.status}</span>
+        </div>
+        <div class="card-subject">
+          <p class="wo-subject">{wo.subjectDisplay}</p>
+          <template lwc:if={wo.workTypeDisplay}>
+            <span class="wo-type">{wo.workTypeDisplay}</span>
+          </template>
+        </div>
+        <div class="card-meta">
+          <template lwc:if={wo.sapDisplay}>
+            <span class="meta-chip">⚙ {wo.sapDisplay}</span>
+          </template>
+          <template lwc:if={wo.flocDisplay}>
+            <span class="meta-chip">📍 {wo.flocDisplay}</span>
+          </template>
+          <template lwc:if={wo.extIdDisplay}>
+            <span class="meta-chip ext-id">{wo.extIdDisplay}</span>
+          </template>
+        </div>
+        <div class="card-sched">
+          <template lwc:if={wo.schedDate}>
+            <span class="micro-label">Scheduled</span>
+            <span class="wo-sched-date">{wo.schedDate}</span>
+            <span class="wo-sched-time">{wo.schedTime}</span>
+          </template>
+          <template lwc:else>
+            <span class="micro-label">Not scheduled</span>
+          </template>
+          <template lwc:if={wo.durationDisplay}>
+            <span class="wo-duration">{wo.durationDisplay}</span>
+          </template>
+        </div>
+      </button>
+    </template>
+  </div>
+</template>

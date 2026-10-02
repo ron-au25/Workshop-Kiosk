@@ -1,164 +1,179 @@
 <template>
-    <div class="wo-wrapper">
-
-        <div class="wo-header">
-            <h2 class="wo-title">Work Orders</h2>
-            <span class="wo-count">{totalLabel}</span>
-        </div>
-
-        <!-- Filter bar -->
-        <div class="filter-bar">
-            <div class="filter-row">
-                <div class="filter-group">
-                    <span class="filter-label">Status</span>
-                    <div class="segment-control">
-                        <template for:each={statusOptions} for:item="opt">
-                            <button
-                                key={opt.value}
-                                class={opt.btnClass}
-                                data-filter="status"
-                                data-value={opt.value}
-                                onclick={handleFilterClick}
-                            >{opt.label}</button>
-                        </template>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <span class="filter-label">Priority</span>
-                    <div class="segment-control">
-                        <template for:each={priorityOptions} for:item="opt">
-                            <button
-                                key={opt.value}
-                                class={opt.btnClass}
-                                data-filter="priority"
-                                data-value={opt.value}
-                                onclick={handleFilterClick}
-                            >{opt.label}</button>
-                        </template>
-                    </div>
-                </div>
-                <div class="filter-group filter-territory">
-                    <label class="territory-toggle">
-                        <input
-                            type="checkbox"
-                            checked={territoryWide}
-                            onchange={handleTerritoryToggle}
-                            onkeydown={handleWagonKeydown}
-                        />
-                        <span class="filter-label">Territory</span>
-                    </label>
-                </div>
-            </div>
-            <div class="filter-row">
-                <div class="filter-group filter-date">
-                    <span class="filter-label">From</span>
-                    <div class="date-nav">
-                        <button class="day-nav-btn" onclick={handlePrevDay} title="Previous day">‹</button>
-                        <input type="date" class="date-input" value={dateFrom} onchange={handleDateFrom} />
-                        <button class="day-nav-btn" onclick={handleNextDay} title="Next day">›</button>
-                    </div>
-                </div>
-                <div class="filter-group filter-date">
-                    <span class="filter-label">To</span>
-                    <input type="date" class="date-input" value={dateTo} onchange={handleDateTo} />
-                </div>
-                <div class="filter-group filter-search">
-                    <span class="filter-label">Wagon</span>
-                    <div class="search-row">
-                        <div class="search-wrap">
-                            <span class="search-icon-sm">⊞</span>
-                            <input
-                                type="search"
-                                class="wagon-search"
-                                placeholder="e.g. WG101"
-                                value={wagonSearch}
-                                oninput={handleWagonSearch}
-                                onkeydown={handleWagonKeydown}
-                                aria-label="Search by wagon number"
-                            />
-                        </div>
-                        <button
-                            class="search-all-btn"
-                            onclick={handleSearchAll}
-                            title="Search all workpack work orders org-wide by wagon (at least 3 characters)"
-                        >Search All</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <template lwc:if={isLoading}>
-            <div class="wo-loading">
-                <div class="spinner"></div>
-                <p>Loading work orders…</p>
-            </div>
-        </template>
-
-        <template lwc:elseif={hasError}>
-            <div class="wo-error">
-                <span>⚠</span>
-                <p>{errorMessage}</p>
-                <button class="btn-secondary" onclick={loadPage}>Retry</button>
-            </div>
-        </template>
-
-        <template lwc:elseif={isEmpty}>
-            <div class="wo-empty">
-                <span class="empty-icon">🔧</span>
-                <p>{emptyMessage}</p>
-                <button class="btn-secondary" onclick={clearFilters}>Reset Filters</button>
-            </div>
-        </template>
-
-        <template lwc:else>
-            <div class="wo-grid">
-                <template for:each={workOrders} for:item="wo">
-                    <button
-                        key={wo.id}
-                        class={wo.cardClass}
-                        data-id={wo.id}
-                        onclick={handleCardClick}
-                        aria-label={wo.subjectDisplay}
-                    >
-                        <div class="card-top">
-                            <div class="wagon-badge">
-                                <span class="wagon-num">{wo.wagonDisplay}</span>
-                            </div>
-                            <span class={wo.priorityClass}>{wo.priority}</span>
-                        </div>
-                        <div class="card-mid">
-                            <p class="wo-number">{wo.woNumber}</p>
-                            <p class="wo-subject">{wo.subjectDisplay}</p>
-                            <template lwc:if={wo.workTypeDisplay}>
-                                <span class="wo-type">{wo.workTypeDisplay}</span>
-                            </template>
-                        </div>
-                        <div class="card-meta">
-                            <template lwc:if={wo.sapDisplay}>
-                                <span class="meta-chip">⚙ {wo.sapDisplay}</span>
-                            </template>
-                            <template lwc:if={wo.flocDisplay}>
-                                <span class="meta-chip">📍 {wo.flocDisplay}</span>
-                            </template>
-                            <template lwc:if={wo.extIdDisplay}>
-                                <span class="meta-chip ext-id">{wo.extIdDisplay}</span>
-                            </template>
-                        </div>
-                        <div class="card-bottom">
-                            <span class={wo.statusClass}>{wo.status}</span>
-                            <div class="card-right">
-                                <template lwc:if={wo.schedDisplay}>
-                                    <span class="wo-sched">{wo.schedDisplay}</span>
-                                </template>
-                                <template lwc:if={wo.durationDisplay}>
-                                    <span class="wo-duration">{wo.durationDisplay}</span>
-                                </template>
-                            </div>
-                        </div>
-                    </button>
-                </template>
-            </div>
-
-        </template>
+  <div class="wo-wrapper">
+    <div class="wo-header">
+      <h2 class="wo-title">Work Orders</h2>
+      <span class="wo-count">{totalLabel}</span>
     </div>
+
+    <div class="filter-bar">
+      <div class="filter-group filter-select">
+        <label class="filter-label" for="status-select">Status</label>
+        <select
+          id="status-select"
+          class="form-select"
+          onchange={handleStatusChange}
+          onkeydown={handleInputKeydown}
+        >
+          <template for:each={statusOptions} for:item="opt">
+            <option key={opt.value} value={opt.value} selected={opt.selected}>
+              {opt.label}
+            </option>
+          </template>
+        </select>
+      </div>
+      <div class="filter-group filter-select">
+        <label class="filter-label" for="priority-select">Priority</label>
+        <select
+          id="priority-select"
+          class="form-select"
+          onchange={handlePriorityChange}
+          onkeydown={handleInputKeydown}
+        >
+          <template for:each={priorityOptions} for:item="opt">
+            <option key={opt.value} value={opt.value} selected={opt.selected}>
+              {opt.label}
+            </option>
+          </template>
+        </select>
+      </div>
+      <div class="filter-group filter-sort">
+        <label class="filter-label" for="sort-select">Sort</label>
+        <div class="sort-row">
+          <select
+            id="sort-select"
+            class="form-select"
+            onchange={handleSortFieldChange}
+            onkeydown={handleInputKeydown}
+          >
+            <template for:each={sortFieldOptions} for:item="opt">
+              <option key={opt.value} value={opt.value} selected={opt.selected}>
+                {opt.label}
+              </option>
+            </template>
+          </select>
+          <button
+            class="icon-btn"
+            onclick={handleSortDirToggle}
+            title={sortDirLabel}
+            aria-label={sortDirLabel}
+          >
+            {sortDirIcon}
+          </button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Scope</span>
+        <label class="switch">
+          <input
+            type="checkbox"
+            class="switch-input"
+            checked={territoryWide}
+            onchange={handleTerritoryToggle}
+            onkeydown={handleInputKeydown}
+          />
+          <span class="switch-track"><span class="switch-thumb"></span></span>
+          <span class="switch-text">Territory</span>
+        </label>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">From</span>
+        <div class="date-nav">
+          <button
+            class="icon-btn"
+            onclick={handlePrevDay}
+            title="Previous day"
+            aria-label="Previous day"
+          >
+            ‹
+          </button>
+          <input
+            type="date"
+            class="date-input"
+            value={dateFrom}
+            onchange={handleDateFrom}
+            onkeydown={handleInputKeydown}
+            aria-label="From date"
+          />
+          <button
+            class="icon-btn"
+            onclick={handleNextDay}
+            title="Next day"
+            aria-label="Next day"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">To</span>
+        <input
+          type="date"
+          class="date-input"
+          value={dateTo}
+          onchange={handleDateTo}
+          onkeydown={handleInputKeydown}
+          aria-label="To date"
+        />
+      </div>
+      <div class="filter-group filter-search">
+        <div class="search-row">
+          <div class="search-wrap">
+            <span class="search-icon-sm">⊞</span>
+            <input
+              type="search"
+              class="wagon-search"
+              placeholder="Wagon or asset"
+              value={wagonSearch}
+              oninput={handleWagonSearch}
+              onkeydown={handleInputKeydown}
+              aria-label="Search by wagon number or asset name"
+            />
+          </div>
+          <button
+            class="search-btn"
+            onclick={handleSearchAll}
+            title="Search all workpack work orders org-wide by wagon (at least 3 characters)"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <template lwc:if={isTruncated}>
+      <div class="truncated-note" role="status">⚠ {truncatedMessage}</div>
+    </template>
+
+    <template lwc:if={isLoading}>
+      <div class="wo-loading">
+        <div class="spinner"></div>
+        <p>Loading work orders…</p>
+      </div>
+    </template>
+
+    <template lwc:elseif={hasError}>
+      <div class="wo-error">
+        <span>⚠</span>
+        <p>{errorMessage}</p>
+        <button class="btn-secondary" onclick={fetchForDateRange}>Retry</button>
+      </div>
+    </template>
+
+    <template lwc:elseif={isEmpty}>
+      <div class="wo-empty">
+        <span class="empty-icon">🔧</span>
+        <p>{emptyMessage}</p>
+        <button class="btn-secondary" onclick={clearFilters}>
+          Reset Filters
+        </button>
+      </div>
+    </template>
+
+    <template lwc:else>
+      <c-work-order-card-list
+        records={workOrders}
+        onopendetail={handleOpenDetail}
+      ></c-work-order-card-list>
+    </template>
+  </div>
 </template>

@@ -1,0 +1,221 @@
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+/* List of full-width strip cards */
+.wo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Card — shared grid columns so lanes line up across rows */
+.wo-card {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 1.2fr) 140px minmax(220px, 4fr)
+    minmax(0, 2fr) 150px;
+  align-items: center;
+  gap: 20px;
+  background: var(--rt-surface, #131a22);
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 14px;
+  padding: 14px 20px;
+  min-height: 72px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  transition:
+    transform 0.12s,
+    border-color 0.15s,
+    background 0.12s;
+}
+.wo-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--rt-accent, #e25822);
+  background: var(--rt-surface-2, #1b2530);
+}
+.wo-card:active {
+  transform: translateY(0);
+}
+.wo-card.priority-critical {
+  border-left: 4px solid var(--rt-critical, #ff3b3b);
+}
+.wo-card.priority-high {
+  border-left: 4px solid #f97316;
+}
+.wo-card.priority-medium {
+  border-left: 4px solid var(--rt-warning, #f2b441);
+}
+.wo-card.priority-low {
+  border-left: 4px solid var(--rt-success, #21c07a);
+}
+
+.micro-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rt-text-dim, #6b7a89);
+}
+
+/* Lane 1: Wagon/Asset + Priority */
+.card-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.wagon-num {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--rt-accent, #e25822);
+  overflow-wrap: anywhere;
+}
+
+/* Lane 2: WO Number + Status */
+.card-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+.wo-number {
+  font-size: 13px;
+  color: var(--rt-text-dim, #6b7a89);
+  margin: 0;
+  font-family: "SF Mono", monospace;
+  letter-spacing: 0.03em;
+}
+
+/* Lane 3: Subject + Work Type — wraps, never truncates */
+.card-subject {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.wo-subject {
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--rt-text, #f2f5f7);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.wo-type {
+  font-size: 12px;
+  color: var(--rt-accent-2, #2e8fe6);
+  font-weight: 500;
+}
+
+/* Lane 4: meta chips — wrap inside lane */
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.meta-chip {
+  background: var(--rt-surface-2, #1b2530);
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--rt-text-muted, #a6b2bd);
+  overflow-wrap: anywhere;
+}
+.meta-chip.ext-id {
+  color: var(--rt-text-dim, #6b7a89);
+  font-family: "SF Mono", monospace;
+}
+
+/* Lane 5: Scheduled date/time + duration */
+.card-sched {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+.wo-sched-date {
+  font-size: 14px;
+  color: var(--rt-text-muted, #a6b2bd);
+}
+.wo-sched-time {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--rt-text, #f2f5f7);
+}
+.wo-duration {
+  font-size: 12px;
+  color: var(--rt-text-dim, #6b7a89);
+}
+
+/* Narrow container (iPad portrait, detail panel): meta chips drop to their own row */
+@container (max-width: 1000px) {
+  .wo-card {
+    grid-template-columns: minmax(130px, 1fr) 120px minmax(0, 3fr) 130px;
+    gap: 8px 16px;
+  }
+  .card-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .card-meta:empty {
+    display: none;
+  }
+}
+
+/* Badges */
+.priority-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.priority-badge.critical {
+  background: rgba(255, 59, 59, 0.15);
+  color: var(--rt-critical, #ff3b3b);
+  border: 1px solid var(--rt-critical, #ff3b3b);
+}
+.priority-badge.high {
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+  border: 1px solid #f97316;
+}
+.priority-badge.medium {
+  background: rgba(242, 180, 65, 0.12);
+  color: var(--rt-warning, #f2b441);
+  border: 1px solid var(--rt-warning, #f2b441);
+}
+.priority-badge.low {
+  background: rgba(33, 192, 122, 0.12);
+  color: var(--rt-success, #21c07a);
+  border: 1px solid var(--rt-success, #21c07a);
+}
+
+.status-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.status-pill.new {
+  background: rgba(46, 143, 230, 0.12);
+  color: var(--rt-accent-2, #2e8fe6);
+}
+.status-pill.inprogress {
+  background: rgba(242, 180, 65, 0.12);
+  color: var(--rt-warning, #f2b441);
+}
+.status-pill.completed {
+  background: rgba(33, 192, 122, 0.12);
+  color: var(--rt-success, #21c07a);
+}

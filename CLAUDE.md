@@ -31,6 +31,10 @@ npm run lint
 npm run prettier
 ```
 
+Run `npm install` once per checkout first. Without the local `node_modules`, `npx prettier` grabs a fresh prettier that fails with `Cannot find package 'prettier-plugin-apex'`.
+
+Bump `VERSION` in `lwc/kioskSidebar/kioskSidebar.js` (shown at the bottom of the sidebar) on each kiosk release so the iPad shows which build is live.
+
 ## Architecture
 
 ### Auth flow
@@ -63,7 +67,7 @@ Two things are required for every `<input>`, `<textarea>`, and `<select>` to acc
 1. **CSS**: `workshopPortal.css` has a global override re-enabling text selection inside form elements (WebKit `user-select: none` blocks focus/typing).
 2. **`onkeydown` propagation guard** on the element itself:
    ```html
-   <input ... onkeydown={handleInputKeydown} />
+   <input ... onkeydown="{handleInputKeydown}" />
    ```
    ```js
    handleInputKeydown(evt) { evt.stopPropagation(); }
@@ -75,10 +79,21 @@ The `handleGlobalKeydown` in `workshopPortal.js` also uses `evt.composedPath()[0
 ### Apex data access pattern
 
 `getWorkOrders` uses two different access modes deliberately:
+
 - `WITH USER_MODE` on `AssignedResource` / `ServiceAppointment` / `ServiceCrewMember` queries (avoids FLS-stripping cross-object date filters)
 - `AccessLevel.SYSTEM_MODE` on the final `WorkOrder` query (uses explicit binds; date filtering already applied upstream)
 
 Most other queries use `WITH SECURITY_ENFORCED`.
+
+`getWorkOrders` caps `pageSize` at **50** and returns `totalCount` (a `COUNT()` over the same `baseWhere`) plus `hasMore`. `searchAllWorkpacks` returns at most 200 rows with the same two fields.
+
+### Work order list (`workOrderCards` + `workOrderCardList`)
+
+- **`workOrderCards`** owns fetching, filtering and sorting. It requests 50 rows and keeps `totalCount` as `serverTotal`. When `serverTotal` is larger than the rows loaded, it shows an amber "Showing X of Y" note. Status/Priority/text filters and sorting run **client-side over the loaded rows only**, and the note says so. "Search" calls `searchAllWorkpacks` (org-wide, ignores dates, scope and filters).
+- **Sorting** uses explicit rank maps (`PRIORITY_RANK`, `STATUS_RANK` with Open≈New and Closed≈Completed), not alphabetical order. Missing scheduled times always sort last, in either direction. Ties fall back to WO Number ascending.
+- **`workOrderCardList`** is the shared, display-only card list. It takes raw `KioskController.WorkOrderCard` records (`@api records`) in display order, builds the display fields itself (wagon number, falling back to asset name with an "Asset" label; scheduled date + time; duration; badge classes), and fires `opendetail` with `{ workOrderId }`. It's used by both `workOrderCards` and the **Child Work Orders** panel in `workOrderDetail`. Parents forward its `opendetail` up to `workshopPortal`, because the event doesn't bubble. Change the card layout here, not in each parent.
+- Card columns are a CSS grid shared across rows, so they line up. The narrow layout (chips move to their own row) uses a **container query** (`:host { container-type: inline-size }`, `@container (max-width: 1000px)`) rather than a media query, so it reacts to the panel's width. The detail panel is narrower than the screen.
+- **Scheduled start** comes from the work order's ServiceAppointment. The main list reads it from the SA set already used for date filtering. Child work orders (`getWorkOrderDetail`) query the earliest SA by `SchedStartTime` for each child.
 
 ### PIN hashing
 
@@ -99,6 +114,10 @@ Custom field metadata files are in `force-app/main/default/objects/`.
 ### Tests
 
 `KioskControllerTest.cls` uses `@IsTest(SeeAllData=true)` — a broken org Flow trigger blocks `ServiceTerritoryMember` inserts, so tests run against live org data. `setupWorker()` finds an existing `ServiceResource` by `Employee_Id__c` or falls back to the supervisor's own SR.
+
+**Coverage is very low.** As of 2026-10-02, all 16 tests pass but cover only **4%** of `KioskController`. Targeted deploys to `rsnov25demo` skip tests, so nothing enforces coverage today. A real Production org would require 75%.
+
+No LWC Jest tests exist anywhere in `force-app`.
 
 ### Site platform
 
@@ -154,11 +173,20 @@ Called from the **"Generate Demo Workpack"** button in `kioskDashboard`. On succ
 
 `KioskController.getMeasureImages(token, measurePointIds)` returns base64 data URIs for the latest image `ContentVersion` linked to each measure point. Data URIs are used (not Salesforce content URLs) to avoid LWR CSP / cross-site-cookie issues with `/sfc/servlet.shepherd/` URLs. Capped at ~3 MB per image. `uploadMeasureImage(token, measurePointId, base64, filename, mimeType)` inserts a new `ContentVersion` + `ContentDocumentLink`. Both are called from `assetReview` — images load lazily when a wheelset is selected, and the add-image form stages a base64 preview before upload.
 
+### Inspection Checklist (standard UI quick action, separate from the PIN kiosk)
+
+`inspectionJobChecklist` is a Work Step record/screen action for **standard Salesforce UI / Field Service mobile** — not part of the `workshopPortal` PIN-session kiosk. `InspectionChecklistController.cls` resolves the parent WorkOrder from the WorkStep (falling back through `WorkOrderLineItem` if `ParentRecordId` is a WOLI), then exposes CRUD on `Measure_Point__c` rows: create (`saveMeasurePoint`), per-row type change (`updateMeasurePointType`, OK/Attention Required/Measure), comments (only when type = Attention Required), measure value+type (only when type = Measure), bulk "mark OK" (`markMeasurePointsOk`), and photo attach (`attachFileToMeasurePoint`, base64 `ContentVersion` insert — used instead of `lightning-file-upload`, which doesn't persist in some FSL mobile contexts).
+
+`inspectionJobChecklistGlobal` is a thin wrapper that exposes the same component as a **global publisher action** (`lightning__GlobalAction`); global actions often don't receive `recordId`, so it falls back to `CurrentPageReference` attributes/state. The main `inspectionJobChecklist` bundle deliberately does **not** declare `lightning__GlobalAction` itself and closes its own screen-action panel by dispatching a raw `lightning__actionsclosescreen` CustomEvent rather than importing `lightning/actions` — importing it makes LWR/FSL mobile request `@salesforce/action/<QuickActionApiName>`, which 404s if the action metadata name doesn't match.
+
+The instruction-image gallery wires to `FilePreviewController.getWorkOrderPngImages` — **this class is not in this repo** (org-only; same situation as other org-side schema described in "Org schema is far richer than the local repo" below). Don't assume it's missing/needs creating without checking the org first.
+
 ## Gotchas & lessons learned
 
 Hard-won fixes from past sessions — check here before re-debugging.
 
 ### LWC `<textarea value={x}>` does not display a programmatically-set value
+
 Binding `value={prop}` on a `<textarea>` reliably reflects user typing back to the property, but setting the
 property **in JS** (preloading an edit form, auto-filling a default) does **not** repaint the textarea — it
 stays visually empty even though the property (and any subsequent save) is correct. `<input>` does not have
@@ -166,6 +194,7 @@ this problem, which is why a Subject input preloads fine while Description/Comme
 
 **Fix**: push the value into the DOM node imperatively after render. Give the textarea a `data-id`, set a
 one-shot flag when you change the value in JS, and sync in `renderedCallback`:
+
 ```js
 // when opening edit form / auto-filling:
 this.editDescription = value; this._syncDesc = true;
@@ -176,16 +205,19 @@ renderedCallback() {
   }
 }
 ```
+
 Seen in `assetReview` (PM02 task edit) and `timeTrackingDashboard` (reject-reason auto-fill). Plain `<input>`
 fields don't need this.
 
 ### Apex dynamic SOQL returns `SObject`, not the concrete type
+
 `Database.query('SELECT … FROM WorkOrder …')` returns `List<SObject>`. Passing an element to a method typed
 `mapTask(WorkOrder wo)`, or iterating `for (WorkOrder wo : Database.query(...))`, fails to compile
 ("Method does not exist or incorrect signature"). **Fix**: cast first —
 `(List<WorkOrder>) Database.query(...)` — then pass/iterate.
 
 ### Anonymous Apex chokes on inner-class generics
+
 In `sf apex run` scripts, `List<KioskController.TimeReportRow> x = ...` and casts like
 `((List<KioskController.SomeInner>) o)[0]` throw `Unexpected token '<'`/`Unexpected token`. **Workaround**:
 for verification scripts, call the method for its side effect and assert via a follow-up SOQL query on the
@@ -193,10 +225,12 @@ record, rather than typing the returned inner-class collection. (Real classes co
 anonymous-Apex parser limitation.)
 
 ### Permission-set object dependencies
+
 Adding `Asset` read to a permission set fails deploy unless `Account` read is also granted; `Account` read in
 turn requires `Contact` read. Grant the whole chain (`Asset` → `Account` → `Contact`) together.
 
 ### `KioskControllerTest` drifted from the controller (now fixed)
+
 The test from the initial commit called old signatures `getWorkOrders(token, WorkOrderFilter)` and
 `getDashboardMetrics(token)`, but the controller had moved to JSON/param signatures
 (`getWorkOrders(token, String filterJson)`, `getDashboardMetrics(token, dateFrom, dateTo)`). This blocked
@@ -204,6 +238,7 @@ deploying the controller until the call sites were updated (`JSON.serialize(filt
 **Lesson**: when changing an `@AuraEnabled` signature, grep `KioskControllerTest.cls` for callers in the same change.
 
 ### Org schema is far richer than the local repo
+
 Only a handful of field-meta XML files are tracked locally; the real schema lives in the org. Before assuming
 a field/object/picklist value is missing, run `sf sobject describe -s <Obj> -o ron@rsfieldnov25.demo` against
 the org. Examples that already existed (and did **not** need creating): `Measure_Point__c.Asset__c`,
@@ -211,26 +246,45 @@ the org. Examples that already existed (and did **not** need creating): `Measure
 wheelset Asset hierarchy, and the `PM02` WorkType.
 
 ### Static-resource images in LWC
+
 LWC sanitizes `url()` in inline styles, so `style="background-image:url(...)"` from a `@salesforce/resourceUrl`
 import won't render. Use a real `<img src={resourceUrl}>` (see `assetReview` wagon diagram).
 
 ### Deploy verification via CLI
+
 `sf project deploy start … --json` piped to a small python parser gives a clean status; the streaming text
 output spams spinner frames that defeat `grep`. The stale `KioskControllerTest` runs on every full deploy
 (SeeAllData) — deploy targeted paths (`-d <class> -d <lwc>`) for fast iteration, full `force-app` to validate.
 
+Two more deploy notes:
+
+- The CLI's "update available" warning can come before the JSON and break `json.load`. Either strip everything before the first `{` (`sed -n '/^{/,$p'`) or check the result with `sf project deploy report --use-most-recent -o rsnov25demo --json`.
+- The salesforce-development plugin's deploy hook treats `rsnov25demo` as a **Production** org and blocks deploys unless the command starts with `CONFIRM_PROD=1`. Only use that override with the developer's explicit go-ahead.
+
+### Use native `<select>`, not `lightning-combobox`, on the kiosk
+
+`lightning-combobox` caused two problems in `workOrderCards`:
+
+- Its dropdown list was **clipped** by any parent with `overflow` set (e.g. a horizontally scrolling filter bar).
+- Its list renders in **light SLDS colours** that ignore the `--rt-*` dark theme.
+
+Use a native `<select class="form-select">` instead, as `assetReview` and `workOrderCards` do. On the iPad it opens the iOS picker, is never clipped, and `color-scheme: dark` styles the list. Bind the selection with a `selected` flag on each `<option>`; setting `value` on the `<select>` runs before the `for:each` options render and doesn't stick. Read the new value from `evt.target.value` (not `evt.detail.value`), and keep `onkeydown={handleInputKeydown}` on it.
+
 ### Apex reserved/case-insensitive identifier clashes
+
 Apex is case-insensitive, so a local variable named `json` collides with the `System.JSON` class →
 `Method does not exist … from the type String` on `JSON.serialize`/`deserializeUntyped`. Likewise `desc`
 is reserved (`Identifier name is reserved: desc`) and `inner` is reserved. Don't name vars `json`, `desc`,
 or `inner` — use `rawJson`/`fenced`, `descr`, `body`. (Hit while building `RenderBlocks`/`KioskBlocks`.)
 
 ### One `@InvocableMethod` per Apex class
+
 Salesforce allows only a single `@InvocableMethod` per class. To expose N agent actions, put the logic in
 one helper class (`KioskBlocks`) and create N thin wrapper classes each with one `@InvocableMethod`
 delegating to it (`AgentAction*`). Share the `@InvocableVariable` request/response types across wrappers.
 
 ### Agent (GenAiPlannerBundle) wiring
+
 - Each action needs its OWN `<localActionLinks><functionName>…</functionName></localActionLinks>` — you
   cannot list multiple `<functionName>` in one `<localActionLinks>` (deploy error: "Element functionName is
   duplicated"). Apex actions use `<invocationTargetType>apex</invocationTargetType>` +
@@ -239,6 +293,7 @@ delegating to it (`AgentAction*`). Share the `@InvocableVariable` request/respon
   `sf agent deactivate` → deploy → `sf agent activate`.
 
 ### Agent API gotchas (token won't reach the agent)
+
 Empty HTTP 404 from `api.salesforce.com` = the OAuth token isn't a JWT (enable "Issue JWT access tokens"
 on the External Client App). `invalid_request: scope parameter not supported` = clear the External
 Credential's Scope field. `invalid_app_access` = set Permitted Users + Run-As on the ECA Policies tab.

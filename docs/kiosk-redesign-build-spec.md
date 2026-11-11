@@ -77,6 +77,7 @@ Sample datasets: `#ds=HT` (MEL-SEED Haul Truck HT-02, workpack 00012423) and `#d
 8. Never deploy page layouts. Ron curates layouts by hand.
 9. **PDF extraction stays manual**: only the existing `processWorkpackButton` Quick Action calls `processLatestPdf`. Deactivate `WorkpackPdfTrigger` and `WorkOrderWorkpackTrigger`.
 10. **Reuse the Digital Checklist extraction rules and its PDF viewer approach**, mapped to WorkOrder + `Measure_Point__c` (§4A). Out of scope: WOLI lookups, `PRT_Status__c` / `PrtStatusController`, `Digital_Checklist__c`, and writing marks back into the PDF (no `prtPdfExportBake`).
+11. **The repo is self-contained and deployable to other orgs.** Every component, class, static resource or prompt taken from another project goes into this repo under a kiosk-owned name. Pre-existing org-only dependencies (e.g. `FilePreviewController`, the `Measure_Point__c` object definition, the Raise Exception flows) are listed in `docs/kiosk-dependencies.md` and retrieved into the repo (plan P0.3).
 
 ---
 
@@ -187,7 +188,7 @@ Do not mark new imperative reads `cacheable=true` (stale skeleton gotcha).
 
 ### 4A.3 Document panel (Asset Review → Measure tab → side panel "Document")
 
-- New LWC `kioskPdfPane` (read-only). It loads the PDF through `getMeasurePdf` and renders it in the `pdfjsHost` iframe. It replaces the planned use of `pdfAnnotator` for this panel.
+- New LWC `kioskPdfPane` (read-only). It loads the PDF through `getMeasurePdf` and renders it in the `kioskPdfjsHost` iframe. It replaces the planned use of `pdfAnnotator` for this panel.
 - Which PDF: the row's `Source_Document__c`. If that's blank (older points), fall back to the latest PDF on the workpack.
 - Tapping a row or its 📄 chip:
   1. go to `Page_Number__c`;
@@ -196,7 +197,7 @@ Do not mark new imperative reads `cacheable=true` (stale skeleton gotcha).
   4. highlight the matched line. If there's no match, highlight a band at the position estimate.
 - Pager, zoom and fit-width. Page change keeps the list selection.
 - List grouping on the Measure tab: by page, then by `Table_Name__c` (table cells shown as a grid of row × column, as in `digitalChecklist`).
-- Copy into the kiosk repo: `pdfjsHost` + `pdfjs` + `pdfjsWorker` static resources (retrieve from the org) and `locate.js` (from the Digital Checklist project, with its tests).
+- Copy into the kiosk repo (self-contained, decision 11): `kioskPdfjsHost` + `kioskPdfjs` static resources and `locate.js` (as LWC module `kioskPdfLocate`, with its tests), all from the Digital Checklist project files.
 - Fix while porting: the postMessage target origin is `'*'`; set it to the site origin.
 
 ### 4A.3a Findings from the code check (2026-11-11)
@@ -205,7 +206,7 @@ Do not mark new imperative reads `cacheable=true` (stale skeleton gotcha).
   - Org `pdfjs` and `pdflib` are **zips** from the Digital Checklist deploy of 2026-10-29: `pdfjs/pdf.min.js` + `pdfjs/pdf.worker.min.js`, and `pdfLib/pdf-lib.min.js`. Org `pdfjsWorker` is still the kiosk's single JS file.
   - The kiosk repo has `pdfjs.js` / `pdflib.js` as single JS files, and `pdfAnnotator` (used in `workExecution`) calls `loadScript(pdfjs)` on them. In the org that now loads a zip, so it is probably broken (not tested at runtime).
   - A full kiosk `force-app` deploy would overwrite the zips and break `prtAnnotator`.
-  - **Fix:** the kiosk adopts the zip format. Retrieve the org zips into the repo, delete the single-file `pdfjs.js`/`pdflib.js`, and change `pdfAnnotator` to load `pdfjs + '/pdf.min.js'` and `pdflib + '/pdf-lib.min.js'`. Both projects use pdf.js 3.11.174.
+  - **Fix (self-contained):** the kiosk ships its own copies under kiosk-owned names: `kioskPdfjs` (zip: `pdf.min.js`, `pdf.worker.min.js`), `kioskPdfLib` (zip: `pdf-lib.min.js`) and `kioskPdfjsHost` (zip: `index.html`, `imagetext.js`), all copied from the Digital Checklist project. `pdfAnnotator` switches to them. The repo's single-file `pdfjs.js` / `pdfjsWorker.js` / `pdflib.js` are deleted from the repo only. The org's `pdfjs`/`pdflib`/`pdfjsHost` are never redeployed or deleted by the kiosk.
 - **`locateChecklistMark` alone doesn't fit.** It returns a tick or text _placement_, and it returns null unless status is ok/attention. The kiosk needs the matched _line_.
   - Port `locate.js` into a kiosk LWC module `kioskPdfLocate` and add an export `locateLabelLine(items, label, positionPercent)`. It wraps the internal `linesOf`, `numberedLine` and `bestLine` and returns `{x, y, w, h}` page fractions, or null.
 - **Reuse `getAttachmentContent`** for the PDF bytes (it already exists, checks the token, caps at 4,000,000 bytes and returns `tooLarge`). It's missing a workpack scope check. Add a scope-checked wrapper `getMeasurePdf` that calls the same code (§4.10).
@@ -364,7 +365,7 @@ Workpack KPIs: the existing `getWorkpackProgress` definitions.
 
 ## 7. Open items (decide before or during build)
 
-1. **Test before building `kioskPdfPane`:** does the `pdfjsHost` iframe load on the kiosk site? Root `/resource/...` URLs returned 503 before; the working form was `/wagonkiosk/resource/<name>`. Not verified.
+1. **Test before building `kioskPdfPane`:** does the `pdfjsHost` iframe (same content as the future `kioskPdfjsHost`) load on the kiosk site? Root `/resource/...` URLs returned 503 before; the working form was `/wagonkiosk/resource/<name>`. Not verified.
 2. Asset map diagram per `Asset_Type__c`: icicle by default, Schematic PNG for wagons. Who configures this, and where?
 3. `Defect_Location__c` values are wagon-only. HT-02 needs more values, or a list per asset type.
 4. `MeasureValue_Type__c` has no Voltage/Flow, so electrical readings have no fitting type.
@@ -383,7 +384,7 @@ Sample data in the mocks, not real: workpack description, Work Center and Basic 
 ## 8. Suggested build order
 
 1. Fields + `Kiosk_App_Config__c` + permission set (deploy, then verify by describe).
-2. PDF: the `pdfjsHost` site test (§7.1); deactivate the two triggers; new prompt version; `WorkpackPdfProcessor` parse + stamping; reprocess 00012423 and 00010070 and check the page numbers against the PDFs.
+2. Portability + PDF: vendor `kioskPdf*` resources and the dependency audit (plan P0.2–P0.3); the `pdfjsHost` site test (§7.1); deactivate the two triggers; new prompt version; `WorkpackPdfProcessor` parse + stamping; reprocess 00012423 and 00010070 and check the page numbers against the PDFs.
 3. Apex:
    - root scoping fix;
    - child rollup;

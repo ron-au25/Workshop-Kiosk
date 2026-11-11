@@ -1352,9 +1352,9 @@ export default class AssetReview extends LightningElement {
   }
   get sideModes() {
     return [
-      ["off", "Off"],
       ["doc", "Document"],
-      ["trend", "Trend"]
+      ["trend", "Trend"],
+      ["off", "List only"]
     ].map(([value, label]) => {
       return {
         value,
@@ -2486,11 +2486,15 @@ export default class AssetReview extends LightningElement {
       ["measure", "Measure"],
       ["execute", "Execute"],
       ["parts", "Parts"],
-      ["notes", "Notes"],
-      ["raised", "Raised"]
+      ["notes", "Notes & codes"],
+      ["raised", "Raised tasks"]
     ].map(([key, label]) => ({
       key,
       label,
+      sub:
+        key === "measure" && this.measureSource.length
+          ? `${this.measureSource.length} points`
+          : "",
       cls: "aw-tab" + (this.activeTab === key ? " on" : "")
     }));
   }

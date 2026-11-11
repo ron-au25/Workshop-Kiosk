@@ -42,6 +42,126 @@
     <!-- Main -->
     <template lwc:else>
       <div class="ar-body">
+        <template lwc:if={hasWorkspace}>
+          <template lwc:if={hasSelection}>
+            <div class="aw-asset">
+              <span class="aw-asset-lbl">Selected asset</span>
+              <span class="aw-asset-name">{detailHeading}</span>
+              <template for:each={assetTileFields} for:item="f">
+                <span key={f.key} class="aw-chip"
+                  ><b>{f.label}</b> {f.value}</span
+                >
+              </template>
+              <button
+                class="aw-info"
+                onclick={handleToggleDrawer}
+                title="Asset details"
+              >
+                ⓘ Asset details
+              </button>
+            </div>
+            <template lwc:if={drawerOpen}>
+              <div class="aw-drawer">
+                <template lwc:if={hasDrawerRows}>
+                  <div class="overview-grid">
+                    <template for:each={drawerRows} for:item="r">
+                      <div key={r.key} class={r.cls}>
+                        <span class="ov-key">{r.label}</span>
+                        <template lwc:if={r.isRead}>
+                          <span class="ov-val">{r.value}</span>
+                        </template>
+                        <template lwc:if={r.isText}>
+                          <input
+                            type="text"
+                            class="form-input"
+                            data-key={r.key}
+                            value={r.value}
+                            oninput={handleDrawerInput}
+                            onkeydown={handleInputKeydown}
+                          />
+                        </template>
+                        <template lwc:if={r.isDate}>
+                          <input
+                            type="date"
+                            class="form-input"
+                            data-key={r.key}
+                            value={r.value}
+                            onchange={handleDrawerInput}
+                            onkeydown={handleInputKeydown}
+                          />
+                        </template>
+                        <template lwc:if={r.isPick}>
+                          <select
+                            class="form-select"
+                            data-key={r.key}
+                            onchange={handleDrawerInput}
+                            onkeydown={handleInputKeydown}
+                          >
+                            <template for:each={r.options} for:item="o">
+                              <option
+                                key={o.value}
+                                value={o.value}
+                                selected={o.selected}
+                              >
+                                {o.label}
+                              </option>
+                            </template>
+                          </select>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                  <template lwc:if={drawerDirty}>
+                    <div class="dr-actions">
+                      <button class="btn-cancel" onclick={handleDrawerReset}>
+                        Reset
+                      </button>
+                      <button
+                        class="btn-save-entry"
+                        onclick={handleDrawerSave}
+                        disabled={drawerSaveDisabled}
+                      >
+                        {drawerSaveLabel}
+                      </button>
+                    </div>
+                  </template>
+                  <template lwc:if={drawerFeedback}>
+                    <p class={drawerFeedbackClass}>{drawerFeedback}</p>
+                  </template>
+                </template>
+                <template lwc:else>
+                  <p class="mz-side-empty">
+                    No drawer fields configured or readable.
+                  </p>
+                </template>
+              </div>
+            </template>
+          </template>
+
+          <div class="wl-chipbar">
+            <template lwc:if={showWtChips}>
+              <div class="wl-chips">
+                <span class="wl-chips-lbl">Focus on work types</span>
+                <template for:each={wtChips} for:item="c">
+                  <button
+                    key={c.name}
+                    class={c.chipClass}
+                    data-wt={c.name}
+                    onclick={handleToggleWt}
+                  >
+                    {c.name}<span class="wl-chip-n">{c.open}</span>
+                  </button>
+                </template>
+                <template lwc:if={wtActive}>
+                  <button class="wl-chip clear" onclick={handleClearWt}>
+                    Show all
+                  </button>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+
         <!-- ─── Wagon diagram with wheelset zones ─── -->
         <div class="ar-section">
           <button
@@ -259,27 +379,6 @@
 
         <!-- ─── Work order list + workspace (v6) ─── -->
         <template lwc:if={hasWorkspace}>
-          <div class="wl-chipbar">
-            <template lwc:if={showWtChips}>
-              <div class="wl-chips">
-                <template for:each={wtChips} for:item="c">
-                  <button
-                    key={c.name}
-                    class={c.chipClass}
-                    data-wt={c.name}
-                    onclick={handleToggleWt}
-                  >
-                    {c.name}<span class="wl-chip-n">{c.open}</span>
-                  </button>
-                </template>
-                <template lwc:if={wtActive}>
-                  <button class="wl-chip clear" onclick={handleClearWt}>
-                    Show all
-                  </button>
-                </template>
-              </div>
-            </template>
-          </div>
           <div class="ar-split">
             <aside class={listClass}>
               <template lwc:if={listCollapsed}>
@@ -325,6 +424,9 @@
                 <div class="wl-head">
                   <span class="wl-title">Work orders</span>
                   <span class="wl-head-actions">
+                    <button class="wl-raise-top" onclick={handleOpenRaise}>
+                      ⚑ Raise Task
+                    </button>
                     <button
                       class={pinClass}
                       onclick={handleTogglePin}
@@ -386,113 +488,10 @@
                     <p class="wl-empty">No work orders for this selection.</p>
                   </template>
                 </div>
-                <button
-                  class="btn-add-entry wl-raise"
-                  onclick={handleOpenRaise}
-                >
-                  ＋ Raise Task
-                </button>
               </template>
             </aside>
 
             <section class="ar-work">
-              <template lwc:if={hasSelection}>
-                <div class="aw-asset">
-                  <span class="aw-asset-name">{detailHeading}</span>
-                  <template for:each={assetTileFields} for:item="f">
-                    <span key={f.key} class="aw-chip"
-                      ><b>{f.label}</b> {f.value}</span
-                    >
-                  </template>
-                  <button
-                    class="aw-info"
-                    onclick={handleToggleDrawer}
-                    title="Asset details"
-                  >
-                    ⓘ
-                  </button>
-                </div>
-                <template lwc:if={drawerOpen}>
-                  <div class="aw-drawer">
-                    <template lwc:if={hasDrawerRows}>
-                      <div class="overview-grid">
-                        <template for:each={drawerRows} for:item="r">
-                          <div key={r.key} class={r.cls}>
-                            <span class="ov-key">{r.label}</span>
-                            <template lwc:if={r.isRead}>
-                              <span class="ov-val">{r.value}</span>
-                            </template>
-                            <template lwc:if={r.isText}>
-                              <input
-                                type="text"
-                                class="form-input"
-                                data-key={r.key}
-                                value={r.value}
-                                oninput={handleDrawerInput}
-                                onkeydown={handleInputKeydown}
-                              />
-                            </template>
-                            <template lwc:if={r.isDate}>
-                              <input
-                                type="date"
-                                class="form-input"
-                                data-key={r.key}
-                                value={r.value}
-                                onchange={handleDrawerInput}
-                                onkeydown={handleInputKeydown}
-                              />
-                            </template>
-                            <template lwc:if={r.isPick}>
-                              <select
-                                class="form-select"
-                                data-key={r.key}
-                                onchange={handleDrawerInput}
-                                onkeydown={handleInputKeydown}
-                              >
-                                <template for:each={r.options} for:item="o">
-                                  <option
-                                    key={o.value}
-                                    value={o.value}
-                                    selected={o.selected}
-                                  >
-                                    {o.label}
-                                  </option>
-                                </template>
-                              </select>
-                            </template>
-                          </div>
-                        </template>
-                      </div>
-                      <template lwc:if={drawerDirty}>
-                        <div class="dr-actions">
-                          <button
-                            class="btn-cancel"
-                            onclick={handleDrawerReset}
-                          >
-                            Reset
-                          </button>
-                          <button
-                            class="btn-save-entry"
-                            onclick={handleDrawerSave}
-                            disabled={drawerSaveDisabled}
-                          >
-                            {drawerSaveLabel}
-                          </button>
-                        </div>
-                      </template>
-                      <template lwc:if={drawerFeedback}>
-                        <p class={drawerFeedbackClass}>{drawerFeedback}</p>
-                      </template>
-                    </template>
-                    <template lwc:else>
-                      <p class="mz-side-empty">
-                        No drawer fields configured or readable.
-                      </p>
-                    </template>
-                  </div>
-                </template>
-              </template>
-
               <template lwc:if={selectedFilterWoId}>
                 <div class="aw-wo">
                   <div class="aw-wo-title">
@@ -529,14 +528,29 @@
                     data-tab={t.key}
                     onclick={handleTab}
                   >
-                    {t.label}
+                    <span class="aw-tab-l">{t.label}</span>
+                    <template lwc:if={t.sub}
+                      ><span class="aw-tab-s">{t.sub}</span></template
+                    >
                   </button>
                 </template>
               </div>
 
               <template lwc:if={isMeasureTab}>
                 <div class="col-header">
-                  <span class="col-title">Measure Points</span>
+                  <span class="col-title">Measures</span>
+                  <div class="mz-side-bar">
+                    <template for:each={sideModes} for:item="m">
+                      <button
+                        key={m.value}
+                        class={m.cls}
+                        data-mode={m.value}
+                        onclick={handleSideMode}
+                      >
+                        {m.label}
+                      </button>
+                    </template>
+                  </div>
                   <button class="btn-add-entry" onclick={handleAddMeasure}>
                     + New Measure
                   </button>
@@ -708,19 +722,6 @@
                     </div>
                   </div>
                 </template>
-                <div class="mz-side-bar">
-                  <span class="mz-side-lbl">Side panel</span>
-                  <template for:each={sideModes} for:item="m">
-                    <button
-                      key={m.value}
-                      class={m.cls}
-                      data-mode={m.value}
-                      onclick={handleSideMode}
-                    >
-                      {m.label}
-                    </button>
-                  </template>
-                </div>
                 <div class={measureWrapClass}>
                   <div class="points-list">
                     <template lwc:if={hasPoints}>

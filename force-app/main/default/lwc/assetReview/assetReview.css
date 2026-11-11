@@ -2047,3 +2047,65 @@ span.ok .type-badge {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* ─── v3.5 mock-v6 chrome: selected-asset card, focus chips, tab cards ─── */
+.aw-asset-lbl {
+  flex-basis: 100%;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rt-text-dim, #6b7a89);
+}
+.aw-asset {
+  margin-bottom: 12px;
+}
+.wl-chips-lbl {
+  font-weight: 600;
+  color: var(--rt-text, #f2f5f7);
+  align-self: center;
+  margin-right: 4px;
+}
+.wl-raise-top {
+  background: var(--rt-accent, #e25822);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 700;
+  min-height: 40px;
+}
+.aw-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+.aw-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  text-align: left;
+  border-right: 1px solid var(--rt-border, #2a3744);
+  border-bottom: 3px solid transparent;
+}
+.aw-tab:last-child {
+  border-right: 0;
+}
+.aw-tab.on {
+  border-bottom-color: var(--rt-accent, #e25822);
+}
+.aw-tab-l {
+  font-weight: 700;
+  font-size: 16px;
+}
+.aw-tab-s {
+  font-size: 12px;
+  color: var(--rt-text-dim, #6b7a89);
+}
+.col-header .mz-seg {
+  margin-left: 4px;
+}

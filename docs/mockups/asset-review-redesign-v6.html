@@ -1,0 +1,3921 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asset Review v6 — smart collapse of the work order list</title>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --s1: #131a22;
+        --s2: #1b2530;
+        --s3: #243040;
+        --bd: #2a3744;
+        --tx: #f2f5f7;
+        --mu: #a6b2bd;
+        --dim: #6b7a89;
+        --ac: #e25822;
+        --ach: #f06a2a;
+        --ac2: #2e8fe6;
+        --ok: #21c07a;
+        --warn: #f2b441;
+        --bad: #e84b4b;
+        --vio: #9b7bea;
+        --r: 14px;
+        --rs: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--tx);
+        font:
+          16px/1.4 -apple-system,
+          "SF Pro Text",
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        border: none;
+        background: none;
+      }
+      .card {
+        background: var(--s1);
+        border: 1px solid var(--bd);
+        border-radius: var(--r);
+      }
+      .chip {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--s3);
+        color: var(--mu);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        flex: none;
+      }
+      .s-grey {
+        background: var(--dim);
+      }
+      .s-amber {
+        background: var(--warn);
+      }
+      .s-red {
+        background: var(--bad);
+      }
+      .s-green {
+        background: var(--ok);
+      }
+      .btn {
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: var(--rs);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .btn-sm {
+        min-height: 40px;
+        padding: 0 14px;
+        font-size: 14px;
+      }
+      .btn-p {
+        background: var(--ac);
+        color: #fff;
+      }
+      .btn-p:hover {
+        background: var(--ach);
+      }
+      .btn-g {
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--mu);
+      }
+      .btn-b {
+        background: var(--ac2);
+        color: #fff;
+      }
+      .sec-t {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+      .tag {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--s3);
+        color: var(--mu);
+        white-space: nowrap;
+      }
+      .tag.wt {
+        background: rgba(46, 143, 230, 0.16);
+        color: var(--ac2);
+      }
+      .tag.bad {
+        background: rgba(232, 75, 75, 0.18);
+        color: var(--bad);
+      }
+      .tag.warn {
+        background: rgba(242, 180, 65, 0.18);
+        color: var(--warn);
+      }
+      .tag.rt {
+        background: rgba(155, 123, 234, 0.2);
+        color: var(--vio);
+        font-weight: 700;
+      }
+      .tag.asset {
+        background: transparent;
+        border: 1px solid var(--bd);
+      }
+      button.tag {
+        cursor: pointer;
+      }
+      .pill {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--s3);
+        color: var(--mu);
+      }
+      .pill.ip {
+        background: rgba(242, 180, 65, 0.2);
+        color: var(--warn);
+      }
+      .pill.cpl {
+        background: rgba(33, 192, 122, 0.2);
+        color: var(--ok);
+      }
+
+      /* ── kiosk shell (mirrors kioskSidebar + kioskHeader) ── */
+      .app {
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        background: var(--s1);
+        border-right: 1px solid var(--bd);
+        display: flex;
+        flex-direction: column;
+        padding: 16px 12px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 8px 16px;
+      }
+      .logo .i {
+        font-size: 26px;
+      }
+      .logo .t {
+        font-weight: 800;
+      }
+      .logo .s {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .sup {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 10px;
+        background: var(--s2);
+        margin-bottom: 14px;
+        font-size: 13px;
+      }
+      .sup .l {
+        color: var(--dim);
+        font-size: 11px;
+      }
+      .nav {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 10px;
+        color: var(--mu);
+        font-weight: 600;
+        text-align: left;
+        margin-bottom: 4px;
+        min-height: 48px;
+      }
+      .nav:hover {
+        background: var(--s2);
+      }
+      .nav.on {
+        background: rgba(226, 88, 34, 0.14);
+        color: var(--tx);
+        box-shadow: inset 3px 0 0 var(--ac);
+      }
+      .nav .new {
+        margin-left: auto;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: rgba(155, 123, 234, 0.2);
+        color: var(--vio);
+      }
+      .sb-foot {
+        margin-top: auto;
+        border-top: 1px solid var(--bd);
+        padding-top: 10px;
+      }
+      .sb-foot .nav {
+        font-weight: 500;
+      }
+      .sb-foot .danger {
+        color: var(--bad);
+      }
+      .ver {
+        font-size: 11px;
+        color: var(--dim);
+        padding: 0 12px 6px;
+      }
+      .khdr {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 24px;
+        background: var(--s1);
+        border-bottom: 1px solid var(--bd);
+        position: sticky;
+        top: 0;
+        z-index: 7;
+      }
+      .khdr .terr {
+        font-weight: 700;
+      }
+      .khdr .crew {
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .khdr .time {
+        margin: 0 auto;
+        font-variant-numeric: tabular-nums;
+        color: var(--mu);
+        font-weight: 600;
+      }
+      .worker {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        border-radius: 999px;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        overflow: hidden;
+      }
+      .worker .who {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        min-height: 44px;
+        font-weight: 600;
+      }
+      .worker .who i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--ok);
+      }
+      .clockb {
+        min-height: 44px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        border-left: 1px solid var(--bd);
+        color: var(--mu);
+      }
+      .clockb.on {
+        background: rgba(33, 192, 122, 0.16);
+        color: var(--ok);
+      }
+      .clockb .pulse {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--dim);
+      }
+      .clockb.on .pulse {
+        background: var(--ok);
+        animation: pl 1.6s infinite;
+      }
+      @keyframes pl {
+        0% {
+          box-shadow: 0 0 0 0 rgba(33, 192, 122, 0.6);
+        }
+        70% {
+          box-shadow: 0 0 0 8px rgba(33, 192, 122, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(33, 192, 122, 0);
+        }
+      }
+      .main {
+        min-width: 0;
+      }
+
+      /* page bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--bd);
+        background: var(--bg);
+        position: sticky;
+        top: 65px;
+        z-index: 6;
+      }
+      .back {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: var(--rs);
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--mu);
+      }
+      .tb-title {
+        font-size: 21px;
+        font-weight: 700;
+      }
+      .tb-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .bar {
+        width: 120px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--s3);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--ok);
+      }
+      .ds {
+        display: flex;
+        border: 1px solid var(--bd);
+        border-radius: var(--rs);
+        overflow: hidden;
+      }
+      .ds button {
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--mu);
+      }
+      .ds button.on {
+        background: var(--ac2);
+        color: #fff;
+      }
+      .dashed {
+        min-height: 38px;
+        padding: 0 12px;
+        border-radius: var(--rs);
+        border: 1px dashed var(--ac2);
+        color: var(--ac2);
+        font-size: 13px;
+      }
+
+      .wrap {
+        padding: 16px 24px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .atile {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 18px;
+      }
+      .atile h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+      .kv {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .kv .k {
+        font-size: 11px;
+        color: var(--dim);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .kv .v {
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .kvs {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+      }
+      .atile .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        flex: none;
+      }
+
+      .map {
+        padding: 12px 16px 14px;
+      }
+      .map-h {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .crumb {
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .crumb:hover {
+        background: var(--s2);
+      }
+      .crumb.cur {
+        color: var(--tx);
+        font-weight: 700;
+      }
+      .crumb-sep {
+        color: var(--dim);
+      }
+      .map-h .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .seg {
+        display: flex;
+        border: 1px solid var(--bd);
+        border-radius: var(--rs);
+        overflow: hidden;
+      }
+      .seg button {
+        padding: 8px 14px;
+        font-size: 14px;
+        color: var(--mu);
+        min-height: 40px;
+      }
+      .seg button.on {
+        background: var(--ac2);
+        color: #fff;
+        font-weight: 600;
+      }
+      .ice {
+        position: relative;
+      }
+      .ice-row-l {
+        position: absolute;
+        left: 0;
+        width: 30px;
+        font-size: 11px;
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+      }
+      .blk {
+        position: absolute;
+        border-radius: 8px;
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        text-align: left;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        font-size: 14px;
+      }
+      .blk:hover {
+        border-color: var(--mu);
+      }
+      .blk.sel {
+        border: 2px solid var(--ac);
+        background: rgba(226, 88, 34, 0.14);
+      }
+      .blk.path {
+        background: var(--s3);
+      }
+      .blk .bn {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .bc {
+        font-size: 12px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: rgba(46, 143, 230, 0.22);
+        color: var(--ac2);
+        font-weight: 700;
+      }
+      .blk.st-red {
+        box-shadow: inset 4px 0 0 var(--bad);
+      }
+      .blk.st-amber {
+        box-shadow: inset 4px 0 0 var(--warn);
+      }
+      .blk.st-green {
+        box-shadow: inset 4px 0 0 var(--ok);
+      }
+      .blk.st-grey {
+        box-shadow: inset 4px 0 0 var(--dim);
+      }
+      .blk .zoom {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .schem {
+        position: relative;
+      }
+      .schem img {
+        width: 100%;
+        display: block;
+        border-radius: 8px;
+        opacity: 0.85;
+      }
+      .schem .zone {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        display: flex;
+        justify-content: center;
+        padding-top: 6px;
+      }
+      .schem .zone.sel {
+        border-color: var(--ac);
+        background: rgba(226, 88, 34, 0.12);
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        font-size: 12px;
+        color: var(--mu);
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .body {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 16px;
+        align-items: start;
+        transition: grid-template-columns 0.25s ease;
+      }
+      .body.wc {
+        grid-template-columns: 68px 1fr;
+      }
+      .wol {
+        padding: 12px;
+        position: sticky;
+        top: 140px;
+        max-height: calc(100vh - 156px);
+        overflow: auto;
+      }
+      .wol-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 4px 10px;
+      }
+      .wol-h .t {
+        font-weight: 700;
+        font-size: 17px;
+        flex: 1;
+      }
+      .tog {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--mu);
+        padding: 0 4px 10px;
+      }
+      .sw {
+        width: 40px;
+        height: 24px;
+        border-radius: 12px;
+        background: var(--s3);
+        position: relative;
+        flex: none;
+      }
+      .sw::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--mu);
+        transition: left 0.2s;
+      }
+      .sw.on {
+        background: var(--ac2);
+      }
+      .sw.on::after {
+        left: 19px;
+        background: #fff;
+      }
+      .grp {
+        font-size: 12px;
+        color: var(--dim);
+        padding: 10px 6px 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .woc {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 10px;
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--s2);
+        border: 1px solid transparent;
+        margin-bottom: 8px;
+      }
+      .woc:hover {
+        border-color: var(--bd);
+      }
+      .woc.sel {
+        border-color: var(--ac);
+        background: rgba(226, 88, 34, 0.08);
+      }
+      .woc .n {
+        font-weight: 700;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .woc .sj {
+        grid-column: 1 / 2;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .woc .meta {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .woc .ring {
+        grid-row: 1 / 3;
+        grid-column: 2;
+      }
+      .ring {
+        width: 42px;
+        height: 42px;
+      }
+
+      .ws {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+      }
+      .ws-h {
+        padding: 14px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .ws-h .top {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .ws-h h1 {
+        margin: 0;
+        font-size: 21px;
+        flex: 1;
+      }
+      .next {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        border-left: 6px solid var(--ac);
+        background: linear-gradient(
+          90deg,
+          rgba(226, 88, 34, 0.14),
+          var(--s1) 60%
+        );
+      }
+      .next.ok {
+        border-left-color: var(--ok);
+        background: linear-gradient(
+          90deg,
+          rgba(33, 192, 122, 0.14),
+          var(--s1) 60%
+        );
+      }
+      .next.warn {
+        border-left-color: var(--warn);
+        background: linear-gradient(
+          90deg,
+          rgba(242, 180, 65, 0.14),
+          var(--s1) 60%
+        );
+      }
+      .next .txt {
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .next .btn {
+        margin-left: auto;
+      }
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        overflow: hidden;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        min-height: 66px;
+        text-align: left;
+        border-right: 1px solid var(--bd);
+      }
+      .tab:last-child {
+        border-right: none;
+      }
+      .tab.on {
+        background: var(--s2);
+        box-shadow: inset 0 -3px 0 var(--ac);
+      }
+      .tab .ic {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        background: var(--s3);
+        color: var(--mu);
+        flex: none;
+        font-size: 15px;
+      }
+      .tab.done .ic {
+        background: var(--ok);
+        color: #05210f;
+      }
+      .tab.warn .ic,
+      .tab.prog .ic {
+        background: var(--warn);
+        color: #2b1d00;
+      }
+      .tab .t {
+        font-weight: 700;
+      }
+      .tab .d {
+        font-size: 12px;
+        color: var(--mu);
+      }
+      .panel {
+        padding: 16px 18px;
+      }
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .ph h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .ph .hint {
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .ph .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      /* measures */
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 8px;
+        align-items: stretch;
+      }
+      .pair .mrow {
+        margin-bottom: 0;
+        height: 100%;
+      }
+      .mrow {
+        display: grid;
+        grid-template-columns: 1fr 96px;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--s2);
+        margin-bottom: 8px;
+        border-left: 4px solid var(--s3);
+      }
+      .mrow.o-ok {
+        border-left-color: var(--ok);
+      }
+      .mrow.o-m {
+        border-left-color: var(--ac2);
+      }
+      .mrow.o-att {
+        border-left-color: var(--warn);
+      }
+      .mrow.o-sc {
+        border-left-color: var(--bad);
+      }
+      .mrow.hl {
+        outline: 2px solid var(--ac2);
+      }
+      .mrow .c {
+        font-weight: 600;
+      }
+      .mrow .l {
+        font-size: 13px;
+        color: var(--mu);
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 4px;
+      }
+      .mrow .v {
+        font-size: 20px;
+        font-weight: 700;
+        text-align: right;
+      }
+      .mrow .v small {
+        font-size: 12px;
+        color: var(--dim);
+        font-weight: 400;
+        margin-left: 3px;
+      }
+      .vin {
+        width: 96px;
+        min-height: 42px;
+        border-radius: 8px;
+        background: var(--s3);
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        padding: 0 10px;
+        font: inherit;
+        text-align: right;
+      }
+      .outs {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .out {
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 8px;
+        background: var(--s3);
+        color: var(--mu);
+        font-size: 14px;
+        font-weight: 600;
+        border: 1px solid transparent;
+      }
+      .out.on.ok {
+        background: rgba(33, 192, 122, 0.2);
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .out.on.att {
+        background: rgba(242, 180, 65, 0.2);
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .out.on.sc {
+        background: rgba(232, 75, 75, 0.2);
+        border-color: var(--bad);
+        color: var(--bad);
+      }
+      .out.r {
+        margin-left: auto;
+      }
+      .out.sel {
+        background: var(--s1);
+        border-color: var(--ac2);
+        color: var(--ac2);
+      }
+      .mdet {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed var(--bd);
+      }
+      .mdet .full {
+        grid-column: 1 / -1;
+      }
+      .mdet .warnline {
+        grid-column: 1 / -1;
+        font-size: 13px;
+        color: var(--warn);
+      }
+      .f {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      .mdet .f {
+        margin-bottom: 0;
+      }
+      .f label {
+        font-size: 13px;
+        color: var(--mu);
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .f input,
+      .f select,
+      .f textarea {
+        min-height: 44px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--s3);
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        font: inherit;
+        color-scheme: dark;
+      }
+      .f input:disabled {
+        opacity: 0.5;
+      }
+      .fut {
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: rgba(155, 123, 234, 0.2);
+        color: var(--vio);
+      }
+      .ro {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--s2);
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        color: var(--mu);
+      }
+      .tcell {
+        background: #0e141b;
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 120px;
+      }
+      .tcell .th {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 4px;
+      }
+      .tcell .th b {
+        color: var(--mu);
+        font-weight: 600;
+      }
+      .tcell svg {
+        width: 100%;
+        display: block;
+      }
+      .otl {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .otl .o {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: var(--dim);
+      }
+      .otl .o i {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+      }
+      .otl .o.cur {
+        color: var(--tx);
+        font-weight: 700;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        align-self: start;
+        min-width: 0;
+        background: #0e141b;
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        overflow: hidden;
+        position: sticky;
+        top: 140px;
+      }
+      .side-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--bd);
+        background: var(--s2);
+      }
+      .side-h select {
+        flex: 1;
+        min-width: 0;
+        min-height: 38px;
+        background: var(--s3);
+        color: var(--tx);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 0 8px;
+        font: inherit;
+        font-size: 13px;
+        color-scheme: dark;
+      }
+      .tool {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--s3);
+        font-size: 15px;
+      }
+      .tool.on {
+        background: var(--ac2);
+      }
+      .pager {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--mu);
+      }
+      .page-wrap {
+        padding: 14px;
+        overflow: auto;
+        max-height: 600px;
+        background: #3a4450;
+      }
+      .page {
+        background: #fff;
+        color: #111;
+        border-radius: 2px;
+        padding: 26px 28px;
+        font:
+          11px/1.45 Helvetica,
+          Arial,
+          sans-serif;
+        position: relative;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+        min-height: 520px;
+      }
+      .page h5 {
+        margin: 0 0 4px;
+        font-size: 14px;
+      }
+      .page .sub {
+        color: #555;
+        margin-bottom: 12px;
+      }
+      .page table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      .page td,
+      .page th {
+        border: 1px solid #999;
+        padding: 4px 6px;
+        text-align: left;
+      }
+      .page th {
+        background: #e9edf1;
+      }
+      .page tr.hl td {
+        background: rgba(46, 143, 230, 0.25);
+        font-weight: 700;
+      }
+      .ink {
+        position: absolute;
+        pointer-events: none;
+      }
+      .side-f {
+        display: flex;
+        gap: 8px;
+        padding: 8px 10px;
+        border-top: 1px solid var(--bd);
+        font-size: 12px;
+        color: var(--dim);
+        align-items: center;
+      }
+      .side-f .btn {
+        margin-left: auto;
+      }
+
+      .plan {
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .plan-h {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: var(--s2);
+        width: 100%;
+        text-align: left;
+      }
+      .plan-h .o {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--s3);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex: none;
+      }
+      .plan-h .nm {
+        font-weight: 700;
+        flex: 1;
+      }
+      .plan-h .k {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .srow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 52px;
+        padding: 6px 14px;
+        border-top: 1px solid var(--s3);
+      }
+      .chk {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 2px solid var(--bd);
+        display: grid;
+        place-items: center;
+        flex: none;
+        font-weight: 800;
+      }
+      .chk.on {
+        background: var(--ok);
+        border-color: var(--ok);
+        color: #05210f;
+      }
+      .srow.nx {
+        background: rgba(226, 88, 34, 0.08);
+      }
+      .srow .sn {
+        flex: 1;
+      }
+      .srow .sn.sdone {
+        color: var(--dim);
+        text-decoration: line-through;
+      }
+      .act {
+        font-size: 13px;
+        color: var(--ac2);
+      }
+      .flw {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .pt,
+      .rtl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .pt th,
+      .rtl th {
+        text-align: left;
+        font-size: 12px;
+        color: var(--dim);
+        font-weight: 600;
+        padding: 8px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .pt td {
+        padding: 8px;
+        border-bottom: 1px solid var(--s3);
+        height: 56px;
+      }
+      .pt .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .pt .full {
+        color: var(--ok);
+      }
+      .rtl td {
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--s3);
+        font-size: 14px;
+      }
+      .rtl tr.click {
+        cursor: pointer;
+      }
+      .rtl tr.click:hover td {
+        background: var(--s2);
+      }
+      .addp {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .addp select,
+      .addp input {
+        min-height: 44px;
+        background: var(--s2);
+        color: var(--tx);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 0 10px;
+        font: inherit;
+        color-scheme: dark;
+      }
+      .addp select {
+        flex: 1;
+      }
+      .addp input {
+        width: 90px;
+      }
+      .nh {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .note {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--s2);
+        font-size: 14px;
+      }
+      .note .w {
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 2px;
+      }
+      .f3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .f2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      /* config page */
+      .cfg-wrap {
+        padding: 20px 24px 40px;
+        max-width: 1100px;
+      }
+      .cfg-wrap h1 {
+        margin: 0 0 4px;
+        font-size: 24px;
+      }
+      .cfg-wrap > .sub {
+        color: var(--mu);
+        margin-bottom: 18px;
+        font-size: 14px;
+      }
+      .cfg-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .cfg-sec {
+        padding: 14px 16px;
+      }
+      .cfg-sec h4 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+      .cfg-sec .sub {
+        margin-bottom: 10px;
+        font-size: 13px;
+        color: var(--mu);
+      }
+      .cfg-row {
+        display: grid;
+        grid-template-columns: 30px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 7px 0;
+        border-top: 1px solid var(--s3);
+        font-size: 14px;
+      }
+      .cfg-row code {
+        color: var(--dim);
+        font-size: 12px;
+        display: block;
+      }
+      .cb {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        border: 2px solid var(--bd);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 14px;
+      }
+      .cb.on {
+        background: var(--ac2);
+        border-color: var(--ac2);
+        color: #fff;
+      }
+      .mini {
+        display: flex;
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .mini button {
+        padding: 5px 10px;
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .mini button.on {
+        background: var(--s3);
+        color: var(--tx);
+      }
+      .mv {
+        font-size: 13px;
+        color: var(--dim);
+        padding: 4px 6px;
+      }
+      .preview {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: var(--s2);
+        margin-top: 10px;
+      }
+
+      /* shaded header bands */
+      .atile,
+      .ws-h {
+        background: linear-gradient(180deg, #1d2834, #17202a);
+        border-color: #33424f;
+      }
+      .ws-h {
+        border-left: 4px solid var(--ac2);
+      }
+      .next {
+        border: 1px solid #3a2a20;
+      }
+      .panel > .ph {
+        margin: -16px -18px 14px;
+        padding: 12px 18px;
+        background: var(--s2);
+        border-bottom: 1px solid var(--bd);
+        border-radius: var(--r) var(--r) 0 0;
+      }
+      .ph h2 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ico {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vertical-align: -3px;
+        flex: none;
+      }
+      .tab .ic .ico {
+        width: 17px;
+        height: 17px;
+      }
+      .tab.on .ic {
+        box-shadow: 0 0 0 2px var(--ac);
+      }
+      .mrow .when {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .blk.wohl {
+        border: 2px solid var(--ac2);
+        background: rgba(46, 143, 230, 0.18);
+        box-shadow: 0 0 0 3px rgba(46, 143, 230, 0.25);
+      }
+      .schem .zone.wohl {
+        border-color: var(--ac2);
+        background: rgba(46, 143, 230, 0.14);
+      }
+      .wtf {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+      }
+      .wtf .lbl {
+        font-size: 13px;
+        color: var(--mu);
+        font-weight: 700;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-right: 4px;
+      }
+      .wtc {
+        min-height: 38px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid var(--bd);
+        background: var(--s2);
+        color: var(--mu);
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .wtc.on {
+        background: rgba(46, 143, 230, 0.18);
+        border-color: var(--ac2);
+        color: var(--tx);
+      }
+      .wtc .n {
+        font-size: 11px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: var(--s3);
+        color: var(--mu);
+      }
+      .wtf .clr {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--ac2);
+      }
+      /* ── copied from workOrderDetail.css (Work plans) ── */
+      .plan-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .plan-card {
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .plan-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        background: var(--s2);
+        border: none;
+        padding: 14px 16px;
+        cursor: pointer;
+        text-align: left;
+        font-family: inherit;
+        transition: background 0.1s;
+      }
+      .plan-toggle:hover {
+        background: var(--s3);
+      }
+      .plan-toggle.expanded {
+        background: rgba(46, 143, 230, 0.08);
+      }
+      .plan-order {
+        background: var(--bd);
+        color: var(--mu);
+        border-radius: 6px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .plan-name {
+        font-size: 16px;
+        color: var(--tx);
+        font-weight: 500;
+        flex: 1;
+      }
+      .plan-chevron {
+        font-size: 18px;
+        color: var(--dim);
+      }
+      .step-list {
+        padding: 8px 12px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .step-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        background: var(--s1);
+        border-radius: 8px;
+        border: none;
+        border-left: 3px solid var(--bd);
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.12s;
+      }
+      .step-row:hover {
+        background: var(--s2);
+      }
+      .step-row.status-completed {
+        border-left-color: var(--ok);
+      }
+      .step-row.status-in-progress {
+        border-left-color: var(--warn);
+      }
+      .step-num {
+        font-size: 12px;
+        color: var(--dim);
+        min-width: 20px;
+        padding-top: 2px;
+      }
+      .step-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .step-name {
+        font-size: 15px;
+        color: var(--tx);
+      }
+      .step-status {
+        font-size: 12px;
+        color: var(--dim);
+        white-space: nowrap;
+        padding-top: 2px;
+      }
+      .step-action-icon {
+        font-size: 14px;
+        color: var(--ac2);
+        padding-top: 2px;
+      }
+      .no-steps,
+      .no-plans {
+        font-size: 15px;
+        color: var(--dim);
+        padding: 8px 0;
+        margin: 0;
+      }
+      /* ── copied from assetReview.css (Required Parts table) ── */
+      .parts-table {
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .parts-head,
+      .parts-row {
+        display: grid;
+        grid-template-columns: 1fr 84px 84px 84px 110px;
+        gap: 10px;
+        padding: 10px 14px;
+        align-items: center;
+      }
+      .parts-head {
+        background: var(--s3);
+        color: var(--mu);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .parts-row {
+        border-top: 1px solid var(--bd);
+        color: var(--tx);
+        font-size: 14px;
+      }
+      .parts-col-name {
+        font-weight: 600;
+      }
+      .parts-col-num {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+      }
+      .parts-col-act {
+        text-align: right;
+      }
+      .ar-consume-btn {
+        background: transparent;
+        border: 1px solid var(--ac2);
+        color: var(--ac2);
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .ar-consume-btn:hover:not(:disabled) {
+        background: rgba(46, 143, 230, 0.12);
+      }
+      .ar-addpart {
+        margin-top: 12px;
+      }
+      .ar-addpart-toggle {
+        background: transparent;
+        border: 1px dashed var(--bd);
+        color: var(--mu);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        width: 100%;
+      }
+      .ar-addpart-toggle:hover {
+        border-color: var(--ac2);
+        color: var(--ac2);
+      }
+      .ar-addpart-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .ar-addpart-row select {
+        flex: 1;
+        min-height: 44px;
+        background: var(--s2);
+        color: var(--tx);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 0 10px;
+        font: inherit;
+        color-scheme: dark;
+      }
+      .ar-empty {
+        padding: 24px;
+        text-align: center;
+        color: var(--dim);
+      }
+      .ar-empty-icon {
+        font-size: 26px;
+      }
+      /* collapsed WO rail */
+      .wol.rail {
+        padding: 8px 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .rail-btn {
+        width: 52px;
+        min-height: 48px;
+        border-radius: 10px;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        font-size: 20px;
+        font-weight: 800;
+      }
+      .rail-btn:hover {
+        border-color: var(--ac2);
+        color: var(--ac2);
+      }
+      .rail-lbl {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 12px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--dim);
+        padding: 6px 0;
+      }
+      .rail-wo {
+        width: 52px;
+        min-height: 44px;
+        border-radius: 10px;
+        background: var(--s2);
+        border: 1px solid transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 10px;
+        color: var(--mu);
+        position: relative;
+      }
+      .rail-wo.sel {
+        border-color: var(--ac);
+        background: rgba(226, 88, 34, 0.12);
+        color: var(--tx);
+      }
+      .rail-wo .dot {
+        width: 11px;
+        height: 11px;
+      }
+      .rail-wo .rt {
+        position: absolute;
+        top: 3px;
+        right: 4px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--vio);
+      }
+      .rail-sep {
+        width: 32px;
+        border-top: 1px solid var(--bd);
+        margin: 2px 0;
+      }
+      .rail-hint {
+        font-size: 10px;
+        color: var(--ac2);
+        text-align: center;
+        line-height: 1.2;
+      }
+      .wol-h .t {
+        white-space: nowrap;
+      }
+      .wol-h .ctl {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--mu);
+        font-size: 16px;
+        font-weight: 800;
+        flex: none;
+      }
+      .wol-h .ctl:hover {
+        color: var(--tx);
+      }
+      .wol-h .ctl.on {
+        background: rgba(46, 143, 230, 0.18);
+        border-color: var(--ac2);
+        color: var(--ac2);
+      }
+      .scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 20;
+        display: none;
+      }
+      .scrim.open {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 500px;
+        background: var(--s1);
+        border-left: 1px solid var(--bd);
+        z-index: 21;
+        transform: translateX(100%);
+        transition: transform 0.25s;
+        padding: 22px;
+        overflow: auto;
+      }
+      .drawer.open {
+        transform: none;
+      }
+      .drawer h3 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .drawer h3 .x {
+        margin-left: auto;
+        font-size: 22px;
+        color: var(--mu);
+      }
+      .drawer .sub {
+        color: var(--mu);
+        font-size: 14px;
+        margin-bottom: 16px;
+      }
+      .info {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(155, 123, 234, 0.12);
+        color: var(--vio);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .clk-big {
+        font-size: 40px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      .wpl {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--s2);
+        margin-bottom: 8px;
+        border: 1px solid transparent;
+      }
+      .wpl:hover {
+        border-color: var(--bd);
+      }
+      .wpl.ctx {
+        border-color: var(--ac);
+      }
+      .dn {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 600px;
+        background: #0e141b;
+        border-right: 1px solid var(--ac2);
+        z-index: 21;
+        transform: translateX(-100%);
+        transition: transform 0.25s;
+        padding: 24px;
+        overflow: auto;
+        font-size: 15px;
+      }
+      .dn.open {
+        transform: none;
+      }
+      .dn h3 {
+        margin-top: 0;
+        color: var(--ac2);
+        display: flex;
+      }
+      .dn h3 button {
+        margin-left: auto;
+        color: var(--mu);
+        font-size: 20px;
+      }
+      .dn h4 {
+        margin: 18px 0 6px;
+      }
+      .dn li {
+        margin-bottom: 6px;
+        color: var(--mu);
+      }
+      .dn b {
+        color: var(--tx);
+      }
+      .dn code {
+        color: var(--warn);
+      }
+      .empty {
+        padding: 28px;
+        text-align: center;
+        color: var(--dim);
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--s3);
+        border: 1px solid var(--bd);
+        padding: 12px 20px;
+        border-radius: 10px;
+        z-index: 30;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <nav class="sidebar" id="sidebar"></nav>
+      <div class="main">
+        <header class="khdr">
+          <span class="terr">⚙ MEL Workshop</span
+          ><span class="crew">👥 Bay 3 Crew</span>
+          <span class="time" id="hdrTime"></span>
+          <div class="worker">
+            <span class="who"><i></i>J. Smith</span
+            ><button class="clockb" id="clock" onclick="openClock()"></button>
+          </div>
+        </header>
+        <div id="page"></div>
+      </div>
+    </div>
+
+    <div class="scrim" id="scrim" onclick="closeAll()"></div>
+    <div class="drawer" id="drawer"></div>
+    <div class="dn" id="dn"></div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const ICP = {
+        measure:
+          '<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>',
+        execute:
+          '<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+        parts:
+          '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+        notes:
+          '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+        raised: '<path d="M5 21V4h12l-2.5 4L17 12H5"/>',
+        doc: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/>',
+        trend: '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+        edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/>',
+        filter: '<path d="M3 5h18l-7 8v6l-4 2v-8z"/>'
+      };
+      const ic = (k) => `<svg class="ico" viewBox="0 0 24 24">${ICP[k]}</svg>`;
+      const put = (el, s) =>
+        el.replaceChildren(document.createRange().createContextualFragment(s));
+
+      /* ───────────── field catalogue (verified field names) ───────────── */
+      const ASSET_FIELDS = [
+        ["Name", "Asset Name"],
+        ["SerialNumber", "Serial Number"],
+        ["Status", "Status"],
+        ["Asset_Type__c", "Asset Type"],
+        ["FLOC__c", "FLOC"],
+        ["Entitlement_Status__c", "Warranty Status"],
+        ["InstallDate", "Install Date"],
+        ["PurchaseDate", "Purchase Date"]
+      ];
+      const WO_FIELDS = [
+        ["WorkOrderNumber", "WO Number"],
+        ["WorkType", "Work Type"],
+        ["Status", "Status"],
+        ["Priority", "Priority"],
+        ["StartDate", "Start"],
+        ["SAP_FLOC_Desc__c", "Component (FLOC)"],
+        ["SAP_Work_Center__c", "Work Center"],
+        ["Est_Labour_Hours__c", "Est. Labour Hrs"],
+        ["Est_Parts_Cost__c", "Est. Parts Cost"],
+        ["Critical_Path__c", "Critical Path"],
+        ["Shut_Scope__c", "Shut Scope"],
+        ["Basic_Finish_Date__c", "Basic Finish"]
+      ];
+      let CFG = {
+        assetTile: ["SerialNumber", "Status", "Asset_Type__c", "FLOC__c"],
+        assetDrawer: {
+          Name: "R",
+          SerialNumber: "E",
+          Status: "E",
+          Asset_Type__c: "R",
+          FLOC__c: "R",
+          Entitlement_Status__c: "R",
+          InstallDate: "R",
+          PurchaseDate: "R"
+        },
+        woTile: [
+          "WorkType",
+          "Status",
+          "Priority",
+          "SAP_FLOC_Desc__c",
+          "Est_Labour_Hours__c"
+        ],
+        wtFilter: true
+      };
+      const WORK_TYPES = [
+        "Adjacent",
+        "Battery Replacement",
+        "Battery Replacement (no added Products)",
+        "Battery Replacement (Self-Service)",
+        "Break-Fix",
+        "Cirrus Battery Replacement",
+        "Corrective Maintenance",
+        "Crew Installation",
+        "Deinstallation",
+        "Depot Repair",
+        "Design",
+        "Field Connect",
+        "Field Inspection",
+        "Field Measurements",
+        "Field Quality",
+        "General Construction",
+        "Grinding",
+        "Inspection – Hydraulic",
+        "Installation",
+        "Maintenance",
+        "Maintenance Training (In a Center)",
+        "Maintenance Training (Virtual)",
+        "MEL-SEED Inspection – Electrical",
+        "MEL-SEED Inspection – Hydraulic",
+        "MEL-SEED Inspection – Mechanical",
+        "MEL-SEED Repair – Electrical",
+        "MEL-SEED Repair – Hydraulic",
+        "MEL-SEED Repair – Mechanical",
+        "MEL-SEED Telemetry Review",
+        "Multi-Day Installation",
+        "New Product Training (In a Center)",
+        "New Product Training (Virtual)",
+        "Part Swap",
+        "PM02",
+        "Pole Installation (Crew)",
+        "QA Testing",
+        "Rebuild",
+        "Reclamation",
+        "Renewal",
+        "Repair Estimate",
+        "Repair – Electrical",
+        "RP-WT",
+        "Safety Training (In a Center)",
+        "Safety Training (Virtual)",
+        "SAP Reel Replacement",
+        "SAP Standard Maintenance",
+        "SAP Watchlist",
+        "Signals",
+        "Site Inspection",
+        "Site Survey",
+        "Solar Panel Advanced Repair / Replacement",
+        "Solar Panel De-Installation",
+        "Solar Panel Installation",
+        "Solar Panel Regular Maintenance",
+        "Solar Panel Repair",
+        "Solar Panel Replacement",
+        "Troubleshooting Turbines (In a Center)",
+        "Troubleshooting Turbines (Virtual)",
+        "Turbine and Wind Energy Basics (In a Center)",
+        "Turbine and Wind Energy Basics (Virtual)",
+        "Turbine Performance (In a Center)",
+        "Turbine Performance (Virtual)",
+        "TV Install",
+        "Upgrade",
+        "Wagon PM01",
+        "Workpack",
+        "WPC-HEAT Condition Investigation",
+        "WPC-HEAT Scheduled PM Service",
+        "WPC-HEAT2 Scheduled PM Service",
+        "WPC-SEED HT Condition Investigation",
+        "WPC-SEED HT Engine PM Service",
+        "WPC-SEED HT Final Drive Repair",
+        "⚙️🛠️ Fitter Service or Maintenance",
+        "⚡ Cross Arm Repairs",
+        "⚡︎Electrical Maintenance",
+        "❗Emergency Repairs",
+        "𓍙 Pole Inspection",
+        "🏠 PRV",
+        "🔵 🔧 Komatsu Maintenance",
+        "🚧 Intensive LV415 maintenance",
+        "🟠 Asset Inspection"
+      ];
+      const DEFECT_LOC = [
+        "Lower Lug",
+        "Ribs",
+        "Palm",
+        "Upper Pulling Lug",
+        "Lower Pulling Lug",
+        "Uper Knuckle Pin Hole",
+        "Lower Knuckle Pin Hole",
+        "Back Radius"
+      ];
+      const NUMERIC = ["Temperature", "Pressure", "Depth", "Width", "Length"];
+
+      /* ───────────── datasets ───────────── */
+      const A = (id, name, type, parent, extra = {}) => ({
+        id,
+        name,
+        type,
+        parent,
+        ...extra
+      });
+      const M = (id, comp, vt, val, out, extra = {}) => ({
+        id,
+        comp,
+        vt,
+        val,
+        out,
+        comments: "",
+        review: "",
+        loc: "",
+        at: out
+          ? "18 Aug 2026, 08:" +
+            String(10 + ((id.charCodeAt(1) * 7) % 49)).padStart(2, "0")
+          : null,
+        ...extra
+      });
+      const steps = (arr, doneIdx = [], flows = {}) =>
+        arr.map((n, i) => ({
+          n,
+          d: doneIdx.includes(i),
+          flow: flows[i] || null
+        }));
+      const upto = (n) => Array.from({ length: n }, (_, i) => i);
+      const P = (n, req, used, cost) => ({ n, req, used, cost });
+      const EXC = () => ({
+        n: "🚩 Raise Exception",
+        exception: true,
+        steps: steps(
+          [
+            "Create Notification",
+            "Work Delay",
+            "⚠️ Incident Form",
+            "🛟 Request Assistance"
+          ],
+          [],
+          {
+            0: "RS_SFS_Create_Notification_DC_WS",
+            1: "RS_SFS_Work_Delay_DC_WS",
+            2: "RS_Hazard_Data_Capture_Form_SFS_Mobile"
+          }
+        )
+      });
+
+      const DS = {
+        HT: {
+          title: "MEL-SEED Haul Truck HT-02",
+          wp: "00012423",
+          schematic: null,
+          assets: [
+            A("ht", "MEL-SEED Haul Truck HT-02", "SYST", null, {
+              SerialNumber: "HT02-SN10001",
+              Status: "Installed",
+              FLOC__c: "MEL-SEED-HT02",
+              Entitlement_Status__c: "Active",
+              InstallDate: "2022-03-14",
+              PurchaseDate: "2022-01-20"
+            }),
+            A("hyd", "HT-02 — Hydraulic System", "SYST", "ht"),
+            A("mec", "HT-02 — Mechanical System", "SYST", "ht"),
+            A("ele", "HT-02 — Electrical System", "SYST", "ht"),
+            A("pump", "Main Hydraulic Pump", "PUMP", "hyd"),
+            A("boom", "Boom Lift Cylinder", "VALV", "hyd"),
+            A("brk", "Brake Hydraulic Assembly", "BRAK", "hyd"),
+            A("eng", "Diesel Engine", "MOTR", "mec"),
+            A("fda", "Final Drive Axle", "DRIV", "mec"),
+            A("gbx", "Transmission Gearbox", "GBOX", "mec"),
+            A("bat", "Battery Pack", "POWR", "ele"),
+            A("alt", "Alternator", "ELEC", "ele"),
+            A("sen", "Sensor Array", "ELEC", "ele"),
+            A("fuel", "Fuel System", "SYST", "eng"),
+            A("cool", "Cooling System", "SYST", "eng"),
+            A("inj", "Injector Bank A", "ASSY", "fuel"),
+            A("fpump", "HP Fuel Pump", "PUMP", "fuel"),
+            A("inj1", "Injector A1", "COMP", "inj"),
+            A("inj2", "Injector A2", "COMP", "inj"),
+            A("inj3", "Injector A3", "COMP", "inj"),
+            A("rad", "Radiator", "COMP", "cool")
+          ],
+          docs: [
+            {
+              wo: "00012423",
+              title: "PRT Workpack 18/8/2026 — MEL-SEED Haul Truck HT-02.pdf",
+              pages: 4
+            }
+          ],
+          raisedHistory: [
+            {
+              num: "00011902",
+              subject: "Hydraulic hose chafing at boom pivot",
+              wt: "MEL-SEED Repair – Hydraulic",
+              assetId: "boom",
+              status: "Completed",
+              date: "2026-07-22",
+              wp: "00011880"
+            },
+            {
+              num: "00011140",
+              subject: "Coolant weep at radiator lower tank",
+              wt: "Corrective Maintenance",
+              assetId: "rad",
+              status: "Completed",
+              date: "2026-05-30",
+              wp: "00011120"
+            },
+            {
+              num: "00011733",
+              subject: "Pump mounting bolt loose",
+              wt: "MEL-SEED Repair – Hydraulic",
+              assetId: "pump",
+              status: "Completed",
+              date: "2026-07-02",
+              wp: "00011700"
+            }
+          ],
+          wos: [
+            {
+              num: "00012423",
+              subject: "Workpack 18/8/2026 — MEL-SEED Haul Truck HT-02",
+              wt: "Workpack",
+              assetId: "ht",
+              status: "New",
+              isWp: true,
+              Priority: "Medium",
+              SAP_FLOC_Desc__c: "MEL-SEED-HT02",
+              Est_Labour_Hours__c: 42,
+              measures: [
+                M(
+                  "a1",
+                  "Post-Repair Oil Temperature",
+                  "Temperature",
+                  55,
+                  "Measure"
+                ),
+                M("a2", "Post-Repair Fluid Level", "Level", null, "OK"),
+                M("a3", "Hydraulic Oil Temperature", "Temperature", null, "OK"),
+                M(
+                  "a4",
+                  "Reservoir Fluid Level",
+                  "Level",
+                  null,
+                  "Attention Required",
+                  { comments: "Level below min mark after top-up" }
+                ),
+                M("a5", "Alternator Vibration", "Level", null, "Measure"),
+                M("a6", "paint", "Level", null, "Attention Required")
+              ],
+              plans: [
+                {
+                  n: "🦺 Release to Traffic — Maintainer Checks",
+                  steps: steps(
+                    [
+                      "Bearing Keepers & Locking Tabs",
+                      "Retainer Plates",
+                      "Hand Brake",
+                      "Yellow Cable Tie",
+                      "RED TAG Removed (Rat Trap)",
+                      "TSPB Valve Open",
+                      "Walk-Around Inspection"
+                    ],
+                    [3, 4]
+                  )
+                },
+                EXC()
+              ],
+              parts: [],
+              notes: [
+                {
+                  w: "J. Smith · 18 Aug 07:10",
+                  t: "Truck parked in Bay 3, isolated."
+                }
+              ]
+            },
+            {
+              num: "00012415",
+              subject: "DDB Work Order 1",
+              wt: "MEL-SEED Inspection – Hydraulic",
+              assetId: "eng",
+              status: "New",
+              Priority: "Medium",
+              Est_Labour_Hours__c: 3,
+              measures: [
+                M("c1", "Pump Case Temperature", "Temperature", null, null),
+                M("c2", "Filter Differential Level", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Inspection Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Visual",
+                    "Leak check",
+                    "Hose condition",
+                    "Fittings",
+                    "Oil sample",
+                    "Record",
+                    "Close-out"
+                  ])
+                },
+                EXC()
+              ],
+              parts: [
+                P("Sample bottle", 1, 0, 4),
+                P("Filter", 1, 0, 42),
+                P("Rag pack", 1, 0, 6)
+              ],
+              notes: []
+            },
+            {
+              num: "00012416",
+              subject: "HT02-SEED WO — Hydraulic System Inspection",
+              wt: "MEL-SEED Inspection – Hydraulic",
+              assetId: "pump",
+              status: "In Progress",
+              Priority: "High",
+              SAP_FLOC_Desc__c: "MEL-SEED-HT02-HYD-PMP",
+              Est_Labour_Hours__c: 4,
+              measures: [
+                M(
+                  "d1",
+                  "Hydraulic Oil Temperature",
+                  "Temperature",
+                  74,
+                  "Attention Required",
+                  {
+                    comments: "Running hot vs. last 4 services",
+                    review: "Check cooler fan"
+                  }
+                ),
+                M("d2", "Reservoir Fluid Level", "Level", null, null),
+                M("d3", "Pump Case Temperature", "Temperature", null, null),
+                M("d4", "Filter Differential Level", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Inspection Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Visual",
+                      "Leak check",
+                      "Hose condition",
+                      "Fittings",
+                      "Oil sample",
+                      "Record",
+                      "Close-out"
+                    ],
+                    upto(3)
+                  )
+                },
+                EXC()
+              ],
+              parts: [P("Filter", 1, 1, 42)],
+              notes: []
+            },
+            {
+              num: "00012417",
+              subject: "HT02-SEED WO — Hydraulic Pump Reseal",
+              wt: "MEL-SEED Repair – Hydraulic",
+              assetId: "pump",
+              status: "New",
+              Priority: "High",
+              Est_Labour_Hours__c: 6,
+              measures: [
+                M(
+                  "e1",
+                  "Post-Repair Oil Temperature",
+                  "Temperature",
+                  null,
+                  null
+                ),
+                M("e2", "Post-Repair Fluid Level", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Depressurise",
+                    "Drain",
+                    "Remove component",
+                    "Inspect seals",
+                    "Replace seals",
+                    "Refit",
+                    "Pressure test"
+                  ])
+                },
+                EXC()
+              ],
+              parts: [
+                P("Pump seal kit", 1, 0, 180),
+                P("Gasket", 2, 0, 12),
+                P("Hydraulic oil 20L", 2, 0, 96)
+              ],
+              notes: []
+            },
+            {
+              num: "00012418",
+              subject: "HT02-SEED WO — Electrical System Inspection",
+              wt: "MEL-SEED Inspection – Electrical",
+              assetId: "alt",
+              status: "In Progress",
+              Priority: "Medium",
+              Est_Labour_Hours__c: 3,
+              measures: [
+                M(
+                  "f1",
+                  "Battery Terminal Temperature",
+                  "Temperature",
+                  31,
+                  "OK"
+                ),
+                M("f2", "Alternator Vibration", "Level", null, null),
+                M("f3", "Harness Condition", "Level", null, "OK"),
+                M("f4", "Sensor Fault Count", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Electrical Inspection Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Battery check",
+                      "Harness visual",
+                      "Connectors",
+                      "Earth points",
+                      "Fault codes",
+                      "Close-out"
+                    ],
+                    upto(4)
+                  )
+                },
+                EXC()
+              ],
+              parts: [
+                P("Cable ties", 10, 10, 0.5),
+                P("Terminal lug", 4, 4, 2),
+                P("Fuse 30A", 2, 1, 3)
+              ],
+              notes: []
+            },
+            {
+              num: "00012419",
+              subject: "HT02-SEED WO — Alternator Replacement",
+              wt: "MEL-SEED Repair – Electrical",
+              assetId: "alt",
+              status: "New",
+              Priority: "Medium",
+              Est_Labour_Hours__c: 5,
+              measures: [
+                M("g1", "Alternator Vibration", "Level", null, null),
+                M("g2", "Belt Tension", "Length", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Electrical Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Remove belt",
+                    "Remove alternator",
+                    "Fit new",
+                    "Belt & tension",
+                    "Test output",
+                    "Close-out"
+                  ])
+                },
+                EXC()
+              ],
+              parts: [
+                P("Alternator 28V", 1, 0, 1450),
+                P("Drive belt", 1, 0, 65),
+                P("Mounting bolts", 4, 0, 3)
+              ],
+              notes: []
+            },
+            {
+              num: "00012421",
+              subject: "HT02-SEED WO — Final Drive Repair",
+              wt: "MEL-SEED Repair – Mechanical",
+              assetId: "fda",
+              status: "New",
+              Priority: "Medium",
+              Est_Labour_Hours__c: 8,
+              measures: [
+                M("i1", "Gear Backlash", "Width", null, null),
+                M("i2", "Bearing Temperature", "Temperature", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Mechanical Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Drain oil",
+                    "Remove hub",
+                    "Inspect gears",
+                    "Replace bearings",
+                    "Reassemble",
+                    "Refill",
+                    "Test run"
+                  ])
+                },
+                EXC()
+              ],
+              parts: [
+                P("Bearing set", 1, 0, 640),
+                P("Final drive oil 20L", 1, 0, 150),
+                P("Hub seal", 2, 0, 38)
+              ],
+              notes: []
+            },
+            {
+              num: "00012435",
+              subject: "Cracked step bracket — LH access ladder",
+              wt: "Corrective Maintenance",
+              assetId: "mec",
+              status: "New",
+              raised: true,
+              Priority: "Medium",
+              Est_Labour_Hours__c: 1.5,
+              measures: [],
+              plans: [],
+              parts: [],
+              notes: [
+                {
+                  w: "K. Lee · 18 Aug 10:42",
+                  t: "Found during walk-around. Bracket cracked at weld, ladder still usable with care."
+                }
+              ]
+            }
+          ]
+        },
+        WG: {
+          title: "WG 20213",
+          wp: "00010070",
+          schematic:
+            "../../force-app/main/default/staticresources/WagonDiagramTop.png",
+          assets: [
+            A("wg", "WG 20213", "STRU", null, {
+              SerialNumber: "WG-20213",
+              Status: "Installed",
+              FLOC__c: "WG-20213",
+              Entitlement_Status__c: "Expired"
+            }),
+            A("l1", "20213 Wheelset L1", "WINC", "wg"),
+            A("l2", "20213 Wheelset L2", "WINC", "wg"),
+            A("l3", "20213 Wheelset L3", "WINC", "wg"),
+            A("l4", "20213 Wheelset L4", "WINC", "wg")
+          ],
+          zones: {
+            l1: { l: 6, w: 18 },
+            l2: { l: 30, w: 18 },
+            l3: { l: 55, w: 18 },
+            l4: { l: 76, w: 18 }
+          },
+          docs: [
+            {
+              wo: "00010070",
+              title: "Wagon PM01 inspection sheet.pdf",
+              pages: 2
+            }
+          ],
+          raisedHistory: [],
+          wos: [
+            {
+              num: "00010070",
+              subject: "Rail Workpack — WG 20213",
+              wt: "Rail Workpack",
+              assetId: "wg",
+              status: "In Progress",
+              isWp: true,
+              Priority: "Medium",
+              measures: [],
+              plans: [
+                {
+                  n: "Wagon PM01 Work Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Visual",
+                      "Couplers",
+                      "Brakes",
+                      "Wheelsets",
+                      "Body",
+                      "Close-out"
+                    ],
+                    upto(3)
+                  )
+                },
+                EXC()
+              ],
+              parts: [],
+              notes: []
+            },
+            {
+              num: "00010071",
+              subject: "Wheelset L2 inspection",
+              wt: "Wagon PM01",
+              assetId: "l2",
+              status: "In Progress",
+              Priority: "Medium",
+              measures: [
+                M("w2", "Flange depth", "Depth", 21.3, "Attention Required", {
+                  comments: "Flange wear near limit",
+                  loc: "Back Radius"
+                }),
+                M("w2b", "Bearing condition", "Pressure", 23, "Measure")
+              ],
+              plans: [
+                {
+                  n: "Wheelset inspection",
+                  steps: steps(["Clean", "Measure", "Record"], upto(2))
+                }
+              ],
+              parts: [],
+              notes: []
+            },
+            {
+              num: "00010072",
+              subject: "Wheelset L3 inspection",
+              wt: "Wagon PM01",
+              assetId: "l3",
+              status: "In Progress",
+              Priority: "High",
+              measures: [
+                M("w3", "Flange depth", "Depth", 12.6, "Scrap", {
+                  comments: "Below scrap limit",
+                  loc: "Back Radius"
+                }),
+                M("w3b", "Wheel profile inspection", "Level", null, "OK")
+              ],
+              plans: [
+                {
+                  n: "Wheelset inspection",
+                  steps: steps(["Clean", "Measure", "Record"], upto(3))
+                }
+              ],
+              parts: [],
+              notes: []
+            },
+            {
+              num: "00010695",
+              subject: "Re-profile L2 wheel flange",
+              wt: "PM02",
+              assetId: "l2",
+              status: "In Progress",
+              raised: true,
+              Priority: "High",
+              measures: [M("w5", "Flange depth", "Depth", null, null)],
+              plans: [
+                {
+                  n: "Wheelset re-profile",
+                  steps: steps(
+                    ["Remove wheelset", "Re-profile", "Re-measure", "Refit"],
+                    [0]
+                  )
+                }
+              ],
+              parts: [
+                P("Bearing seal kit", 2, 2, 84),
+                P("Axle nut M48", 2, 0, 19)
+              ],
+              notes: []
+            }
+          ]
+        }
+      };
+
+      /* ───────────── state ───────────── */
+      let D,
+        S,
+        seq = 900,
+        NAV = "workorders";
+      function loadDs(k) {
+        D = JSON.parse(JSON.stringify(DS[k]));
+        D.key = k;
+        D.wos.forEach((w) =>
+          w.measures.forEach((m, i) => {
+            m.src = D.docs[0].title;
+            m.pg = 2 + (i % 2);
+          })
+        ); /* future fields */
+        S = {
+          wolC: false,
+          pin: false,
+          autoC: false,
+          wtf: [],
+          hl: D.wos[0].assetId,
+          exp: {},
+          addPart: false,
+          sel: D.assets[0].id,
+          focus: D.assets[0].id,
+          wo: D.wos[0].num,
+          tab: "measure",
+          inclSub: true,
+          view: "map",
+          side: "doc",
+          docRow: null,
+          open: null,
+          tool: "pen",
+          pg: 2
+        };
+        render();
+      }
+
+      /* ───────────── helpers ───────────── */
+      const asset = (id) => D.assets.find((a) => a.id === id);
+      const kids = (id) => D.assets.filter((a) => a.parent === id);
+      const depthOf = (id) => {
+        let d = 0,
+          a = asset(id);
+        while (a.parent) {
+          d++;
+          a = asset(a.parent);
+        }
+        return d;
+      };
+      const pathTo = (id) => {
+        const p = [];
+        let a = asset(id);
+        while (a) {
+          p.unshift(a);
+          a = a.parent && asset(a.parent);
+        }
+        return p;
+      };
+      const desc = (id) => {
+        const out = [id];
+        kids(id).forEach((k) => out.push(...desc(k.id)));
+        return out;
+      };
+      const leaves = (id) => {
+        const k = kids(id);
+        return k.length ? k.reduce((s, c) => s + leaves(c.id), 0) : 1;
+      };
+      const wo = (num) => D.wos.find((w) => w.num === num);
+      const short = (n) =>
+        n
+          .replace(/^MEL-SEED (HT02 )?/, "")
+          .replace(/^HT-02 — /, "")
+          .replace(/^20213 /, "");
+      const unit = (vt) =>
+        ({
+          Temperature: "°C",
+          Pressure: "bar",
+          Depth: "mm",
+          Width: "mm",
+          Length: "mm"
+        })[vt] || "";
+      const isF = (m) => m.out === "Attention Required" || m.out === "Scrap";
+      const esc = (s) =>
+        String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      const raisedOn = (id) => {
+        const ids = desc(id);
+        return [
+          ...D.raisedHistory,
+          ...D.wos
+            .filter((w) => w.raised)
+            .map((w) => ({ ...w, date: "2026-08-18", wp: D.wp }))
+        ].filter((r) => ids.includes(r.assetId));
+      };
+
+      /* sample history: same Component_Name__c on the same asset in earlier WOs (deterministic) */
+      function hash(s) {
+        let h = 7;
+        for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 100000;
+        return h;
+      }
+      const PAST = [
+        ["2026-02-11", "00009812"],
+        ["2026-04-09", "00010440"],
+        ["2026-06-02", "00011207"],
+        ["2026-07-21", "00011893"]
+      ];
+      const BASE = {
+        Temperature: 60,
+        Pressure: 22,
+        Depth: 26,
+        Width: 0.4,
+        Length: 12
+      };
+      function hist(w, m) {
+        const h = hash(w.assetId + m.comp);
+        if (NUMERIC.includes(m.vt)) {
+          const b = m.val != null ? m.val * (isF(m) ? 0.85 : 1) : BASE[m.vt];
+          return PAST.map(([dt, n], i) => ({
+            dt,
+            n,
+            v: +(b * (0.9 + ((h >> i) % 13) / 100)).toFixed(
+              m.vt === "Width" ? 2 : 1
+            )
+          }));
+        }
+        const outs = ["OK", "OK", "OK", "Attention Required"];
+        return PAST.slice(1).map(([dt, n], i) => ({
+          dt,
+          n,
+          out: outs[(h + i) % 4]
+        }));
+      }
+
+      /* work-type focus: distinct WorkType.Name of WOs under the workpack (RootWorkOrderId = workpack) */
+      const wpTypes = () => {
+        const c = {};
+        D.wos
+          .filter((w) => !w.isWp)
+          .forEach((w) => (c[w.wt] = (c[w.wt] || 0) + 1));
+        return Object.entries(c).sort((a, b) => a[0].localeCompare(b[0]));
+      };
+      const fOn = () => CFG.wtFilter && S.wtf.length;
+      const inF = (w) => w.isWp || !fOn() || S.wtf.includes(w.wt);
+      const vis = () => D.wos.filter(inF);
+      function wtfHtml() {
+        if (!CFG.wtFilter) return "";
+        const t = wpTypes();
+        return `<div class="card wtf"><span class="lbl">${ic("filter")} Focus on work types</span>
+    ${t.map(([n, c], i) => `<button class="wtc ${S.wtf.includes(n) ? "on" : ""}" onclick="togWt(${i})">${S.wtf.includes(n) ? "✓ " : ""}${esc(n)}<span class="n">${c}</span></button>`).join("")}
+    ${S.wtf.length ? `<button class="clr" onclick="S.wtf=[];expandWol();render()">Show all · ${S.wtf.length} selected ✕</button>` : '<span class="clr" style="color:var(--dim)">None selected = all</span>'}</div>`;
+      }
+      function togWt(idx) {
+        expandWol();
+        const n = wpTypes()[idx][0],
+          i = S.wtf.indexOf(n);
+        i >= 0 ? S.wtf.splice(i, 1) : S.wtf.push(n);
+        if (!inF(wo(S.wo))) {
+          const f = vis().find((w) => !w.isWp);
+          if (f) return selWo(f.num);
+          S.wo = D.wos[0].num;
+        }
+        render();
+      }
+      function woD(w) {
+        const pend = w.measures.filter((m) => !m.out),
+          finds = w.measures.filter(isF),
+          bare = finds.filter((m) => !m.comments.trim());
+        const work = w.plans.filter((p) => !p.exception);
+        const st = work.flatMap((p) => p.steps),
+          sd = st.filter((s) => s.d).length;
+        const shortP = w.parts.filter((p) => p.used < p.req);
+        let status = "grey";
+        const done =
+          (st.length ? sd === st.length : true) &&
+          !pend.length &&
+          !shortP.length &&
+          (st.length || w.measures.length || w.parts.length);
+        if (w.status === "Completed" || done) status = "green";
+        else if (finds.length) status = "red";
+        else if (
+          w.status === "In Progress" ||
+          sd ||
+          w.measures.some((m) => m.out)
+        )
+          status = "amber";
+        return { pend, finds, bare, st, sd, short: shortP, status };
+      }
+      function assetStatus(id) {
+        const ids = desc(id),
+          ws = vis().filter((w) => ids.includes(w.assetId));
+        if (!ws.length) return "grey";
+        const st = ws.map((w) => woD(w).status);
+        if (st.includes("red")) return "red";
+        if (st.every((s) => s === "green")) return "green";
+        if (st.some((s) => s !== "grey")) return "amber";
+        return "grey";
+      }
+      const openWoCount = (id) =>
+        vis().filter(
+          (w) =>
+            desc(id).includes(w.assetId) && !w.isWp && woD(w).status !== "green"
+        ).length;
+      function fv(rec, f, isWo) {
+        if (isWo) {
+          if (f === "WorkType") return rec.wt;
+          if (f === "Status") return rec.status;
+          if (f === "WorkOrderNumber") return rec.num;
+          if (f === "Critical_Path__c") return rec[f] ? "Yes" : "No";
+          if (f === "Est_Parts_Cost__c")
+            return (
+              "$" + rec.parts.reduce((a, p) => a + p.req * p.cost, 0).toFixed(0)
+            );
+        }
+        if (!isWo && f === "Asset_Type__c") return rec.type;
+        if (!isWo && f === "Name") return rec.name;
+        return rec[f] ?? "—";
+      }
+
+      /* ───────────── shell ───────────── */
+      function renderSidebar() {
+        const item = (k, ic, l, extra = "") =>
+          `<button class="nav ${NAV === k ? "on" : ""}" onclick="go('${k}')"><span>${ic}</span>${l}${extra}</button>`;
+        put(
+          document.getElementById("sidebar"),
+          `
+    <div class="logo"><span class="i">⚙</span><div><div class="t">Workshop</div><div class="s">MEL Workshop</div></div></div>
+    <div class="sup"><span>👷</span><div><div class="l">Supervisor</div>R. Shpilman</div></div>
+    ${item("dashboard", "📊", "Dashboard")}${item("workorders", "🔧", "Work Orders")}${item("timetracking", "⏱", "Time Tracking")}${item("config", "🛠", "Kiosk Config", '<span class="new">NEW</span>')}
+    <div class="sb-foot"><div class="ver">v1.x</div><button class="nav">🌙 Dark</button><button class="nav">🔄 Switch Worker</button><button class="nav danger">⏻ End Shift</button></div>`
+        );
+      }
+      function go(k) {
+        NAV = k;
+        render();
+        window.scrollTo(0, 0);
+      }
+      setInterval(() => {
+        const t = document.getElementById("hdrTime");
+        if (t)
+          t.textContent = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+      }, 1000);
+
+      /* clock (in the worker chip of kioskHeader → every page) */
+      let CLOCK = { on: false, wp: null, title: "", start: 0 };
+      const WORKPACKS = [
+        ["00012423", "MEL-SEED Haul Truck HT-02"],
+        ["00010070", "WG 20213"],
+        ["00012300", "MEL-SEED Haul Truck HT-01"]
+      ];
+      const fmtT = (ms) => {
+        const s = Math.floor(ms / 1000);
+        return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60]
+          .map((n) => String(n).padStart(2, "0"))
+          .join(":");
+      };
+      function renderClock() {
+        const el = document.getElementById("clock");
+        el.className = "clockb" + (CLOCK.on ? " on" : "");
+        put(
+          el,
+          CLOCK.on
+            ? `<span class="pulse"></span>⏱ ${fmtT(Date.now() - CLOCK.start)} · ${CLOCK.wp} ▾`
+            : `<span class="pulse"></span>Clock in ▾`
+        );
+      }
+      setInterval(() => CLOCK.on && renderClock(), 1000);
+      const ctxWp = () => (NAV === "workorders" ? D.wp : null);
+      function clockIn(wp) {
+        CLOCK = {
+          on: true,
+          wp,
+          title: (WORKPACKS.find((x) => x[0] === wp) || ["", ""])[1],
+          start: Date.now()
+        };
+        renderClock();
+      }
+      function autoClock() {
+        if (!CLOCK.on) {
+          clockIn(D.wp);
+          toast(`Auto clocked in on workpack ${D.wp}`);
+        }
+      }
+      function openClock() {
+        const others = WORKPACKS.filter(([n]) => n !== CLOCK.wp),
+          c = ctxWp();
+        openDrawer(`<h3>⏱ Time clock<button class="x" onclick="closeAll()">✕</button></h3>
+    <div class="sub">J. Smith · from any page. One open clock per worker, at workpack level.</div>
+    ${
+      CLOCK.on
+        ? `<div class="card" style="padding:16px;margin-bottom:16px;border-color:var(--ok)"><div class="sec-t">Clocked in</div><div class="clk-big">${fmtT(Date.now() - CLOCK.start)}</div>
+        <div style="color:var(--mu);margin-bottom:12px">Workpack ${CLOCK.wp} · ${CLOCK.title}</div>
+        <button class="btn btn-p" style="width:100%" onclick="CLOCK.on=false;renderClock();closeAll();toast('Clocked out')">Clock out</button></div>
+      <div class="sec-t" style="margin-bottom:8px">Switch workpack (clocks out the current one)</div>`
+        : `<div class="sec-t" style="margin-bottom:8px">Clock in to</div>`
+    }
+    ${others.map(([n, t]) => `<button class="wpl ${n === c ? "ctx" : ""}" onclick="toast('${CLOCK.on ? "Switched" : "Clocked in"} to ${n}');clockIn('${n}');closeAll()"><b>${n}</b><span style="flex:1;color:var(--mu)">${t}</span>${n === c ? '<span class="tag wt">this page</span>' : ""}</button>`).join("")}
+    <div style="font-size:13px;color:var(--dim);margin-top:10px">${c ? "" : "No workpack on this page: list = assigned / recent workpacks. "}Scan a WO barcode to pick.</div>`);
+      }
+
+      /* ───────────── pages ───────────── */
+      function render() {
+        renderSidebar();
+        renderClock();
+        const pg = document.getElementById("page");
+        if (NAV === "config") return put(pg, configPage());
+        if (NAV !== "workorders")
+          return put(
+            pg,
+            `<div class="wrap"><div class="card empty" style="padding:80px">${NAV === "timetracking" ? "⏱ Existing Time Tracking page (timeTrackingDashboard)" : "📊 Existing Dashboard"}. Unchanged.<br><br>Note the clock in the header still works here.</div></div>`
+          );
+        const ws = vis().filter((w) => !w.isWp),
+          done = ws.filter((w) => woD(w).status === "green").length;
+        put(
+          pg,
+          `
+    <div class="topbar"><button class="back" onclick="location.href='workpack-redesign-v1.html#ds='+D.key">‹ Back to Workpack</button><span class="tb-title">${D.title}</span><span class="chip">Workpack ${D.wp}</span>
+      <div class="tb-right"><div class="ds"><button class="${D.key === "HT" ? "on" : ""}" onclick="loadDs('HT')">HT-02 · 00012423</button><button class="${D.key === "WG" ? "on" : ""}" onclick="loadDs('WG')">WG 20213 · 00010070</button></div>
+        <span>${done}/${ws.length} WOs done</span><div class="bar"><i style="width:${ws.length ? (done / ws.length) * 100 : 0}%"></i></div>
+        <button class="dashed" onclick="openNotes()">ⓘ Design notes</button></div></div>
+    <div class="wrap">
+      ${assetTile()}
+      ${wtfHtml()}
+      <div class="card map">${mapHtml()}</div>
+      <div class="body ${S.wolC ? "wc" : ""}"><aside class="card wol ${S.wolC ? "rail" : ""}">${S.wolC ? railHtml() : listHtml()}</aside><main class="ws">${wsHtml()}</main></div>
+    </div>`
+        );
+      }
+
+      function assetTile() {
+        const a = asset(S.sel),
+          st = assetStatus(S.sel);
+        return `<div class="card atile"><i class="dot s-${st}" style="width:16px;height:16px"></i>
+    <div style="min-width:0"><div class="sec-t">Selected asset · L${depthOf(a.id) + 1}</div><h2>${esc(a.name)}</h2></div>
+    <div class="kvs" style="margin-left:18px">${CFG.assetTile.map((f) => `<div class="kv"><span class="k">${ASSET_FIELDS.find((x) => x[0] === f)[1]}</span><span class="v">${esc(fv(a, f))}</span></div>`).join("")}</div>
+    <div class="right"><button class="btn btn-g btn-sm" onclick="openAssetDrawer()">ⓘ Asset details</button></div></div>`;
+      }
+
+      function mapHtml() {
+        const path = pathTo(S.focus);
+        const crumbs = path
+          .map(
+            (a, i) =>
+              `${i ? '<span class="crumb-sep">›</span>' : ""}<button class="crumb ${a.id === S.focus ? "cur" : ""}" onclick="zoom('${a.id}')">${i === 0 ? "⌂ " : ""}${short(a.name)}</button>`
+          )
+          .join("");
+        const maxD = Math.max(...D.assets.map((a) => depthOf(a.id))) + 1,
+          hasSchem = !!D.schematic;
+        let body;
+        if (S.view === "schematic" && hasSchem) {
+          body = `<div class="schem"><img src="${D.schematic}" alt="Schematic" onerror="this.style.display='none'">
+      ${Object.entries(D.zones)
+        .map(
+          ([id, z]) =>
+            `<button class="zone ${desc(id).includes(S.sel) ? "sel" : ""} ${id === S.hl ? "wohl" : ""}" style="left:${z.l}%;width:${z.w}%" onclick="pick('${id}')"><i class="dot s-${assetStatus(id)}" style="width:16px;height:16px;box-shadow:0 0 0 2px #0B0F14"></i></button>`
+        )
+        .join("")}</div>`;
+        } else {
+          const ROW = 44,
+            GAP = 6,
+            LBL = 30,
+            rows = [];
+          const lay = (id, d, x0, w) => {
+            rows.push({ id, d, x0, w });
+            let x = x0;
+            const tot = leaves(id);
+            kids(id).forEach((k) => {
+              const kw = (w * leaves(k.id)) / tot;
+              lay(k.id, d + 1, x, kw);
+              x += kw;
+            });
+          };
+          lay(S.focus, 0, 0, 1);
+          const nRows = Math.max(...rows.map((r) => r.d)) + 1,
+            base = depthOf(S.focus),
+            selPath = pathTo(S.sel).map((a) => a.id),
+            hlPath = S.hl ? pathTo(S.hl).map((a) => a.id) : [];
+          body = `<div class="ice" style="height:${nRows * (ROW + GAP)}px">
+      ${Array.from({ length: nRows }, (_, i) => `<div class="ice-row-l" style="top:${i * (ROW + GAP)}px;height:${ROW}px">L${base + i + 1}</div>`).join("")}
+      ${rows
+        .map((r) => {
+          const a = asset(r.id),
+            st = assetStatus(r.id),
+            oc = openWoCount(r.id),
+            hasK = kids(r.id).length;
+          return `<button class="blk st-${st} ${r.id === S.sel ? "sel" : ""} ${r.id === S.hl && r.id !== S.sel ? "wohl" : ""} ${(selPath.includes(r.id) || hlPath.includes(r.id)) && r.id !== S.sel && r.id !== S.hl ? "path" : ""}"
+          style="top:${r.d * (ROW + GAP)}px;height:${ROW}px;left:calc(${LBL}px + (100% - ${LBL}px) * ${r.x0} + 2px);width:calc((100% - ${LBL}px) * ${r.w} - 4px)"
+          title="${esc(a.name)} (${a.type})" onclick="pick('${r.id}')"><i class="dot s-${st}"></i><span class="bn">${short(a.name)}</span>${oc ? `<span class="bc">${oc}</span>` : ""}${hasK && r.d > 0 ? '<span class="zoom">⤢</span>' : ""}</button>`;
+        })
+        .join("")}
+    </div>`;
+        }
+        return `<div class="map-h"><span class="sec-t">Asset map</span><div class="crumbs">${crumbs}</div>
+      <div class="right"><span class="chip">${maxD} levels</span>
+      <div class="seg"><button class="${S.view === "map" ? "on" : ""}" onclick="S.view='map';render()">▤ Hierarchy</button>${hasSchem ? `<button class="${S.view === "schematic" ? "on" : ""}" onclick="S.view='schematic';render()">🖼 Schematic</button>` : ""}</div></div></div>
+    ${body}
+    <div class="legend"><span><i class="dot s-grey"></i>Not started</span><span><i class="dot s-amber"></i>In progress</span><span><i class="dot s-red"></i>Has finding</span><span><i class="dot s-green"></i>Complete</span><span><b class="bc">n</b> open WOs</span><span><i class="dot" style="background:var(--ac)"></i>Selected asset</span><span><i class="dot" style="background:var(--ac2)"></i>Asset of selected WO</span><span>⤢ tap to zoom</span></div>`;
+      }
+
+      /* ── smart collapse of the WO list ──
+   collapse: Measure tab · Document/Trend · 📄 chip · any PDF control (needs width) — skipped when pinned
+   expand:  asset map / breadcrumb · work-type chip · » button                                                */
+      function collapseWol(auto) {
+        if (auto && (S.pin || S.wolC)) return false;
+        S.wolC = true;
+        S.autoC = !!auto;
+        return true;
+      }
+      function expandWol() {
+        S.wolC = false;
+        S.autoC = false;
+      }
+      const wantsRoom = () => S.tab === "measure" && S.side !== "off";
+      function railHtml() {
+        const ids = S.inclSub ? desc(S.sel) : [S.sel];
+        const list = vis().filter((w) => ids.includes(w.assetId) || w.isWp);
+        return `<button class="rail-btn" title="Show work orders" onclick="expandWol();render()">»</button>
+    ${S.autoC ? '<div class="rail-hint">auto-<br>hidden</div>' : ""}
+    <div class="rail-lbl">Work orders · ${list.filter((w) => !w.isWp).length}</div>
+    ${list
+      .map(
+        (
+          w,
+          i
+        ) => `${i === 1 ? '<div class="rail-sep"></div>' : ""}<button class="rail-wo ${S.wo === w.num ? "sel" : ""}" title="${w.num} · ${esc(w.subject)}" onclick="selWo('${w.num}')">
+      <i class="dot s-${woD(w).status}"></i>${w.isWp ? "WP" : w.num.slice(-3)}${w.raised ? '<span class="rt"></span>' : ""}</button>`
+      )
+      .join("")}
+    <button class="rail-btn" style="font-size:16px" title="Raise Task" onclick="openRaise()">${ic("raised")}</button>`;
+      }
+      function listHtml() {
+        const ids = S.inclSub ? desc(S.sel) : [S.sel];
+        const list = vis().filter((w) => ids.includes(w.assetId) || w.isWp),
+          groups = {};
+        list.forEach((w) => {
+          const k = w.isWp ? "__wp" : w.assetId;
+          (groups[k] = groups[k] || []).push(w);
+        });
+        const order = ["__wp", ...ids.filter((i) => groups[i])],
+          a = asset(S.sel);
+        return `<div class="wol-h"><button class="ctl" title="Collapse list" onclick="collapseWol(false)">«</button><span class="t">Work orders</span><button class="ctl ${S.pin ? "on" : ""}" title="${S.pin ? "Pinned open: auto-collapse off" : "Pin open (stop auto-collapse)"}" onclick="S.pin=!S.pin;render();toast(S.pin?'List pinned open':'Auto-collapse on')">📌</button><button class="btn btn-p btn-sm" onclick="openRaise()">${ic("raised")} Raise Task</button></div>${fOn() ? `<div class="tog" style="color:var(--ac2)">${ic("filter")} Focus: ${S.wtf.map(esc).join(", ")}</div>` : ""}
+    <div class="tog"><button class="sw ${S.inclSub ? "on" : ""}" onclick="S.inclSub=!S.inclSub;render()"></button>Include sub-assets of <b style="color:var(--tx)">${short(a.name)}</b></div>
+    ${order.map((k) => `<div class="grp">${k === "__wp" ? "📦 Workpack" : "⚙ " + short(asset(k).name)}</div>${groups[k].map(woCard).join("")}`).join("")}
+    ${list.filter((w) => !w.isWp).length ? "" : `<div class="empty">No work orders on ${short(a.name)}${fOn() ? " for the selected work types" : ""}.</div>`}`;
+      }
+      function woCard(w) {
+        const d = woD(w);
+        return `<button class="woc ${S.wo === w.num ? "sel" : ""}" onclick="selWo('${w.num}')">
+    <span class="n"><i class="dot s-${d.status}"></i>${w.num}<span class="pill ${w.status === "In Progress" ? "ip" : w.status === "Completed" ? "cpl" : ""}">${w.status}</span>${w.raised ? '<span class="tag rt">RAISED</span>' : ""}</span>
+    ${ring(d.sd, d.st.length)}
+    <span class="sj">${esc(w.subject)}</span>
+    <span class="meta"><span class="tag wt">${w.wt}</span>${d.pend.length ? `<span class="tag">${d.pend.length} to measure</span>` : ""}${d.finds.length ? `<span class="tag bad">${d.finds.length} finding</span>` : ""}${d.short.length ? `<span class="tag warn">${d.short.length} parts</span>` : ""}</span></button>`;
+      }
+      function ring(done, total) {
+        const r = 16,
+          C = 2 * Math.PI * r,
+          p = total ? done / total : 0;
+        return `<svg class="ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="${r}" fill="none" stroke="#243040" stroke-width="4"/>
+    <circle cx="20" cy="20" r="${r}" fill="none" stroke="${p === 1 ? "#21C07A" : "#F2B441"}" stroke-width="4" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+    <text x="20" y="20" fill="#F2F5F7" font-size="10" text-anchor="middle" dominant-baseline="central">${total ? Math.round(p * 100) + "%" : "—"}</text></svg>`;
+      }
+
+      function nextFor(w, d) {
+        if (d.pend.length)
+          return {
+            c: "",
+            t: `Record ${d.pend.length} measure${d.pend.length > 1 ? "s" : ""}. Next: ${d.pend[0].comp}`,
+            b: "Measure",
+            go: `setTab('measure')`
+          };
+        if (d.bare.length)
+          return {
+            c: "warn",
+            t: `Finding “${d.bare[0].comp}” has no comment. Describe it`,
+            b: "Add comment",
+            go: `S.open='${d.bare[0].id}';setTab('measure')`
+          };
+        for (const p of w.plans.filter((p) => !p.exception)) {
+          const s = p.steps.find((s) => !s.d);
+          if (s)
+            return {
+              c: "",
+              t: `${p.n}: “${s.n}”`,
+              b: "Execute",
+              go: `S.tab='execute';S.exp['${w.num}_${w.plans.indexOf(p)}']=true;render()`
+            };
+        }
+        if (d.short.length)
+          return {
+            c: "",
+            t: `Consume ${d.short.length} part line${d.short.length > 1 ? "s" : ""} (${d.short[0].n})`,
+            b: "Parts",
+            go: "setTab('parts')"
+          };
+        if (!w.measures.length && !w.plans.length)
+          return {
+            c: "",
+            t: "No requirements on this WO yet. Add notes, parts or measures",
+            b: "Notes",
+            go: "setTab('notes')"
+          };
+        return { c: "ok", t: "Work order complete", b: null };
+      }
+
+      function wsHtml() {
+        const w = wo(S.wo);
+        if (!w) return `<div class="card empty">Select a work order.</div>`;
+        const d = woD(w),
+          n = nextFor(w, d),
+          a = asset(w.assetId),
+          rc = raisedOn(w.assetId).length;
+        const tabState = {
+          measure: d.bare.length
+            ? "warn"
+            : !d.pend.length && w.measures.length
+              ? "done"
+              : w.measures.some((m) => m.out)
+                ? "prog"
+                : "",
+          execute:
+            d.st.length && d.sd === d.st.length ? "done" : d.sd ? "prog" : "",
+          parts: !w.parts.length
+            ? ""
+            : !d.short.length
+              ? "done"
+              : w.parts.some((p) => p.used)
+                ? "prog"
+                : "",
+          notes: "",
+          raised: ""
+        };
+        const tabs = [
+          [
+            "measure",
+            "measure",
+            "Measure",
+            w.measures.length
+              ? `${w.measures.length - d.pend.length}/${w.measures.length} recorded${d.finds.length ? ` · ${d.finds.length} finding` : ""}`
+              : "None"
+          ],
+          [
+            "execute",
+            "execute",
+            "Execute",
+            w.plans.length
+              ? `${w.plans.length} plans · ${d.sd}/${d.st.length} steps`
+              : "No work plan"
+          ],
+          [
+            "parts",
+            "parts",
+            "Parts",
+            w.parts.length
+              ? `${w.parts.length - d.short.length}/${w.parts.length} consumed`
+              : "None required"
+          ],
+          [
+            "notes",
+            "notes",
+            "Notes & codes",
+            `${w.notes.length} note${w.notes.length === 1 ? "" : "s"}`
+          ],
+          ["raised", "raised", "Raised tasks", `${rc} on ${short(a.name)}`]
+        ];
+        const body = {
+          measure: measureView,
+          execute: executeView,
+          parts: partsView,
+          notes: notesView,
+          raised: raisedView
+        }[S.tab](w, d);
+        return `
+    <div class="card ws-h"><div class="top"><i class="dot s-${d.status}" style="width:16px;height:16px"></i><h1>${w.num} · ${esc(w.subject)}</h1>${w.raised ? '<span class="tag rt">RAISED TASK</span>' : ""}<span class="chip">⚙ ${short(a.name)}</span></div>
+      <div class="kvs">${CFG.woTile.map((f) => `<div class="kv"><span class="k">${WO_FIELDS.find((x) => x[0] === f)[1]}</span><span class="v">${esc(fv(w, f, true))}</span></div>`).join("")}</div></div>
+    <div class="card next ${n.c}"><div><div class="sec-t">Next step</div><div class="txt">${esc(n.t)}</div></div>${n.b ? `<button class="btn ${n.c === "ok" ? "btn-b" : "btn-p"}" onclick="${n.go}">${n.b} →</button>` : ""}</div>
+    <div class="card tabs">${tabs
+      .map(([k, icn, t, dd]) => {
+        const st = tabState[k];
+        return `<button class="tab ${S.tab === k ? "on" : ""} ${st}" onclick="setTab('${k}')"><span class="ic">${ic(icn)}</span><span><div class="t">${t}</div><div class="d">${dd}</div></span></button>`;
+      })
+      .join("")}</div>
+    <div class="card panel">${body}</div>`;
+      }
+
+      /* ── Measure tab ── */
+      function mCard(w, m) {
+        const oc =
+            {
+              OK: "o-ok",
+              Measure: "o-m",
+              "Attention Required": "o-att",
+              Scrap: "o-sc"
+            }[m.out] || "",
+          open = S.open === m.id,
+          numeric = NUMERIC.includes(m.vt);
+        const ob = (o, c, l) =>
+          `<button class="out ${m.out === o ? "on " + c : ""}" onclick="setOut('${w.num}','${m.id}','${o}')">${l}</button>`;
+        return `<div class="mrow ${oc} ${S.side === "doc" && S.docRow === m.id ? "hl" : ""}">
+    <div><div class="c">${esc(m.comp)}</div>
+      <div class="l"><button class="tag wt" onclick="showInDoc('${m.id}',${m.pg})" title="${esc(m.src)}">📄 ${esc(m.src.replace(/\.pdf$/, "").slice(0, 30))}… · p.${m.pg}</button>${m.loc ? `<span class="tag asset">📍 ${m.loc}</span>` : ""}</div>
+      <div class="l">${m.at ? `<span class="when">🕒 Captured ${m.at}</span>` : "<i>Not recorded</i>"}${m.comments ? `<span>💬 ${esc(m.comments)}</span>` : ""}${m.review ? `<span>📝 ${esc(m.review)}</span>` : ""}</div></div>
+    <div class="v">${m.val == null ? (numeric ? `<input class="vin" inputmode="decimal" placeholder="${unit(m.vt) || m.vt}" onchange="setVal('${w.num}','${m.id}',this.value)">` : "") : `${m.val}<small>${unit(m.vt)}</small>`}</div>
+    <div class="outs">${ob("OK", "ok", "✓ OK")}${ob("Attention Required", "att", "⚠ Attention")}${ob("Scrap", "sc", "✕ Scrap")}
+      <button class="out" onclick="toast('Camera / attach image to measure')">📷</button>
+      <button class="out r ${open ? "sel" : ""}" onclick="S.open=S.open==='${m.id}'?null:'${m.id}';render()">${ic("edit")} Edit</button></div>
+    ${
+      open
+        ? `<div class="mdet">
+      ${isF(m) && !m.comments.trim() ? `<div class="warnline">⚠ Describe the finding. Attention Required + comment also triggers the notification Case flow.</div>` : ""}
+      <div class="f full"><label>Comments</label><textarea rows="2" id="mc_${m.id}">${esc(m.comments)}</textarea></div>
+      <div class="f full"><label>Review notes</label><textarea rows="2" id="mr_${m.id}">${esc(m.review)}</textarea></div>
+      <div class="f"><label>Defect location</label><select id="ml_${m.id}"><option value="">—</option>${DEFECT_LOC.map((x) => `<option ${m.loc === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+      <div class="f"><label>Page # <span class="fut">future field</span></label><input disabled value="${m.pg}"></div>
+      <div class="f full"><label>Source document <span class="fut">future field</span></label><div class="ro">📄 ${esc(m.src)}</div></div>
+      <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-g btn-sm" onclick="S.open=null;render()">Cancel</button><button class="btn btn-b btn-sm" onclick="saveMeta('${w.num}','${m.id}')">Save</button></div>
+    </div>`
+        : ""
+    }
+  </div>`;
+      }
+      function trendCell(w, m) {
+        const h = hist(w, m),
+          numeric = NUMERIC.includes(m.vt);
+        if (!numeric) {
+          const pts = [
+            ...h,
+            { dt: "2026-08-18", n: w.num, out: m.out, cur: true }
+          ];
+          const col = (o) =>
+            ({
+              OK: "#21C07A",
+              "Attention Required": "#F2B441",
+              Scrap: "#E84B4B",
+              Measure: "#2E8FE6"
+            })[o] || "#243040";
+          return `<div class="tcell"><div class="th"><b>Outcome history · ${esc(m.comp)}</b><span>${short(asset(w.assetId).name)}</span></div>
+      <div class="otl">${pts.map((p) => `<div class="o ${p.cur ? "cur" : ""}"><i style="background:${col(p.out)};${p.cur && !p.out ? "border:2px dashed #6B7A89" : ""}"></i>${p.dt.slice(5)}<span>${p.cur ? "this WO" : p.n}</span></div>`).join("")}</div></div>`;
+        }
+        const pts = [
+          ...h,
+          ...(m.val != null
+            ? [{ dt: "2026-08-18", n: w.num, v: m.val, cur: true }]
+            : [])
+        ];
+        const W = 320,
+          H = 110,
+          L = 34,
+          R = 26,
+          T = 10,
+          B = 30,
+          vals = pts.map((p) => p.v),
+          mn = Math.min(...vals),
+          mx = Math.max(...vals),
+          pad = (mx - mn || mx * 0.1 || 1) * 0.25;
+        const lo = mn - pad,
+          hi = mx + pad,
+          n = pts.length + (m.val == null ? 1 : 0);
+        const sx = (i) => L + (i * (W - L - R)) / Math.max(1, n - 1),
+          sy = (v) => T + ((hi - v) / (hi - lo)) * (H - T - B);
+        const last = pts[pts.length - 1],
+          prev = pts[pts.length - 2],
+          delta = last && prev ? last.v - prev.v : 0;
+        return `<div class="tcell"><div class="th"><b>${esc(m.comp)} · ${unit(m.vt) || m.vt}</b><span>${m.val != null && prev ? `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)} vs ${prev.n}` : "awaiting this WO’s reading"}</span></div>
+    <svg viewBox="0 0 ${W} ${H}">
+      ${[lo, (lo + hi) / 2, hi].map((t) => `<line x1="${L}" x2="${W - R}" y1="${sy(t)}" y2="${sy(t)}" stroke="#243040"/><text x="${L - 5}" y="${sy(t)}" fill="#6B7A89" font-size="9" text-anchor="end" dominant-baseline="central">${t.toFixed(t < 10 ? 1 : 0)}</text>`).join("")}
+      <polyline fill="none" stroke="#2E8FE6" stroke-width="2" points="${pts.map((p, i) => sx(i) + "," + sy(p.v)).join(" ")}"/>
+      ${pts.map((p, i) => `<circle cx="${sx(i)}" cy="${sy(p.v)}" r="${p.cur ? 5 : 3.5}" fill="${p.cur ? (isF(m) ? "#F2B441" : "#F2F5F7") : "#2E8FE6"}" stroke="#0e141b" stroke-width="1.5"/>`).join("")}
+      ${m.val == null ? `<circle cx="${sx(n - 1)}" cy="${(T + H - B) / 2}" r="5" fill="none" stroke="#6B7A89" stroke-dasharray="2 2"/>` : ""}
+      ${Array.from({ length: n }, (_, i) => {
+        const p = pts[i] || { dt: "2026-08-18", n: w.num };
+        return `<text x="${sx(i)}" y="${H - 16}" fill="${i === n - 1 ? "#F2F5F7" : "#A6B2BD"}" font-size="9" text-anchor="middle">${p.dt.slice(5)}</text><text x="${sx(i)}" y="${H - 5}" fill="#6B7A89" font-size="8" text-anchor="middle">${i === n - 1 ? "this WO" : p.n}</text>`;
+      }).join("")}
+    </svg></div>`;
+      }
+      function measureView(w) {
+        const docs = D.docs;
+        const head = `<div class="ph"><h2>${ic("measure")} Measures</h2><span class="hint">On ${w.num} · asset ${short(asset(w.assetId).name)} (from the WO)</span>
+      <div class="right"><div class="seg"><button class="${S.side === "doc" ? "on" : ""}" onclick="setSide('doc')">${ic("doc")} Document</button><button class="${S.side === "trend" ? "on" : ""}" onclick="setSide('trend')">${ic("trend")} Trend</button><button class="${S.side === "off" ? "on" : ""}" onclick="setSide('off')">List only</button></div>
+      <button class="btn btn-p btn-sm" onclick="toast('Opens Add Measure form on this WO')">Add Measure</button></div></div>`;
+        if (!w.measures.length)
+          return (
+            head + '<div class="empty">No measures on this work order.</div>'
+          );
+        if (S.side === "trend")
+          return (
+            head +
+            `<div class="pair" style="margin-bottom:6px"><span class="sec-t">Measure</span><span class="sec-t">Trend · same measure on this asset, earlier WOs (sample history)</span></div>` +
+            w.measures
+              .map(
+                (m) =>
+                  `<div class="pair">${mCard(w, m)}${trendCell(w, m)}</div>`
+              )
+              .join("")
+          );
+        if (S.side === "off")
+          return head + w.measures.map((m) => mCard(w, m)).join("");
+        return (
+          head +
+          `<div class="split"><div>${w.measures.map((m) => mCard(w, m)).join("")}</div>${docView(docs, w)}</div>`
+        );
+      }
+      function docView(docs, w) {
+        if (!docs.length)
+          return `<div class="side"><div class="empty">No PDF on this WO or the workpack.</div></div>`;
+        const d0 = docs[0],
+          tools = [
+            ["pen", "✏️"],
+            ["hl", "🖍"],
+            ["txt", "T"],
+            ["move", "✋"]
+          ];
+        const rowsOnPage = w.measures.filter((m) => m.pg === S.pg);
+        return `<div class="side">
+    <div class="side-h"><select>${docs.map((d) => `<option>${d.title}${d.wo !== w.num ? " (workpack)" : ""}</option>`).join("")}</select>
+      ${tools.map(([k, i]) => `<button class="tool ${S.tool === k ? "on" : ""}" onclick="S.tool='${k}';collapseWol(true);render()">${i}</button>`).join("")}</div>
+    <div class="side-h" style="background:var(--s1)"><div class="pager"><button class="tool" onclick="S.pg=Math.max(1,S.pg-1);S.docRow=null;collapseWol(true);render()">‹</button>Page ${S.pg} of ${d0.pages}<button class="tool" onclick="S.pg=Math.min(${d0.pages},S.pg+1);S.docRow=null;collapseWol(true);render()">›</button></div></div>
+    <div class="page-wrap" onpointerdown="if(collapseWol(true))render()"><div class="page">
+      <h5>${D.key === "HT" ? "PRT Workpack — MEL-SEED Haul Truck HT-02" : "Wagon PM01 inspection — WG 20213"}</h5>
+      <div class="sub">Page ${S.pg} of ${d0.pages} · ${esc(w.subject)}</div>
+      ${
+        rowsOnPage.length
+          ? `<table><tr><th style="width:42%">Check</th><th>Spec</th><th>Reading</th><th>OK / NOK</th></tr>
+        ${rowsOnPage.map((m) => `<tr class="${S.docRow === m.id ? "hl" : ""}"><td>${esc(m.comp)}</td><td>${m.vt === "Temperature" ? "≤ 70 °C" : m.vt === "Depth" ? "≥ 14 mm" : "—"}</td><td>${m.val ?? ""} ${m.val != null ? unit(m.vt) : ""}</td><td>${m.out === "OK" ? "✓" : isF(m) ? "✗" : ""}</td></tr>`).join("")}
+      </table>`
+          : '<p style="color:#666">General instructions, isolation procedure and safety notes.</p>'
+      }
+      <table><tr><th>Remarks</th></tr><tr><td style="height:70px"></td></tr></table>
+      <table><tr><th style="width:50%">Maintainer</th><th>Supervisor</th></tr><tr><td style="height:46px"></td><td></td></tr></table>
+      <svg class="ink" style="left:58%;top:88px;width:150px;height:60px" viewBox="0 0 150 60"><path d="M5 40 C 30 5, 60 55, 90 20 S 140 30, 145 10" stroke="#E84B4B" stroke-width="2.5" fill="none"/></svg>
+    </div></div>
+    <div class="side-f"><span>c-pdf-annotator · ${d0.pages} pages</span><button class="btn btn-b btn-sm" onclick="toast('Saves annotated copy to the WO (uploadAnnotatedPdf)')">Save annotations</button></div></div>`;
+      }
+
+      /* ── Execute / Parts / Notes / Raised ── */
+      function executeView(w) {
+        /* same markup + behaviour as workOrderDetail "Work Plans" (plan-card / step-row, handleStepClick) */
+        const head = `<div class="ph"><h2>${ic("execute")} Work Plans</h2><span class="hint">Existing workOrderDetail Work Plans panel</span></div>`;
+        if (!w.plans.length)
+          return (
+            head +
+            `<p class="no-plans">No work plans linked to this work order.</p>`
+          );
+        return (
+          head +
+          `<div class="plan-list">${w.plans
+            .map((p, pi) => {
+              const key = w.num + "_" + pi,
+                open = !!S.exp[key];
+              return `<div class="plan-card"><button class="plan-toggle ${open ? "expanded" : ""}" onclick="S.exp['${key}']=!S.exp['${key}'];render()" aria-expanded="${open}">
+        <span class="plan-order">${pi + 1}</span><span class="plan-name">${p.n}</span><span class="plan-chevron">${open ? "▾" : "›"}</span></button>
+      ${
+        open
+          ? `<div class="step-list">${p.steps
+              .map((st, i) => {
+                const status = st.d ? "Completed" : "New";
+                return `<button class="step-row status-${status.toLowerCase()} ${st.flow ? "has-action" : ""}" onclick="stepClick('${w.num}',${pi},${i})">
+          <span class="step-num">${i + 1}</span><div class="step-body"><span class="step-name">${st.n}</span></div>
+          <span class="step-status">${status}</span>${st.flow ? '<span class="step-action-icon">▶</span>' : ""}</button>`;
+              })
+              .join("")}
+        ${p.steps.length ? "" : '<p class="no-steps">No steps defined.</p>'}</div>`
+          : ""
+      }</div>`;
+            })
+            .join("")}</div>`
+        );
+      }
+      function partsView(w) {
+        /* same markup + behaviour as assetReview "Required Parts" (parts-table, + Consume, + Add part) */
+        const head = `<div class="ph"><h2>${ic("parts")} Parts</h2><span class="hint">Existing assetReview Parts panel · ProductRequired vs ProductConsumed on ${w.num}</span></div>`;
+        const tbl = w.parts.length
+          ? `<div class="parts-table"><div class="parts-head"><span class="parts-col-name">Part</span><span class="parts-col-num">Consumed</span><span class="parts-col-num">Required</span><span class="parts-col-num">Cost</span><span class="parts-col-act"></span></div>
+      ${w.parts
+        .map(
+          (
+            p,
+            i
+          ) => `<div class="parts-row"><span class="parts-col-name">${p.n}</span><span class="parts-col-num">${p.used}</span><span class="parts-col-num">${p.req}</span><span class="parts-col-num">$${p.cost}</span>
+        <span class="parts-col-act">${p.used < p.req ? `<button class="ar-consume-btn" onclick="consume('${w.num}',${i})">+ Consume</button>` : ""}</span></div>`
+        )
+        .join("")}</div>`
+          : `<div class="ar-empty"><span class="ar-empty-icon">📦</span><p>No parts recorded for this asset.</p></div>`;
+        return (
+          head +
+          tbl +
+          `<div class="ar-addpart"><button class="ar-addpart-toggle" onclick="S.addPart=!S.addPart;render()">+ Add part</button>
+    ${S.addPart ? `<div class="ar-addpart-row"><select id="newPart"><option value="">Select a part…</option><option>Hydraulic oil 20L</option><option>Filter</option><option>Rag pack</option><option>Seal kit — HP</option></select><button class="ar-consume-btn" onclick="addPart('${w.num}')">Add</button></div>` : ""}</div>`
+        );
+      }
+      function notesView(w) {
+        return `<div class="ph"><h2>${ic("notes")} Notes &amp; codes</h2><span class="hint">Same data as Notes &amp; Codes in workOrderDetail</span></div>
+    <div class="nh">${w.notes.length ? w.notes.map((n) => `<div class="note"><div class="w">${n.w}</div>${esc(n.t)}</div>`).join("") : '<div class="note" style="color:var(--dim)">No notes yet.</div>'}</div>
+    <div class="f"><label>Add note</label><textarea id="noteIn" rows="3" placeholder="What did you find / do?"></textarea></div>
+    <div class="f3"><div class="f"><label>Cause code</label><select><option>— Select —</option><option>0010, Wear and Tear</option></select></div>
+      <div class="f"><label>Delay code</label><select><option>— Select —</option></select></div><div class="f"><label>Damage code</label><select><option>— Select —</option></select></div></div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn btn-b" onclick="addNote('${w.num}')">Save note &amp; codes</button></div>`;
+      }
+      function raisedView(w) {
+        const a = asset(w.assetId),
+          list = raisedOn(w.assetId).sort((x, y) =>
+            y.date.localeCompare(x.date)
+          );
+        return `<div class="ph"><h2>${ic("raised")} Raised tasks</h2><span class="hint">Extra work raised by technicians on ${short(a.name)} and its sub-assets · all workpacks</span>
+      <div class="right"><button class="btn btn-p btn-sm" onclick="openRaise('${w.assetId}')">${ic("raised")} Raise Task</button></div></div>
+    ${
+      list.length
+        ? `<table class="rtl"><tr><th>Date</th><th>WO</th><th>Subject</th><th>Asset</th><th>Work type</th><th>Workpack</th><th>Status</th></tr>
+      ${list
+        .map((r) => {
+          const here = !!wo(r.num);
+          return `<tr class="${here ? "click" : ""}" ${here ? `onclick="selWo('${r.num}')"` : ""}><td>${r.date}</td><td><b>${r.num}</b></td><td>${esc(r.subject)}</td><td>${short(asset(r.assetId).name)}</td><td><span class="tag wt">${r.wt}</span></td><td>${r.wp}${r.wp === D.wp ? " (this)" : ""}</td><td><span class="pill ${r.status === "In Progress" ? "ip" : r.status === "Completed" ? "cpl" : ""}">${r.status}</span></td></tr>`;
+        })
+        .join("")}</table>`
+        : `<div class="empty">No raised tasks on ${short(a.name)} yet.</div>`
+    }`;
+      }
+
+      /* ───────────── actions ───────────── */
+      function pick(id) {
+        expandWol();
+        S.sel = id;
+        S.focus = kids(id).length ? id : asset(id).parent || id;
+        const ids = S.inclSub ? desc(id) : [id],
+          cur = wo(S.wo);
+        if (!asset(id).parent) S.wo = D.wos[0].num;
+        else if (!ids.includes(cur.assetId)) {
+          const f = D.wos.find((w) => !w.isWp && ids.includes(w.assetId));
+          S.wo = f ? f.num : D.wos[0].num;
+        }
+        S.hl = wo(S.wo).assetId;
+        S.open = null;
+        S.docRow = null;
+        render();
+      }
+      function zoom(id) {
+        expandWol();
+        S.focus = id;
+        S.sel = id;
+        render();
+      }
+      function selWo(num) {
+        S.wo = num;
+        S.open = null;
+        S.docRow = null;
+        const w = wo(num),
+          d = woD(w);
+        S.hl = w.assetId;
+        if (!desc(S.focus).includes(w.assetId)) S.focus = D.assets[0].id;
+        S.tab =
+          d.pend.length ||
+          d.bare.length ||
+          (!w.plans.length && w.measures.length)
+            ? "measure"
+            : w.plans.length
+              ? "execute"
+              : "notes";
+        render();
+      }
+      function setTab(t) {
+        S.tab = t;
+        if (wantsRoom()) collapseWol(true);
+        render();
+      }
+      function setSide(v) {
+        S.side = v;
+        if (wantsRoom()) collapseWol(true);
+        render();
+      }
+      function showInDoc(mid, pg) {
+        S.side = "doc";
+        S.pg = pg;
+        S.docRow = mid;
+        collapseWol(true);
+        render();
+      }
+      const nowStamp = () =>
+        new Date().toLocaleString("en-AU", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      function setOut(num, mid, o) {
+        autoClock();
+        const m = wo(num).measures.find((x) => x.id === mid);
+        m.out = o;
+        m.at = nowStamp();
+        if (isF(m) && !m.comments.trim()) S.open = mid;
+        render();
+      }
+      function setVal(num, mid, v) {
+        autoClock();
+        const m = wo(num).measures.find((x) => x.id === mid);
+        m.val = v === "" ? null : Number(v);
+        m.at = nowStamp();
+        if (!m.out) m.out = "Measure";
+        render();
+      }
+      function saveMeta(num, mid) {
+        autoClock();
+        const m = wo(num).measures.find((x) => x.id === mid);
+        m.comments = document.getElementById("mc_" + mid).value;
+        m.review = document.getElementById("mr_" + mid).value;
+        m.loc = document.getElementById("ml_" + mid).value;
+        S.open = null;
+        render();
+        toast(
+          m.out === "Attention Required" && m.comments
+            ? "Saved. Notification Case flow fires on Attention + comment"
+            : "Measure updated"
+        );
+      }
+      function stepClick(num, pi, i) {
+        autoClock();
+        const w = wo(num),
+          s = w.plans[pi].steps[i];
+        if (s.flow)
+          toast(
+            "In Progress, then launches flow " +
+              s.flow +
+              ". Completed on finish, New if cancelled"
+          );
+        s.d = true;
+        const st = w.plans.filter((p) => !p.exception).flatMap((p) => p.steps);
+        w.status = st.every((x) => x.d) ? "Completed" : "In Progress";
+        render();
+      }
+      function consume(num, i) {
+        autoClock();
+        const p = wo(num).parts[i];
+        p.used = Math.min(p.req, p.used + 1);
+        render();
+      }
+      function addPart(num) {
+        const n = document.getElementById("newPart").value,
+          q = 1;
+        S.addPart = false;
+        if (!n) return toast("Pick a part");
+        autoClock();
+        wo(num).parts.push(P(n, q, q, 20));
+        render();
+        toast(`${q} × ${n} consumed`);
+      }
+      function addNote(num) {
+        const t = document.getElementById("noteIn").value.trim();
+        if (!t) return toast("Type a note");
+        autoClock();
+        wo(num).notes.push({ w: "J. Smith · now", t });
+        render();
+        toast("Note saved");
+      }
+
+      function openRaise(aid) {
+        aid = aid || S.sel;
+        const opts = D.assets
+          .map(
+            (a) =>
+              `<option value="${a.id}" ${a.id === aid ? "selected" : ""}>${"— ".repeat(depthOf(a.id))}${esc(a.name)}</option>`
+          )
+          .join("");
+        openDrawer(`<h3>${ic("raised")} Raise Task<button class="x" onclick="closeAll()">✕</button></h3>
+    <div class="sub">Additional work found by the technician. Creates a work order on the asset under workpack ${D.wp}.</div>
+    <div class="info">🏷 Marked as <b>Raised Task</b>. Appears in the Raised tasks tab for this asset.</div>
+    <div class="f"><label>Asset</label><select id="rAsset">${opts}</select></div>
+    <div class="f"><label>Work type · ${WORK_TYPES.length} in org</label><input id="rWtQ" placeholder="Search work types…" oninput="filterWt(this.value)"><select id="rWt" size="6" style="min-height:180px">${WORK_TYPES.map((t) => `<option>${t}</option>`).join("")}</select></div>
+    <div class="f"><label>Subject</label><input id="rSubj" placeholder="Short description of the work"></div>
+    <div class="f"><label>Description</label><textarea rows="3" id="rDesc"></textarea></div>
+    <div class="f2"><div class="f"><label>Priority</label><select id="rPri"><option>Medium</option><option>Low</option><option>High</option><option>Critical</option></select></div>
+      <div class="f"><label>Cause code</label><select><option>— Select —</option><option>0010, Wear and Tear</option></select></div></div>
+    <div class="f"><label>Photo</label><button class="btn btn-g" style="text-align:left" onclick="toast('Camera / attach image')">📷 Take photo / attach</button></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-g" onclick="closeAll()">Cancel</button><button class="btn btn-p" onclick="saveRaise()">Create task</button></div>`);
+      }
+      function filterWt(q) {
+        q = q.toLowerCase();
+        put(
+          document.getElementById("rWt"),
+          WORK_TYPES.filter((t) => t.toLowerCase().includes(q))
+            .map((t) => `<option>${t}</option>`)
+            .join("")
+        );
+      }
+      function saveRaise() {
+        const aid = document.getElementById("rAsset").value,
+          wt = document.getElementById("rWt").value,
+          subj = document.getElementById("rSubj").value.trim();
+        if (!wt) return toast("Pick a work type");
+        if (!subj) return toast("Enter a subject");
+        autoClock();
+        const num = "000" + (13000 + ++seq),
+          d0 = document.getElementById("rDesc").value.trim();
+        D.wos.push({
+          num,
+          subject: subj,
+          wt,
+          assetId: aid,
+          status: "New",
+          raised: true,
+          Priority: document.getElementById("rPri").value,
+          measures: [],
+          plans: [],
+          parts: [],
+          notes: d0 ? [{ w: "J. Smith · now", t: d0 }] : []
+        });
+        S.sel = aid;
+        S.focus = kids(aid).length ? aid : asset(aid).parent || aid;
+        S.wo = num;
+        S.tab = "raised";
+        closeAll();
+        render();
+        toast(`Raised task ${num} created on ${short(asset(aid).name)}`);
+      }
+
+      function openAssetDrawer() {
+        const a = asset(S.sel),
+          fields = ASSET_FIELDS.filter(([f]) => CFG.assetDrawer[f]);
+        openDrawer(`<h3>ⓘ ${esc(a.name)}<button class="x" onclick="closeAll()">✕</button></h3>
+    <div class="sub">Fields and edit rights from Kiosk Config</div>
+    ${fields
+      .map(([f, l]) =>
+        CFG.assetDrawer[f] === "E"
+          ? `<div class="f"><label>${l} <span class="tag">edit</span></label><input value="${esc(fv(a, f) === "—" ? "" : fv(a, f))}"></div>`
+          : `<div class="f"><label>${l}</label><div class="ro">${esc(fv(a, f))}</div></div>`
+      )
+      .join("")}
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-g" onclick="closeAll()">Close</button>${fields.some(([f]) => CFG.assetDrawer[f] === "E") ? `<button class="btn btn-b" onclick="closeAll();toast('Asset saved')">Save</button>` : ""}</div>`);
+      }
+
+      /* ── Kiosk Config page (sidebar nav item, like Time Tracking) ── */
+      function configPage() {
+        const listSec = (
+          key,
+          title,
+          sub,
+          cat
+        ) => `<div class="card cfg-sec"><h4>${title}</h4><div class="sub">${sub}</div>
+    ${cat
+      .map(([f, l]) => {
+        const on = CFG[key].includes(f),
+          i = CFG[key].indexOf(f);
+        return `<div class="cfg-row"><button class="cb ${on ? "on" : ""}" onclick="cfgTog('${key}','${f}')">${on ? "✓" : ""}</button><span>${l}<code>${f}</code></span>
+        <span>${on ? `<button class="mv" onclick="cfgMove('${key}','${f}',-1)">▲</button><button class="mv" onclick="cfgMove('${key}','${f}',1)">▼</button><span class="mv">#${i + 1}</span>` : ""}</span></div>`;
+      })
+      .join("")}</div>`;
+        const a = D.assets[0],
+          w = D.wos[0];
+        return `<div class="cfg-wrap">
+    <h1>🛠 Kiosk Config</h1>
+    <div class="sub">Org-wide: applies to every kiosk. Supervisor/admin only. Store: custom object <code style="color:var(--warn)">Kiosk_App_Config__c</code> (Surface · Object · Field · Order · Editable, plus feature settings). Planned, not built.</div>
+    <div class="cfg-grid">
+      <div>
+        ${listSec(
+          "assetTile",
+          "Asset title tile",
+          "Fields next to the selected asset name on Asset Review",
+          ASSET_FIELDS.filter((x) => x[0] !== "Name")
+        )}
+        <div class="card cfg-sec"><h4>Preview</h4><div class="preview"><div class="sec-t">Selected asset</div><b>${esc(a.name)}</b><div class="kvs" style="margin-top:8px">${CFG.assetTile.map((f) => `<div class="kv"><span class="k">${ASSET_FIELDS.find((x) => x[0] === f)[1]}</span><span class="v">${esc(fv(a, f))}</span></div>`).join("")}</div></div></div>
+      </div>
+      <div class="card cfg-sec"><h4>Asset drawer</h4><div class="sub">Fields in ⓘ Asset details, and whether the kiosk can edit them</div>
+        ${ASSET_FIELDS.map(([f, l]) => {
+          const m = CFG.assetDrawer[f] || "";
+          return `<div class="cfg-row"><button class="cb ${m ? "on" : ""}" onclick="cfgDrawer('${f}','${m ? "" : "R"}')">${m ? "✓" : ""}</button><span>${l}<code>${f}</code></span>
+            <span>${m ? `<span class="mini"><button class="${m === "R" ? "on" : ""}" onclick="cfgDrawer('${f}','R')">Read</button><button class="${m === "E" ? "on" : ""}" onclick="cfgDrawer('${f}','E')">Edit</button></span>` : ""}</span></div>`;
+        }).join("")}</div>
+      <div>
+        ${listSec(
+          "woTile",
+          "Work order title tile",
+          "Fields under the WO number in the workspace header",
+          WO_FIELDS.filter((x) => x[0] !== "WorkOrderNumber")
+        )}
+      </div>
+      <div class="card cfg-sec"><h4>Preview</h4><div class="preview"><b>${w.num} · ${esc(w.subject)}</b><div class="kvs" style="margin-top:8px">${CFG.woTile.map((f) => `<div class="kv"><span class="k">${WO_FIELDS.find((x) => x[0] === f)[1]}</span><span class="v">${esc(fv(w, f, true))}</span></div>`).join("")}</div></div></div>
+      <div class="card cfg-sec" style="grid-column:1 / -1"><h4>${ic("filter")} Work type focus filter</h4><div class="sub">Show the multi-select work-type filter above the asset map. Types are the WorkTypes of WOs under the workpack (root WO).</div>
+        <div class="cfg-row"><button class="cb ${CFG.wtFilter ? "on" : ""}" onclick="CFG.wtFilter=!CFG.wtFilter;S.wtf=[];render()">${CFG.wtFilter ? "✓" : ""}</button><span>Enable work type filter<code>Feature setting · Work_Type_Filter</code></span><span></span></div></div>
+    </div></div>`;
+      }
+      function cfgTog(key, f) {
+        const a = CFG[key],
+          i = a.indexOf(f);
+        if (i >= 0) a.splice(i, 1);
+        else a.push(f);
+        render();
+      }
+      function cfgMove(key, f, dlt) {
+        const a = CFG[key],
+          i = a.indexOf(f),
+          j = i + dlt;
+        if (j < 0 || j >= a.length) return;
+        [a[i], a[j]] = [a[j], a[i]];
+        render();
+      }
+      function cfgDrawer(f, m) {
+        if (m) CFG.assetDrawer[f] = m;
+        else delete CFG.assetDrawer[f];
+        render();
+      }
+
+      /* ── design notes ── */
+      function openNotes() {
+        put(
+          document.getElementById("dn"),
+          `<h3>Design notes · v6 <button onclick="closeAll()">✕</button></h3>
+  <h4>v6 · smart collapse of the work order list</h4><ul>
+    <li><b>Auto-collapse</b> to a 68px rail when you need room: tapping the Measure tab (or Next step "Measure"), Document or Trend, a 📄 chip, or any PDF control (pager, tools, the page itself). Selecting a WO from the list does <i>not</i> collapse it.</li>
+    <li><b>Rail</b>: » to reopen, the workpack (WP) and every WO as a status dot + last 3 digits (purple dot = raised), tap to switch WO without reopening, Raise Task at the bottom. "auto-hidden" shows when the kiosk collapsed it, not you.</li>
+    <li><b>Auto-expand</b>: tapping the asset map, a breadcrumb or a work-type chip, or "Show all".</li>
+    <li><b>Manual</b>: « collapses. 📌 pins the list open (auto-collapse off). Proposed: remember the pin per worker.</li></ul>
+  <h4>Changes from v4</h4><ul>
+    <li><b>One icon set</b>: Measure, Execute, Parts, Notes and Raise Task all use matching line icons, on the tabs, panel headings and Raise Task buttons.</li>
+    <li><b>Shaded bands</b> for the asset tile, the WO title, the next step and every panel heading.</li>
+    <li><b>Measure rows</b>: measure type hidden. <b>Captured</b> date/time shown, from <code>Update_Date__c</code> (already returned as <code>updateDate</code> by KioskController) and set on every outcome or value change. "Comments, notes, location" is now <b>Edit</b>.</li>
+    <li><b>Execute</b> is the existing <code>workOrderDetail</code> Work Plans panel: plan-card + step-row, same CSS, New/In Progress/Completed, ▶ for flow steps. Tapping a step = <code>handleStepClick</code>.</li>
+    <li><b>Parts</b> is the existing <code>assetReview</code> Required Parts table: Part · Consumed · Required · Cost · + Consume, plus "+ Add part".</li>
+    <li><b>Work type focus</b> (optional, Kiosk Config): chips list the distinct WorkType names of WOs under the workpack (<code>RootWorkOrderId</code> = workpack). Multi-select filters the WO list, map status colours, open-WO counts and progress. None selected = all. Proposed: keep the selection per worker session.</li>
+    <li><b>Map highlight</b>: selecting a WO outlines its asset on the map in blue (zooms out if it's off-screen). The asset you tapped stays orange.</li></ul>
+  <h4>Decided</h4><ul>
+    <li>Raised marker = new checkbox <code>WorkOrder.Raised_Task__c</code>.</li>
+    <li>New fields <code>Measure_Point__c.Source_Document__c</code> + <code>Page_Number__c</code>.</li>
+    <li>Measure save writes both <code>Work_Order__c</code> (selected WO) and <code>Asset__c</code>. No seed fix.</li></ul>
+  <h4>Also</h4><ul>
+    <li>Config store = custom object <code>Kiosk_App_Config__c</code> (the kiosk page can save it; custom metadata it can't).</li>
+    <li>History, values, parts, territory and crew names are sample data.</li></ul>`
+        );
+        openL("dn");
+      }
+
+      function openDrawer(html) {
+        put(document.getElementById("drawer"), html);
+        openL("drawer");
+      }
+      function openL(id) {
+        document.getElementById("scrim").classList.add("open");
+        document.getElementById(id).classList.add("open");
+      }
+      function closeAll() {
+        ["scrim", "drawer", "dn"].forEach((i) =>
+          document.getElementById(i).classList.remove("open")
+        );
+      }
+      function toast(t) {
+        const el = document.getElementById("toast");
+        el.textContent = t;
+        el.classList.add("show");
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.classList.remove("show"), 2600);
+      }
+
+      loadDs("HT");
+      {
+        const h = location.hash,
+          ds = (h.match(/ds=(\w+)/) || [])[1],
+          w = (h.match(/wo=(\d+)/) || [])[1];
+        if (ds && ds !== "HT") loadDs(ds);
+        if (w) selWo(w);
+      }
+    </script>
+  </body>
+</html>

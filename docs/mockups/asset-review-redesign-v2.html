@@ -1,0 +1,2534 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asset Review v2 — multi-level, WO-centric mock</title>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --s1: #131a22;
+        --s2: #1b2530;
+        --s3: #243040;
+        --bd: #2a3744;
+        --tx: #f2f5f7;
+        --mu: #a6b2bd;
+        --dim: #6b7a89;
+        --ac: #e25822;
+        --ach: #f06a2a;
+        --ac2: #2e8fe6;
+        --ok: #21c07a;
+        --warn: #f2b441;
+        --bad: #e84b4b;
+        --r: 14px;
+        --rs: 8px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--tx);
+        font:
+          16px/1.4 -apple-system,
+          "SF Pro Text",
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        border: none;
+        background: none;
+      }
+      .card {
+        background: var(--s1);
+        border: 1px solid var(--bd);
+        border-radius: var(--r);
+      }
+      .chip {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--s3);
+        color: var(--mu);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        flex: none;
+      }
+      .s-grey {
+        background: var(--dim);
+      }
+      .s-amber {
+        background: var(--warn);
+      }
+      .s-red {
+        background: var(--bad);
+      }
+      .s-green {
+        background: var(--ok);
+      }
+      .btn {
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: var(--rs);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .btn-sm {
+        min-height: 40px;
+        padding: 0 14px;
+        font-size: 14px;
+      }
+      .btn-p {
+        background: var(--ac);
+        color: #fff;
+      }
+      .btn-p:hover {
+        background: var(--ach);
+      }
+      .btn-g {
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--mu);
+      }
+      .btn-b {
+        background: var(--ac2);
+        color: #fff;
+      }
+      .sec-t {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
+
+      /* top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 24px;
+        background: var(--s1);
+        border-bottom: 1px solid var(--bd);
+        position: sticky;
+        top: 0;
+        z-index: 6;
+      }
+      .back {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: var(--rs);
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--mu);
+      }
+      .tb-title {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .tb-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .bar {
+        width: 160px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--s3);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--ok);
+      }
+      .ds {
+        display: flex;
+        border: 1px solid var(--bd);
+        border-radius: var(--rs);
+        overflow: hidden;
+      }
+      .ds button {
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--mu);
+      }
+      .ds button.on {
+        background: var(--ac2);
+        color: #fff;
+      }
+      .notes-btn {
+        min-height: 38px;
+        padding: 0 12px;
+        border-radius: var(--rs);
+        border: 1px dashed var(--ac2);
+        color: var(--ac2);
+        font-size: 13px;
+      }
+
+      .wrap {
+        padding: 16px 24px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* asset map */
+      .map {
+        padding: 12px 16px 14px;
+      }
+      .map-h {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .crumb {
+        padding: 6px 10px;
+        border-radius: 8px;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .crumb:hover {
+        background: var(--s2);
+      }
+      .crumb.cur {
+        color: var(--tx);
+        font-weight: 700;
+      }
+      .crumb-sep {
+        color: var(--dim);
+      }
+      .map-h .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .seg {
+        display: flex;
+        border: 1px solid var(--bd);
+        border-radius: var(--rs);
+        overflow: hidden;
+      }
+      .seg button {
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--mu);
+        min-height: 38px;
+      }
+      .seg button.on {
+        background: var(--s3);
+        color: var(--tx);
+      }
+      .ice {
+        position: relative;
+      }
+      .ice-row-l {
+        position: absolute;
+        left: 0;
+        width: 30px;
+        font-size: 11px;
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+      }
+      .blk {
+        position: absolute;
+        border-radius: 8px;
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        text-align: left;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        font-size: 14px;
+        transition:
+          left 0.25s,
+          width 0.25s,
+          top 0.25s;
+      }
+      .blk:hover {
+        border-color: var(--mu);
+      }
+      .blk.sel {
+        border: 2px solid var(--ac);
+        background: rgba(226, 88, 34, 0.14);
+      }
+      .blk.path {
+        background: var(--s3);
+      }
+      .blk .bn {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .blk .bc {
+        font-size: 12px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: rgba(46, 143, 230, 0.22);
+        color: var(--ac2);
+        font-weight: 700;
+      }
+      .blk.st-red {
+        box-shadow: inset 4px 0 0 var(--bad);
+      }
+      .blk.st-amber {
+        box-shadow: inset 4px 0 0 var(--warn);
+      }
+      .blk.st-green {
+        box-shadow: inset 4px 0 0 var(--ok);
+      }
+      .blk.st-grey {
+        box-shadow: inset 4px 0 0 var(--dim);
+      }
+      .blk .zoom {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .schem {
+        position: relative;
+      }
+      .schem img {
+        width: 100%;
+        display: block;
+        border-radius: 8px;
+        opacity: 0.85;
+      }
+      .schem .zone {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        display: flex;
+        justify-content: center;
+        padding-top: 6px;
+      }
+      .schem .zone.sel {
+        border-color: var(--ac);
+        background: rgba(226, 88, 34, 0.12);
+      }
+      .legend {
+        display: flex;
+        gap: 14px;
+        font-size: 12px;
+        color: var(--mu);
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* body */
+      .body {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .wol {
+        padding: 12px;
+        position: sticky;
+        top: 76px;
+        max-height: calc(100vh - 92px);
+        overflow: auto;
+      }
+      .wol-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 4px 10px;
+      }
+      .wol-h .t {
+        font-weight: 700;
+        font-size: 17px;
+        flex: 1;
+      }
+      .tog {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--mu);
+        padding: 0 4px 10px;
+      }
+      .sw {
+        width: 40px;
+        height: 24px;
+        border-radius: 12px;
+        background: var(--s3);
+        position: relative;
+        flex: none;
+      }
+      .sw::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--mu);
+        transition: left 0.2s;
+      }
+      .sw.on {
+        background: var(--ac2);
+      }
+      .sw.on::after {
+        left: 19px;
+        background: #fff;
+      }
+      .grp {
+        font-size: 12px;
+        color: var(--dim);
+        padding: 10px 6px 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .woc {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 10px;
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--s2);
+        border: 1px solid transparent;
+        margin-bottom: 8px;
+      }
+      .woc:hover {
+        border-color: var(--bd);
+      }
+      .woc.sel {
+        border-color: var(--ac);
+        background: rgba(226, 88, 34, 0.08);
+      }
+      .woc .n {
+        font-weight: 700;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .woc .sj {
+        grid-column: 1 / 2;
+        color: var(--mu);
+        font-size: 14px;
+      }
+      .woc .meta {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .woc .ring {
+        grid-row: 1 / 3;
+        grid-column: 2;
+      }
+      .tag {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--s3);
+        color: var(--mu);
+      }
+      .tag.wt {
+        background: rgba(46, 143, 230, 0.16);
+        color: var(--ac2);
+      }
+      .tag.bad {
+        background: rgba(232, 75, 75, 0.18);
+        color: var(--bad);
+      }
+      .tag.warn {
+        background: rgba(242, 180, 65, 0.18);
+        color: var(--warn);
+      }
+      .tag.asset {
+        background: transparent;
+        border: 1px solid var(--bd);
+      }
+      .pill {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--s3);
+        color: var(--mu);
+      }
+      .pill.ip {
+        background: rgba(242, 180, 65, 0.2);
+        color: var(--warn);
+      }
+      .pill.dn {
+        background: rgba(33, 192, 122, 0.2);
+        color: var(--ok);
+      }
+      .ring {
+        width: 42px;
+        height: 42px;
+      }
+
+      /* workspace */
+      .ws {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+      }
+      .ws-h {
+        padding: 16px 20px;
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .ws-h h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .ws-h .m {
+        color: var(--mu);
+        font-size: 14px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 4px;
+      }
+      .ws-h .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+      .next {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 20px;
+        border-left: 6px solid var(--ac);
+        background: linear-gradient(
+          90deg,
+          rgba(226, 88, 34, 0.14),
+          var(--s1) 60%
+        );
+      }
+      .next.ok {
+        border-left-color: var(--ok);
+        background: linear-gradient(
+          90deg,
+          rgba(33, 192, 122, 0.14),
+          var(--s1) 60%
+        );
+      }
+      .next.bad {
+        border-left-color: var(--bad);
+        background: linear-gradient(
+          90deg,
+          rgba(232, 75, 75, 0.16),
+          var(--s1) 60%
+        );
+      }
+      .next .txt {
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .next .btn {
+        margin-left: auto;
+      }
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        overflow: hidden;
+      }
+      .tab {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        min-height: 66px;
+        text-align: left;
+        border-right: 1px solid var(--bd);
+      }
+      .tab:last-child {
+        border-right: none;
+      }
+      .tab.on {
+        background: var(--s2);
+        box-shadow: inset 0 -3px 0 var(--ac);
+      }
+      .tab .ic {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        background: var(--s3);
+        color: var(--mu);
+        flex: none;
+        font-size: 15px;
+      }
+      .tab.done .ic {
+        background: var(--ok);
+        color: #05210f;
+      }
+      .tab.warn .ic {
+        background: var(--bad);
+        color: #fff;
+      }
+      .tab.prog .ic {
+        background: var(--warn);
+        color: #2b1d00;
+      }
+      .tab .t {
+        font-weight: 700;
+      }
+      .tab .d {
+        font-size: 12px;
+        color: var(--mu);
+      }
+      .panel {
+        padding: 16px 18px;
+      }
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .ph h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .ph .hint {
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .ph .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      /* measures + pdf split */
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .split.nodoc {
+        grid-template-columns: 1fr;
+      }
+      .mrow {
+        display: grid;
+        grid-template-columns: 1fr 96px;
+        gap: 8px 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 10px;
+        background: var(--s2);
+        margin-bottom: 8px;
+        border-left: 4px solid var(--s3);
+      }
+      .mrow.o-ok {
+        border-left-color: var(--ok);
+      }
+      .mrow.o-m {
+        border-left-color: var(--ac2);
+      }
+      .mrow.o-att {
+        border-left-color: var(--warn);
+      }
+      .mrow.o-sc {
+        border-left-color: var(--bad);
+      }
+      .mrow .c {
+        font-weight: 600;
+      }
+      .mrow .l {
+        font-size: 13px;
+        color: var(--mu);
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .mrow .v {
+        font-size: 20px;
+        font-weight: 700;
+        text-align: right;
+      }
+      .mrow .v small {
+        font-size: 12px;
+        color: var(--dim);
+        font-weight: 400;
+        margin-left: 3px;
+      }
+      .vin {
+        width: 96px;
+        min-height: 42px;
+        border-radius: 8px;
+        background: var(--s3);
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        padding: 0 10px;
+        font: inherit;
+        text-align: right;
+      }
+      .outs {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .out {
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 8px;
+        background: var(--s3);
+        color: var(--mu);
+        font-size: 14px;
+        font-weight: 600;
+        border: 1px solid transparent;
+      }
+      .out.on.ok {
+        background: rgba(33, 192, 122, 0.2);
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+      .out.on.att {
+        background: rgba(242, 180, 65, 0.2);
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .out.on.sc {
+        background: rgba(232, 75, 75, 0.2);
+        border-color: var(--bad);
+        color: var(--bad);
+      }
+      .out.pg {
+        margin-left: auto;
+        color: var(--ac2);
+      }
+      .flink {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: var(--mu);
+        padding-top: 8px;
+        border-top: 1px dashed var(--bd);
+      }
+      .flink .btn {
+        margin-left: auto;
+      }
+      .doc {
+        display: flex;
+        flex-direction: column;
+        background: #0e141b;
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        overflow: hidden;
+        position: sticky;
+        top: 76px;
+      }
+      .doc-h {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--bd);
+        background: var(--s2);
+      }
+      .doc-h select {
+        flex: 1;
+        min-height: 38px;
+        background: var(--s3);
+        color: var(--tx);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 0 8px;
+        font: inherit;
+        font-size: 13px;
+        color-scheme: dark;
+      }
+      .tool {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--s3);
+        font-size: 15px;
+      }
+      .tool.on {
+        background: var(--ac2);
+      }
+      .page-wrap {
+        padding: 14px;
+        overflow: auto;
+        max-height: 640px;
+        background: #3a4450;
+      }
+      .page {
+        background: #fff;
+        color: #111;
+        border-radius: 2px;
+        padding: 26px 28px;
+        font:
+          11px/1.45 Helvetica,
+          Arial,
+          sans-serif;
+        position: relative;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+        min-height: 560px;
+      }
+      .page h5 {
+        margin: 0 0 4px;
+        font-size: 14px;
+      }
+      .page .sub {
+        color: #555;
+        margin-bottom: 12px;
+      }
+      .page table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      .page td,
+      .page th {
+        border: 1px solid #999;
+        padding: 4px 6px;
+        text-align: left;
+      }
+      .page th {
+        background: #e9edf1;
+      }
+      .page tr.hl td {
+        background: rgba(46, 143, 230, 0.18);
+      }
+      .ink {
+        position: absolute;
+        pointer-events: none;
+      }
+      .doc-f {
+        display: flex;
+        gap: 8px;
+        padding: 8px 10px;
+        border-top: 1px solid var(--bd);
+        font-size: 12px;
+        color: var(--dim);
+        align-items: center;
+      }
+      .doc-f .btn {
+        margin-left: auto;
+      }
+
+      /* execute */
+      .plan {
+        border: 1px solid var(--bd);
+        border-radius: 12px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .plan.locked {
+        opacity: 0.75;
+      }
+      .plan-h {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: var(--s2);
+        width: 100%;
+        text-align: left;
+      }
+      .plan-h .o {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--s3);
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex: none;
+      }
+      .plan-h .nm {
+        font-weight: 700;
+        flex: 1;
+      }
+      .plan-h .k {
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .srow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 52px;
+        padding: 6px 14px;
+        border-top: 1px solid var(--s3);
+      }
+      .chk {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 2px solid var(--bd);
+        display: grid;
+        place-items: center;
+        flex: none;
+        font-weight: 800;
+      }
+      .chk.on {
+        background: var(--ok);
+        border-color: var(--ok);
+        color: #05210f;
+      }
+      .srow.nx {
+        background: rgba(226, 88, 34, 0.08);
+      }
+      .srow .sn {
+        flex: 1;
+      }
+      .srow .sn.dn {
+        color: var(--dim);
+        text-decoration: line-through;
+      }
+      .act {
+        font-size: 13px;
+        color: var(--ac2);
+      }
+      .lock {
+        font-size: 13px;
+        color: var(--dim);
+        padding: 10px 14px;
+        border-top: 1px solid var(--s3);
+      }
+
+      /* parts */
+      .pt {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .pt th {
+        text-align: left;
+        font-size: 12px;
+        color: var(--dim);
+        font-weight: 600;
+        padding: 8px;
+        border-bottom: 1px solid var(--bd);
+      }
+      .pt td {
+        padding: 8px;
+        border-bottom: 1px solid var(--s3);
+        height: 56px;
+      }
+      .pt .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .pt .full {
+        color: var(--ok);
+      }
+      .addp {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .addp select,
+      .addp input {
+        min-height: 44px;
+        background: var(--s2);
+        color: var(--tx);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 0 10px;
+        font: inherit;
+        color-scheme: dark;
+      }
+      .addp select {
+        flex: 1;
+      }
+      .addp input {
+        width: 90px;
+      }
+
+      /* notes */
+      .nh {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .note {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--s2);
+        font-size: 14px;
+      }
+      .note .w {
+        font-size: 12px;
+        color: var(--dim);
+        margin-bottom: 2px;
+      }
+      .f {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      .f label {
+        font-size: 13px;
+        color: var(--mu);
+      }
+      .f input,
+      .f select,
+      .f textarea {
+        min-height: 46px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--s2);
+        border: 1px solid var(--bd);
+        color: var(--tx);
+        font: inherit;
+        color-scheme: dark;
+      }
+      .f .ro {
+        padding: 10px 0;
+        font-weight: 600;
+      }
+      .f3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .f2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      /* drawer / notes */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 20;
+        display: none;
+      }
+      .scrim.open {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 480px;
+        background: var(--s1);
+        border-left: 1px solid var(--bd);
+        z-index: 21;
+        transform: translateX(100%);
+        transition: transform 0.25s;
+        padding: 22px;
+        overflow: auto;
+      }
+      .drawer.open {
+        transform: none;
+      }
+      .drawer h3 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+      }
+      .drawer h3 button {
+        margin-left: auto;
+        font-size: 22px;
+        color: var(--mu);
+      }
+      .drawer .sub {
+        color: var(--mu);
+        font-size: 14px;
+        margin-bottom: 16px;
+      }
+      .prefill {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(242, 180, 65, 0.12);
+        color: var(--warn);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .dn {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 560px;
+        background: #0e141b;
+        border-right: 1px solid var(--ac2);
+        z-index: 21;
+        transform: translateX(-100%);
+        transition: transform 0.25s;
+        padding: 24px;
+        overflow: auto;
+        font-size: 15px;
+      }
+      .dn.open {
+        transform: none;
+      }
+      .dn h3 {
+        margin-top: 0;
+        color: var(--ac2);
+        display: flex;
+      }
+      .dn h3 button {
+        margin-left: auto;
+        color: var(--mu);
+        font-size: 20px;
+      }
+      .dn h4 {
+        margin: 18px 0 6px;
+      }
+      .dn li {
+        margin-bottom: 6px;
+        color: var(--mu);
+      }
+      .dn b {
+        color: var(--tx);
+      }
+      .dn code {
+        color: var(--warn);
+      }
+      .empty {
+        padding: 28px;
+        text-align: center;
+        color: var(--dim);
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--s3);
+        border: 1px solid var(--bd);
+        padding: 12px 20px;
+        border-radius: 10px;
+        z-index: 30;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <button class="back">‹ Back to Workpack</button>
+      <span class="tb-title" id="tbTitle"></span>
+      <span class="chip" id="tbWp"></span>
+      <div class="tb-right">
+        <div class="ds" title="Switch sample dataset">
+          <button id="dsHT" onclick="loadDs('HT')">HT-02 · 00012423</button>
+          <button id="dsWG" onclick="loadDs('WG')">WG 20213 · 00010070</button>
+        </div>
+        <span id="tbProg"></span>
+        <div class="bar"><i id="tbBar"></i></div>
+        <button class="notes-btn" onclick="openL('dn')">ⓘ Design notes</button>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="card map" id="map"></div>
+      <div class="body">
+        <aside class="card wol" id="wol"></aside>
+        <main class="ws" id="ws"></main>
+      </div>
+    </div>
+
+    <div class="scrim" id="scrim" onclick="closeAll()"></div>
+    <div class="drawer" id="drawer"></div>
+    <div class="dn" id="dn">
+      <h3>Design notes · v2 <button onclick="closeAll()">✕</button></h3>
+      <h4>What the org shows (verified 2026-11-11)</h4>
+      <ul>
+        <li>
+          <b>00012423</b> = Workpack for
+          <b>MEL-SEED Haul Truck HT-02</b> (Asset_Type SYST). Hierarchy: truck →
+          3 systems (Hydraulic / Mechanical / Electrical) → 9 components (PUMP,
+          VALV, BRAK, MOTR, DRIV, GBOX, POWR, ELEC). 13 assets, 3 levels. No
+          diagram art.
+        </li>
+        <li>
+          16 child WOs, each on a component (an Inspection and a Repair per
+          component).
+          <b>Measures, work plans and ProductRequired all hang off the WO.</b>
+          Many measure points have <code>Asset__c</code> = the truck root, not
+          the component, and the PM01 children have blank placeholder points.
+        </li>
+        <li>
+          The workpack WO itself carries plans
+          <b>🦺 Release to Traffic — Maintainer Checks</b>,
+          <b>✍️ Release to Traffic — Supervisor Sign-Off</b> and
+          <b>🚩 Raise Exception</b>. So sign-off already exists as a work plan,
+          and no new field is needed.
+        </li>
+        <li>
+          PDF <b>"PRT Workpack 18/8/2026 — MEL-SEED Haul Truck HT-02"</b> is
+          linked to 00012423. 00012431 has a CMon PDF + 6 images.
+        </li>
+        <li>
+          <code>pdfAnnotator</code> LWC (repo + org) is already used by
+          <code>workExecution</code>: <code>pdf-url</code> (base64),
+          <code>work-order-id</code>, <code>session-token</code>,
+          <code>onsaved</code> →
+          <code>KioskController.uploadAnnotatedPdf</code>. Kiosk-safe (no
+          shepherd URLs).
+        </li>
+        <li>
+          Notes &amp; Codes (work notes history, cause/delay/damage codes)
+          already exist in <code>workOrderDetail</code>.
+        </li>
+      </ul>
+      <h4>Layout</h4>
+      <ul>
+        <li>
+          <b>Asset map (top)</b>: an icicle diagram. Each row is one hierarchy
+          level (up to 6), and block width is proportional to sub-assets. Tap to
+          select; assets with children zoom in, and the breadcrumb zooms out. No
+          art needed, so it works for any asset type. Colour edge = rolled-up
+          status, badge = open WOs. Wagons can switch to <b>Schematic</b> (the
+          existing PNG with zones). Picking a diagram per
+          <code>Asset_Type__c</code> is a config choice.
+        </li>
+        <li>
+          <b>Work orders (left)</b>: WOs on the selected asset, optionally
+          including sub-assets, grouped by asset.
+          <b>The WO is the unit of work</b>, and selecting one opens its
+          workspace.
+        </li>
+        <li>
+          <b>WO workspace (right)</b>: Next-step banner + 4 tabs, all scoped to
+          that WO: <b>Measure</b> (measure list with the WO's PDF side by side
+          in pdfAnnotator, rows link to the PDF section) · <b>Execute</b> (work
+          plans + steps in execution order, Raise Exception plan, sign-off plan
+          locked until the others are done) · <b>Parts</b> (required vs
+          consumed, consume, add) · <b>Notes</b> (notes history + codes).
+        </li>
+        <li>
+          <b>Raise Task</b> (not "PM02"): opens a defect WO form against the
+          selected asset. Asset can be changed within the hierarchy, work type
+          is picked, and the parent is the workpack. From a finding it prefills
+          subject/description/asset and links the finding.
+        </li>
+      </ul>
+      <h4>Open questions</h4>
+      <ul>
+        <li>
+          <b>Work type list for Raise Task</b>: mock offers the work types
+          already used in the workpack. Should it be filtered by asset type, or
+          should there be a dedicated "Defect" work type?
+        </li>
+        <li>
+          <b>Linking finding → defect WO</b>:
+          <code>Measure_Point__c.Work_Order__c</code> already holds the owning
+          WO. A link to the raised task needs another lookup or a back-reference
+          on the WO (not verified).
+        </li>
+        <li>
+          <b>Measure ↔ PDF section</b>: the "page" chip assumes a page/anchor
+          per measure. No such field verified, so it could be manual or skipped.
+        </li>
+        <li>
+          6-level depth under Diesel Engine (Fuel system → Injector bank →
+          Injector) is <b>synthetic</b> to show depth. The real HT-02 has 3
+          levels. Measure values, step names and parts are sample data.
+        </li>
+      </ul>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      /* ───────────── datasets ───────────── */
+      const A = (id, name, type, parent, extra = {}) => ({
+        id,
+        name,
+        type,
+        parent,
+        ...extra
+      });
+      const M = (id, comp, assetId, vt, val, out, extra = {}) => ({
+        id,
+        comp,
+        assetId,
+        vt,
+        val,
+        out,
+        link: null,
+        ...extra
+      });
+      const steps = (arr, doneN = 0) =>
+        arr.map((n, i) => ({ n, d: i < doneN }));
+      const P = (n, req, used, extra = {}) => ({ n, req, used, ...extra });
+
+      const DS = {
+        HT: {
+          title: "MEL-SEED Haul Truck HT-02",
+          wp: "Workpack 00012423",
+          schematic: null,
+          assets: [
+            A("ht", "MEL-SEED Haul Truck HT-02", "SYST", null, {
+              sn: "HT02-SN10001"
+            }),
+            A("hyd", "HT-02 — Hydraulic System", "SYST", "ht"),
+            A("mec", "HT-02 — Mechanical System", "SYST", "ht"),
+            A("ele", "HT-02 — Electrical System", "SYST", "ht"),
+            A("pump", "Main Hydraulic Pump", "PUMP", "hyd"),
+            A("boom", "Boom Lift Cylinder", "VALV", "hyd"),
+            A("brk", "Brake Hydraulic Assembly", "BRAK", "hyd"),
+            A("eng", "Diesel Engine", "MOTR", "mec"),
+            A("fda", "Final Drive Axle", "DRIV", "mec"),
+            A("gbx", "Transmission Gearbox", "GBOX", "mec"),
+            A("bat", "Battery Pack", "POWR", "ele"),
+            A("alt", "Alternator", "ELEC", "ele"),
+            A("sen", "Sensor Array", "ELEC", "ele"),
+            A("fuel", "Fuel System", "SYST", "eng", { synthetic: true }),
+            A("cool", "Cooling System", "SYST", "eng", { synthetic: true }),
+            A("inj", "Injector Bank A", "ASSY", "fuel", { synthetic: true }),
+            A("fpump", "HP Fuel Pump", "PUMP", "fuel", { synthetic: true }),
+            A("inj1", "Injector A1", "COMP", "inj", { synthetic: true }),
+            A("inj2", "Injector A2", "COMP", "inj", { synthetic: true }),
+            A("inj3", "Injector A3", "COMP", "inj", { synthetic: true }),
+            A("rad", "Radiator", "COMP", "cool", { synthetic: true })
+          ],
+          docs: [
+            {
+              id: "d1",
+              wo: "00012423",
+              title: "PRT Workpack 18/8/2026 — MEL-SEED Haul Truck HT-02.pdf",
+              pages: 4
+            },
+            {
+              id: "d2",
+              wo: "00012431",
+              title: "CMon 26WK CD5C Train Positioner Insp Off.pdf",
+              pages: 2
+            }
+          ],
+          wos: [
+            {
+              num: "00012423",
+              subject: "Workpack 18/8/2026 — MEL-SEED Haul Truck HT-02",
+              wt: "Workpack",
+              assetId: "ht",
+              status: "New",
+              isWp: true,
+              doc: "d1",
+              measures: [
+                M(
+                  "a1",
+                  "Engine oil pressure (idle)",
+                  "eng",
+                  "Pressure",
+                  null,
+                  null,
+                  { pg: 2 }
+                ),
+                M("a2", "Coolant temperature", "eng", "Temperature", 88, "OK", {
+                  pg: 2
+                }),
+                M("a3", "Exhaust smoke opacity", "eng", "Level", null, "OK", {
+                  pg: 2
+                }),
+                M(
+                  "a4",
+                  "Turbo boost pressure",
+                  "eng",
+                  "Pressure",
+                  1.1,
+                  "Attention Required",
+                  { pg: 2, comment: "Below spec 1.4 bar at full load" }
+                ),
+                M("a5", "Charging voltage", "alt", "Voltage", 27.1, "Measure", {
+                  pg: 3
+                }),
+                M(
+                  "a6",
+                  "Alternator belt tension",
+                  "alt",
+                  "Width",
+                  null,
+                  "Attention Required",
+                  { pg: 3, comment: "Belt glazing visible" }
+                )
+              ],
+              plans: [
+                {
+                  n: "🦺 Release to Traffic — Maintainer Checks",
+                  steps: steps(
+                    [
+                      "Walk-around visual",
+                      "Fluid levels",
+                      "Tyres & wheel nuts",
+                      "Lights & horn",
+                      "Brake test",
+                      "Fire suppression armed",
+                      "Isolation removed"
+                    ],
+                    2
+                  )
+                },
+                {
+                  n: "🚩 Raise Exception",
+                  exception: true,
+                  steps: steps([
+                    "Describe exception",
+                    "Photo evidence",
+                    "Notify supervisor",
+                    "Agree action"
+                  ])
+                },
+                {
+                  n: "✍️ Release to Traffic — Supervisor Sign-Off",
+                  signoff: true,
+                  steps: steps([
+                    "Review open findings",
+                    "Review exceptions",
+                    "Sign & release"
+                  ])
+                }
+              ],
+              parts: [],
+              notes: [
+                {
+                  w: "J. Smith · 18 Aug 07:10",
+                  t: "Truck parked in Bay 3, isolated."
+                }
+              ]
+            },
+            {
+              num: "00012021",
+              subject: "DDB Diesel engine inspection",
+              wt: "MEL-SEED Repair – Hydraulic",
+              assetId: "eng",
+              status: "In Progress",
+              measures: [
+                M(
+                  "b1",
+                  "Injector A1 return flow",
+                  "inj1",
+                  "Level",
+                  42,
+                  "Measure"
+                ),
+                M(
+                  "b2",
+                  "Injector A2 return flow",
+                  "inj2",
+                  "Level",
+                  61,
+                  "Attention Required",
+                  { comment: "High return flow" }
+                )
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Repair Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Depressurise",
+                      "Drain",
+                      "Remove component",
+                      "Inspect seals",
+                      "Replace seals",
+                      "Refit",
+                      "Pressure test"
+                    ],
+                    5
+                  )
+                },
+                {
+                  n: "🟢 Maintenance Activities for Workshop",
+                  steps: steps(
+                    [
+                      "Clean",
+                      "Grease points",
+                      "Torque check",
+                      "Housekeeping",
+                      "Tools returned",
+                      "Area clear"
+                    ],
+                    1
+                  )
+                },
+                {
+                  n: "🚩 Raise Exception",
+                  exception: true,
+                  steps: steps([
+                    "Describe exception",
+                    "Photo evidence",
+                    "Notify supervisor",
+                    "Agree action"
+                  ])
+                }
+              ],
+              parts: [
+                P("Seal kit — HP", 2, 2, { cost: 120 }),
+                P("O-ring set", 1, 1, { cost: 18 }),
+                P("Hydraulic oil 20L", 1, 0, { cost: 96 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012415",
+              subject: "DDB Work Order 1",
+              wt: "MEL-SEED Inspection – Hydraulic",
+              assetId: "eng",
+              status: "New",
+              measures: [
+                M("c1", "Oil sample", "eng", "Level", null, null),
+                M("c2", "Oil temperature", "eng", "Temperature", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Inspection Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Visual",
+                    "Leak check",
+                    "Hose condition",
+                    "Fittings",
+                    "Oil sample",
+                    "Record",
+                    "Close-out"
+                  ])
+                }
+              ],
+              parts: [
+                P("Sample bottle", 1, 0, { cost: 4 }),
+                P("Filter", 1, 0, { cost: 42 }),
+                P("Rag pack", 1, 0, { cost: 6 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012416",
+              subject: "HT02-SEED WO — Hydraulic System Inspection",
+              wt: "MEL-SEED Inspection – Hydraulic",
+              assetId: "pump",
+              status: "In Progress",
+              measures: [
+                M("d1", "Pump outlet pressure", "pump", "Pressure", 205, "OK"),
+                M("d2", "Case drain flow", "pump", "Level", null, null),
+                M("d3", "Pump temperature", "pump", "Temperature", null, null),
+                M("d4", "Noise / vibration", "pump", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Inspection Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Visual",
+                      "Leak check",
+                      "Hose condition",
+                      "Fittings",
+                      "Oil sample",
+                      "Record",
+                      "Close-out"
+                    ],
+                    3
+                  )
+                }
+              ],
+              parts: [P("Filter", 1, 1, { cost: 42 })],
+              notes: []
+            },
+            {
+              num: "00012417",
+              subject: "HT02-SEED WO — Hydraulic Pump Reseal",
+              wt: "MEL-SEED Repair – Hydraulic",
+              assetId: "pump",
+              status: "New",
+              measures: [
+                M("e1", "Shaft seal leakage", "pump", "Level", null, null),
+                M("e2", "Post-repair pressure", "pump", "Pressure", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Hydraulic Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Depressurise",
+                    "Drain",
+                    "Remove component",
+                    "Inspect seals",
+                    "Replace seals",
+                    "Refit",
+                    "Pressure test"
+                  ])
+                }
+              ],
+              parts: [
+                P("Pump seal kit", 1, 0, { cost: 180 }),
+                P("Gasket", 2, 0, { cost: 12 }),
+                P("Hydraulic oil 20L", 2, 0, { cost: 96 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012418",
+              subject: "HT02-SEED WO — Electrical System Inspection",
+              wt: "MEL-SEED Inspection – Electrical",
+              assetId: "alt",
+              status: "In Progress",
+              measures: [
+                M("f1", "Battery voltage (rest)", "bat", "Voltage", 25.4, "OK"),
+                M("f2", "Insulation resistance", "alt", "Level", null, null),
+                M("f3", "Earth strap", "alt", "Level", null, "OK"),
+                M("f4", "Sensor array fault codes", "sen", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Electrical Inspection Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Battery check",
+                      "Harness visual",
+                      "Connectors",
+                      "Earth points",
+                      "Fault codes",
+                      "Close-out"
+                    ],
+                    4
+                  )
+                }
+              ],
+              parts: [
+                P("Cable ties", 10, 10, { cost: 0.5 }),
+                P("Terminal lug", 4, 4, { cost: 2 }),
+                P("Fuse 30A", 2, 1, { cost: 3 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012419",
+              subject: "HT02-SEED WO — Alternator Replacement",
+              wt: "MEL-SEED Repair – Electrical",
+              assetId: "alt",
+              status: "New",
+              measures: [
+                M(
+                  "g1",
+                  "Output voltage after fit",
+                  "alt",
+                  "Voltage",
+                  null,
+                  null
+                ),
+                M("g2", "Belt tension after fit", "alt", "Width", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Electrical Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Remove belt",
+                    "Remove alternator",
+                    "Fit new",
+                    "Belt & tension",
+                    "Test output",
+                    "Close-out"
+                  ])
+                }
+              ],
+              parts: [
+                P("Alternator 28V", 1, 0, { cost: 1450 }),
+                P("Drive belt", 1, 0, { cost: 65 }),
+                P("Mounting bolts", 4, 0, { cost: 3 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012420",
+              subject: "HT02-SEED WO — Mechanical System Inspection",
+              wt: "MEL-SEED Inspection – Mechanical",
+              assetId: "eng",
+              status: "New",
+              measures: [
+                M("h1", "Engine mount condition", "eng", "Level", null, null),
+                M("h2", "Gearbox oil level", "gbx", "Level", null, null),
+                M("h3", "Axle breather", "fda", "Level", null, null),
+                M("h4", "Radiator fins", "rad", "Level", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Mechanical Inspection Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Engine mounts",
+                    "Driveline",
+                    "Gearbox",
+                    "Axle",
+                    "Cooling",
+                    "Record",
+                    "Close-out"
+                  ])
+                }
+              ],
+              parts: [
+                P("Gearbox oil 5L", 1, 0, { cost: 44 }),
+                P("Breather cap", 1, 0, { cost: 22 }),
+                P("Rag pack", 1, 0, { cost: 6 })
+              ],
+              notes: []
+            },
+            {
+              num: "00012421",
+              subject: "HT02-SEED WO — Final Drive Repair",
+              wt: "MEL-SEED Repair – Mechanical",
+              assetId: "fda",
+              status: "New",
+              measures: [
+                M("i1", "Backlash", "fda", "Width", null, null),
+                M("i2", "Bearing temperature", "fda", "Temperature", null, null)
+              ],
+              plans: [
+                {
+                  n: "MEL-SEED Mechanical Repair Plan",
+                  steps: steps([
+                    "Isolate",
+                    "Drain oil",
+                    "Remove hub",
+                    "Inspect gears",
+                    "Replace bearings",
+                    "Reassemble",
+                    "Refill",
+                    "Test run"
+                  ])
+                }
+              ],
+              parts: [
+                P("Bearing set", 1, 0, { cost: 640 }),
+                P("Final drive oil 20L", 1, 0, { cost: 150 }),
+                P("Hub seal", 2, 0, { cost: 38 })
+              ],
+              notes: []
+            }
+          ]
+        },
+        WG: {
+          title: "WG 20213",
+          wp: "Workpack 00010070",
+          schematic:
+            "../../force-app/main/default/staticresources/WagonDiagramTop.png",
+          assets: [
+            A("wg", "WG 20213", "STRU", null, { sn: "WG-20213" }),
+            A("l1", "20213 Wheelset L1", "WINC", "wg"),
+            A("l2", "20213 Wheelset L2", "WINC", "wg"),
+            A("l3", "20213 Wheelset L3", "WINC", "wg"),
+            A("l4", "20213 Wheelset L4", "WINC", "wg"),
+            A("x1", "Axle L1", "AXLE", "l1"),
+            A("x2", "Axle L2", "AXLE", "l2"),
+            A("x3", "Axle L3", "AXLE", "l3"),
+            A("x4", "Axle L4", "AXLE", "l4")
+          ],
+          zones: {
+            l1: { l: 6, w: 18 },
+            l2: { l: 30, w: 18 },
+            l3: { l: 55, w: 18 },
+            l4: { l: 76, w: 18 }
+          },
+          docs: [
+            {
+              id: "w1",
+              wo: "00010070",
+              title: "Wagon PM01 inspection sheet.pdf",
+              pages: 2
+            }
+          ],
+          wos: [
+            {
+              num: "00010070",
+              subject: "Rail Workpack — WG 20213",
+              wt: "Rail Workpack",
+              assetId: "wg",
+              status: "In Progress",
+              isWp: true,
+              doc: "w1",
+              measures: [
+                M(
+                  "w1",
+                  "Wheel flange — Back Radius",
+                  "l1",
+                  "Depth",
+                  29.1,
+                  "OK",
+                  { pg: 1 }
+                ),
+                M(
+                  "w2",
+                  "Wheel flange — Back Radius",
+                  "l2",
+                  "Depth",
+                  18.2,
+                  "Attention Required",
+                  { pg: 1, comment: "Flange wear near limit" }
+                ),
+                M(
+                  "w3",
+                  "Wheel flange — Back Radius",
+                  "l3",
+                  "Depth",
+                  12.6,
+                  "Scrap",
+                  { pg: 1, comment: "Below scrap limit" }
+                ),
+                M(
+                  "w4",
+                  "Wheel flange — Back Radius",
+                  "l4",
+                  "Depth",
+                  null,
+                  null,
+                  { pg: 1 }
+                )
+              ],
+              plans: [
+                {
+                  n: "Wagon PM01 Work Plan",
+                  steps: steps(
+                    [
+                      "Isolate",
+                      "Visual",
+                      "Couplers",
+                      "Brakes",
+                      "Wheelsets",
+                      "Body",
+                      "Close-out"
+                    ],
+                    3
+                  )
+                }
+              ],
+              parts: [],
+              notes: []
+            },
+            {
+              num: "00010695",
+              subject: "Re-profile L2 wheel flange",
+              wt: "PM02",
+              assetId: "l2",
+              status: "In Progress",
+              measures: [
+                M(
+                  "w5",
+                  "Flange depth after re-profile",
+                  "l2",
+                  "Depth",
+                  null,
+                  null
+                )
+              ],
+              plans: [
+                {
+                  n: "Wheelset re-profile",
+                  steps: steps(
+                    ["Remove wheelset", "Re-profile", "Re-measure", "Refit"],
+                    1
+                  )
+                }
+              ],
+              parts: [
+                P("Bearing seal kit", 2, 2, { cost: 84 }),
+                P("Axle nut M48", 2, 0, { cost: 19 })
+              ],
+              notes: []
+            }
+          ]
+        }
+      };
+
+      /* ───────────── state ───────────── */
+      let D, S;
+      function loadDs(k) {
+        D = JSON.parse(JSON.stringify(DS[k]));
+        D.key = k;
+        S = {
+          sel: D.assets[0].id,
+          focus: D.assets[0].id,
+          wo: D.wos[0].num,
+          tab: "measure",
+          inclSub: true,
+          view: "map",
+          doc: true,
+          tool: "pen"
+        };
+        document.getElementById("dsHT").classList.toggle("on", k === "HT");
+        document.getElementById("dsWG").classList.toggle("on", k === "WG");
+        render();
+      }
+      let seq = 900;
+
+      /* ───────────── helpers ───────────── */
+      const asset = (id) => D.assets.find((a) => a.id === id);
+      const kids = (id) => D.assets.filter((a) => a.parent === id);
+      const depthOf = (id) => {
+        let d = 0,
+          a = asset(id);
+        while (a.parent) {
+          d++;
+          a = asset(a.parent);
+        }
+        return d;
+      };
+      const pathTo = (id) => {
+        const p = [];
+        let a = asset(id);
+        while (a) {
+          p.unshift(a);
+          a = a.parent && asset(a.parent);
+        }
+        return p;
+      };
+      const desc = (id) => {
+        const out = [id];
+        kids(id).forEach((k) => out.push(...desc(k.id)));
+        return out;
+      };
+      const leaves = (id) => {
+        const k = kids(id);
+        return k.length ? k.reduce((s, c) => s + leaves(c.id), 0) : 1;
+      };
+      const wo = (num) => D.wos.find((w) => w.num === num);
+      const short = (n) =>
+        n
+          .replace(/^MEL-SEED (HT02 )?/, "")
+          .replace(/^HT-02 — /, "")
+          .replace(/^20213 /, "");
+      const unit = (vt) =>
+        ({
+          Temperature: "°C",
+          Pressure: "bar",
+          Depth: "mm",
+          Width: "mm",
+          Voltage: "V"
+        })[vt] || "";
+      const isF = (m) => m.out === "Attention Required" || m.out === "Scrap";
+
+      function woD(w) {
+        const pend = w.measures.filter((m) => !m.out),
+          finds = w.measures.filter(isF),
+          unl = finds.filter((m) => !m.link);
+        const work = w.plans.filter((p) => !p.signoff && !p.exception);
+        const st = work.flatMap((p) => p.steps),
+          sd = st.filter((s) => s.d).length;
+        const so = w.plans.find((p) => p.signoff);
+        const short = w.parts.filter((p) => p.used < p.req);
+        const allSteps = w.plans
+          .filter((p) => !p.exception)
+          .flatMap((p) => p.steps);
+        const done =
+          allSteps.length &&
+          allSteps.every((s) => s.d) &&
+          !pend.length &&
+          !unl.length &&
+          !short.length;
+        let status = "grey";
+        if (w.status === "Completed" || done) status = "green";
+        else if (unl.length) status = "red";
+        else if (
+          w.status === "In Progress" ||
+          sd ||
+          w.measures.some((m) => m.out)
+        )
+          status = "amber";
+        return {
+          pend,
+          finds,
+          unl,
+          st,
+          sd,
+          so,
+          short,
+          status,
+          allSteps,
+          allDone: allSteps.filter((s) => s.d).length
+        };
+      }
+      function assetStatus(id) {
+        const ids = desc(id),
+          ws = D.wos.filter((w) => ids.includes(w.assetId) && !w.isWp);
+        const fs = D.wos.flatMap((w) =>
+          w.measures.filter((m) => ids.includes(m.assetId) && isF(m) && !m.link)
+        );
+        if (fs.length) return "red";
+        if (!ws.length)
+          return D.wos.some((w) =>
+            w.measures.some((m) => ids.includes(m.assetId) && m.out)
+          )
+            ? "amber"
+            : "grey";
+        const st = ws.map((w) => woD(w).status);
+        if (st.includes("red")) return "red";
+        if (st.every((s) => s === "green")) return "green";
+        if (st.some((s) => s !== "grey")) return "amber";
+        return "grey";
+      }
+      const openWoCount = (id) =>
+        D.wos.filter(
+          (w) =>
+            desc(id).includes(w.assetId) && !w.isWp && woD(w).status !== "green"
+        ).length;
+
+      /* ───────────── render ───────────── */
+      function render() {
+        renderTop();
+        renderMap();
+        renderList();
+        renderWs();
+      }
+
+      function renderTop() {
+        document.getElementById("tbTitle").textContent = D.title;
+        document.getElementById("tbWp").textContent = D.wp;
+        const ws = D.wos.filter((w) => !w.isWp),
+          done = ws.filter((w) => woD(w).status === "green").length;
+        document.getElementById("tbProg").textContent =
+          `${done}/${ws.length} work orders done`;
+        document.getElementById("tbBar").style.width =
+          (ws.length ? (done / ws.length) * 100 : 0) + "%";
+      }
+
+      function renderMap() {
+        const el = document.getElementById("map");
+        const path = pathTo(S.focus);
+        const crumbs = path
+          .map(
+            (a, i) =>
+              `${i ? '<span class="crumb-sep">›</span>' : ""}<button class="crumb ${a.id === S.focus ? "cur" : ""}" onclick="zoom('${a.id}')">${i === 0 ? "⌂ " : ""}${short(a.name)}</button>`
+          )
+          .join("");
+        const maxD = Math.max(...D.assets.map((a) => depthOf(a.id))) + 1;
+        const hasSchem = !!D.schematic;
+        let body;
+        if (S.view === "schematic" && hasSchem) {
+          body = `<div class="schem"><img src="${D.schematic}" alt="Schematic" onerror="this.style.display='none'">
+      ${Object.entries(D.zones)
+        .map(
+          ([id, z]) =>
+            `<button class="zone ${desc(id).includes(S.sel) ? "sel" : ""}" style="left:${z.l}%;width:${z.w}%" onclick="pick('${id}')"><i class="dot s-${assetStatus(id)}" style="width:16px;height:16px;box-shadow:0 0 0 2px #0B0F14"></i></button>`
+        )
+        .join("")}</div>`;
+        } else {
+          const ROW = 46,
+            GAP = 6,
+            LBL = 30;
+          const rows = [];
+          const lay = (id, d, x0, w) => {
+            rows.push({ id, d, x0, w });
+            let x = x0;
+            const tot = leaves(id);
+            kids(id).forEach((k) => {
+              const kw = (w * leaves(k.id)) / tot;
+              lay(k.id, d + 1, x, kw);
+              x += kw;
+            });
+          };
+          lay(S.focus, 0, 0, 1);
+          const nRows = Math.max(...rows.map((r) => r.d)) + 1;
+          const baseDepth = depthOf(S.focus);
+          const selPath = pathTo(S.sel).map((a) => a.id);
+          body = `<div class="ice" style="height:${nRows * (ROW + GAP)}px">
+      ${Array.from({ length: nRows }, (_, i) => `<div class="ice-row-l" style="top:${i * (ROW + GAP)}px;height:${ROW}px">L${baseDepth + i + 1}</div>`).join("")}
+      ${rows
+        .map((r) => {
+          const a = asset(r.id),
+            st = assetStatus(r.id),
+            oc = openWoCount(r.id),
+            hasK = kids(r.id).length;
+          return `<button class="blk st-${st} ${r.id === S.sel ? "sel" : ""} ${selPath.includes(r.id) && r.id !== S.sel ? "path" : ""}"
+          style="top:${r.d * (ROW + GAP)}px;height:${ROW}px;left:calc(${LBL}px + (100% - ${LBL}px) * ${r.x0} + 2px);width:calc((100% - ${LBL}px) * ${r.w} - 4px)"
+          title="${a.name} (${a.type})" onclick="pick('${r.id}')">
+          <i class="dot s-${st}"></i><span class="bn">${short(a.name)}</span>${oc ? `<span class="bc">${oc}</span>` : ""}${hasK && r.d > 0 ? '<span class="zoom">⤢</span>' : ""}</button>`;
+        })
+        .join("")}
+    </div>`;
+        }
+        el.innerHTML = `<div class="map-h"><span class="sec-t">Asset map</span><div class="crumbs">${crumbs}</div>
+      <div class="right"><span class="chip">${maxD} level${maxD > 1 ? "s" : ""}</span>
+      <div class="seg"><button class="${S.view === "map" ? "on" : ""}" onclick="S.view='map';render()">▤ Hierarchy</button>${hasSchem ? `<button class="${S.view === "schematic" ? "on" : ""}" onclick="S.view='schematic';render()">🖼 Schematic</button>` : ""}</div></div></div>
+    ${body}
+    <div class="legend"><span><i class="dot s-grey"></i>Not started</span><span><i class="dot s-amber"></i>In progress</span><span><i class="dot s-red"></i>Finding without task</span><span><i class="dot s-green"></i>Complete</span><span><b class="bc" style="font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(46,143,230,.22);color:#2E8FE6">n</b> open WOs</span><span>⤢ has sub-assets: tap to zoom</span></div>`;
+      }
+
+      function renderList() {
+        const el = document.getElementById("wol");
+        const ids = S.inclSub ? desc(S.sel) : [S.sel];
+        const list = D.wos.filter((w) => ids.includes(w.assetId) || w.isWp);
+        const groups = {};
+        list.forEach((w) => {
+          const k = w.isWp ? "__wp" : w.assetId;
+          (groups[k] = groups[k] || []).push(w);
+        });
+        const order = ["__wp", ...ids.filter((i) => groups[i])];
+        const a = asset(S.sel);
+        el.innerHTML = `<div class="wol-h"><span class="t">Work orders</span><button class="btn btn-p btn-sm" onclick="openRaise()">+ Raise Task</button></div>
+    <div class="tog"><button class="sw ${S.inclSub ? "on" : ""}" onclick="S.inclSub=!S.inclSub;render()"></button>Include sub-assets of <b style="color:var(--tx)">${short(a.name)}</b></div>
+    ${order.map((k) => `<div class="grp">${k === "__wp" ? "📦 Workpack" : "⚙ " + short(asset(k).name)}</div>${groups[k].map(woCard).join("")}`).join("")}
+    ${list.filter((w) => !w.isWp).length ? "" : `<div class="empty">No work orders on ${short(a.name)}.<br>Use <b>+ Raise Task</b> to log a defect.</div>`}`;
+      }
+      function woCard(w) {
+        const d = woD(w);
+        return `<button class="woc ${S.wo === w.num ? "sel" : ""}" onclick="selWo('${w.num}')">
+    <span class="n"><i class="dot s-${d.status}"></i>${w.num}<span class="pill ${w.status === "In Progress" ? "ip" : w.status === "Completed" ? "dn" : ""}">${w.status}</span></span>
+    ${ring(d.allDone, d.allSteps.length)}
+    <span class="sj">${w.subject}</span>
+    <span class="meta"><span class="tag wt">${w.wt}</span>${d.pend.length ? `<span class="tag">${d.pend.length} to measure</span>` : ""}${d.unl.length ? `<span class="tag bad">${d.unl.length} finding</span>` : ""}${d.short.length ? `<span class="tag warn">${d.short.length} parts</span>` : ""}</span></button>`;
+      }
+      function ring(done, total) {
+        const r = 16,
+          C = 2 * Math.PI * r,
+          p = total ? done / total : 0;
+        return `<svg class="ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="${r}" fill="none" stroke="#243040" stroke-width="4"/>
+    <circle cx="20" cy="20" r="${r}" fill="none" stroke="${p === 1 ? "#21C07A" : "#F2B441"}" stroke-width="4" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+    <text x="20" y="20" fill="#F2F5F7" font-size="10" text-anchor="middle" dominant-baseline="central">${Math.round(p * 100)}%</text></svg>`;
+      }
+
+      function nextFor(w, d) {
+        if (d.pend.length)
+          return {
+            c: "",
+            t: `Record ${d.pend.length} measure${d.pend.length > 1 ? "s" : ""}. Next: ${d.pend[0].comp}`,
+            b: "Measure",
+            go: "setTab('measure')"
+          };
+        if (d.unl.length)
+          return {
+            c: "bad",
+            t: `Finding on ${short(asset(d.unl[0].assetId).name)}: ${d.unl[0].comp}. No task raised`,
+            b: "Raise Task",
+            go: `openRaise('${w.num}','${d.unl[0].id}')`
+          };
+        for (const p of w.plans.filter((p) => !p.signoff && !p.exception)) {
+          const s = p.steps.find((s) => !s.d);
+          if (s)
+            return {
+              c: "",
+              t: `${p.n}: “${s.n}”`,
+              b: "Execute",
+              go: "setTab('execute')"
+            };
+        }
+        if (d.short.length)
+          return {
+            c: "",
+            t: `Consume ${d.short.length} part line${d.short.length > 1 ? "s" : ""} (${d.short[0].n})`,
+            b: "Parts",
+            go: "setTab('parts')"
+          };
+        if (d.so && d.so.steps.some((s) => !s.d))
+          return {
+            c: "ok",
+            t: "All work done. Supervisor sign-off pending",
+            b: "Sign off",
+            go: "setTab('execute')"
+          };
+        return { c: "ok", t: "Work order complete", b: null };
+      }
+
+      function renderWs() {
+        const el = document.getElementById("ws"),
+          w = wo(S.wo);
+        if (!w) {
+          el.innerHTML = `<div class="card empty">Select a work order.</div>`;
+          return;
+        }
+        const d = woD(w),
+          n = nextFor(w, d),
+          a = asset(w.assetId);
+        const tabState = {
+          measure: d.unl.length
+            ? "warn"
+            : !d.pend.length && w.measures.length
+              ? "done"
+              : w.measures.some((m) => m.out)
+                ? "prog"
+                : "",
+          execute:
+            d.allSteps.length && d.allDone === d.allSteps.length
+              ? "done"
+              : d.allDone
+                ? "prog"
+                : "",
+          parts: !w.parts.length
+            ? ""
+            : !d.short.length
+              ? "done"
+              : w.parts.some((p) => p.used)
+                ? "prog"
+                : "",
+          notes: ""
+        };
+        const tabs = [
+          [
+            "measure",
+            "📏",
+            "Measure",
+            `${w.measures.length - d.pend.length}/${w.measures.length} recorded${d.finds.length ? ` · ${d.finds.length} finding` : ""}`
+          ],
+          [
+            "execute",
+            "▶",
+            "Execute",
+            `${w.plans.length} plan${w.plans.length > 1 ? "s" : ""} · ${d.allDone}/${d.allSteps.length} steps`
+          ],
+          [
+            "parts",
+            "📦",
+            "Parts",
+            w.parts.length
+              ? `${w.parts.length - d.short.length}/${w.parts.length} lines consumed`
+              : "None required"
+          ],
+          [
+            "notes",
+            "📝",
+            "Notes & codes",
+            `${w.notes.length} note${w.notes.length === 1 ? "" : "s"}`
+          ]
+        ];
+        el.innerHTML = `
+    <div class="card ws-h"><i class="dot s-${d.status}" style="width:16px;height:16px"></i>
+      <div><h1>${w.num} · ${w.subject}</h1><div class="m"><span class="tag wt">${w.wt}</span><span>⚙ ${a.name}</span><span class="chip">${a.type}</span><span class="pill ${w.status === "In Progress" ? "ip" : ""}">${w.status}</span></div></div>
+      <div class="right"><button class="btn btn-g btn-sm" onclick="toast('Opens Asset details drawer (serial, warranty, FLOC)')">ⓘ Asset</button></div></div>
+    <div class="card next ${n.c}"><div><div class="sec-t">Next step</div><div class="txt">${n.t}</div></div>${n.b ? `<button class="btn ${n.c === "ok" ? "btn-b" : "btn-p"}" onclick="${n.go}">${n.b} →</button>` : ""}</div>
+    <div class="card tabs">${tabs
+      .map(([k, ic, t, dd]) => {
+        const st = tabState[k];
+        return `<button class="tab ${S.tab === k ? "on" : ""} ${st}" onclick="setTab('${k}')"><span class="ic">${st === "done" ? "✓" : st === "warn" ? "!" : ic}</span><span><div class="t">${t}</div><div class="d">${dd}</div></span></button>`;
+      })
+      .join("")}</div>
+    <div class="card panel">${S.tab === "measure" ? measureView(w, d) : S.tab === "execute" ? executeView(w, d) : S.tab === "parts" ? partsView(w, d) : notesView(w)}</div>`;
+      }
+
+      function measureView(w, d) {
+        const docs = D.docs.filter(
+          (x) => x.wo === w.num || (w.isWp && x.wo === w.num)
+        );
+        const wpDoc = D.docs.find((x) => x.wo === D.wos[0].num);
+        const all = docs.length ? docs : wpDoc ? [wpDoc] : [];
+        const showDoc = S.doc && all.length;
+        const ob = (m, o, c, l) =>
+          `<button class="out ${m.out === o ? "on " + c : ""}" onclick="setOut('${w.num}','${m.id}','${o}')">${l}</button>`;
+        const rows =
+          w.measures
+            .map((m) => {
+              const oc =
+                {
+                  OK: "o-ok",
+                  Measure: "o-m",
+                  "Attention Required": "o-att",
+                  Scrap: "o-sc"
+                }[m.out] || "";
+              const linked = m.link && wo(m.link);
+              return `<div class="mrow ${oc}">
+      <div><div class="c">${m.comp}</div><div class="l"><span class="tag asset">⚙ ${short(asset(m.assetId).name)}</span>${m.comment ? `<span>${m.comment}</span>` : m.out ? "" : "<i>Not recorded</i>"}</div></div>
+      <div class="v">${m.val == null ? `<input class="vin" inputmode="decimal" placeholder="${unit(m.vt) || m.vt}" onchange="setVal('${w.num}','${m.id}',this.value)">` : `${m.val}<small>${unit(m.vt)}</small>`}</div>
+      <div class="outs">${ob(m, "OK", "ok", "✓ OK")}${ob(m, "Attention Required", "att", "⚠ Attention")}${ob(m, "Scrap", "sc", "✕ Scrap")}<button class="out" onclick="toast('Camera / attach image')">📷</button>${m.pg && showDoc ? `<button class="out pg" onclick="toast('PDF jumps to page ${m.pg} and highlights the row')">📄 p.${m.pg}</button>` : ""}</div>
+      ${isF(m) ? `<div class="flink">${linked ? `Task raised: <span class="tag wt">${linked.num}</span> ${linked.subject}<button class="btn btn-g btn-sm" onclick="selWo('${linked.num}')">Open →</button>` : `<span style="color:var(--bad);font-weight:600">No task for this finding</span><button class="btn btn-p btn-sm" onclick="openRaise('${w.num}','${m.id}')">Raise Task →</button>`}</div>` : ""}
+    </div>`;
+            })
+            .join("") ||
+          '<div class="empty">No measures on this work order.</div>';
+        return `<div class="ph"><h2>Measures</h2><span class="hint">Measures belong to this WO. Each row shows the asset it was taken on.</span>
+      <div class="right">${all.length ? `<button class="btn btn-g btn-sm" onclick="S.doc=!S.doc;render()">${S.doc ? "Hide" : "Show"} document</button>` : ""}<button class="btn btn-g btn-sm" onclick="toast('Opens ad-hoc measure form')">+ Measure</button></div></div>
+    <div class="split ${showDoc ? "" : "nodoc"}"><div>${rows}</div>${showDoc ? docView(all, w) : ""}</div>`;
+      }
+      function docView(docs, w) {
+        const d0 = docs[0];
+        const tools = [
+          ["pen", "✏️"],
+          ["hl", "🖍"],
+          ["txt", "T"],
+          ["move", "✋"]
+        ];
+        return `<div class="doc">
+    <div class="doc-h"><select>${docs.map((d) => `<option>${d.title}${d.wo !== w.num ? " (workpack)" : ""}</option>`).join("")}</select>
+      ${tools.map(([k, i]) => `<button class="tool ${S.tool === k ? "on" : ""}" onclick="S.tool='${k}';render()" title="${k}">${i}</button>`).join("")}</div>
+    <div class="page-wrap"><div class="page">
+      <h5>${D.key === "HT" ? "PRT Workpack — MEL-SEED Haul Truck HT-02" : "Wagon PM01 inspection — WG 20213"}</h5>
+      <div class="sub">Page 2 of ${d0.pages} · Section 3: ${D.key === "HT" ? "Engine & electrical checks" : "Wheelset measurements"}</div>
+      <table><tr><th style="width:40%">Check</th><th>Spec</th><th>Reading</th><th>OK / NOK</th></tr>
+        ${w.measures.map((m) => `<tr class="${isF(m) ? "hl" : ""}"><td>${m.comp}</td><td>${m.vt === "Pressure" ? "≥ 1.4 bar" : m.vt === "Temperature" ? "≤ 95 °C" : m.vt === "Depth" ? "≥ 14 mm" : "—"}</td><td>${m.val ?? ""} ${m.val != null ? unit(m.vt) : ""}</td><td>${m.out === "OK" ? "✓" : isF(m) ? "✗" : ""}</td></tr>`).join("")}
+      </table>
+      <table><tr><th>Remarks</th></tr><tr><td style="height:70px"></td></tr></table>
+      <table><tr><th style="width:50%">Maintainer</th><th>Supervisor</th></tr><tr><td style="height:46px"></td><td></td></tr></table>
+      <svg class="ink" style="left:58%;top:88px;width:150px;height:60px" viewBox="0 0 150 60"><path d="M5 40 C 30 5, 60 55, 90 20 S 140 30, 145 10" stroke="#E84B4B" stroke-width="2.5" fill="none"/></svg>
+      <svg class="ink" style="left:30px;top:${150 + 22 * w.measures.length}px;width:220px;height:40px" viewBox="0 0 220 40"><text x="4" y="24" fill="#2E8FE6" font-family="Marker Felt, Comic Sans MS, cursive" font-size="16">Re-check after repair</text></svg>
+    </div></div>
+    <div class="doc-f"><span>c-pdf-annotator · ${d0.pages} pages</span><button class="btn btn-b btn-sm" onclick="toast('Saves annotated copy via uploadAnnotatedPdf')">Save annotations</button></div>
+  </div>`;
+      }
+
+      function executeView(w, d) {
+        const workDone = d.st.length === d.sd;
+        let firstOpen = null;
+        w.plans
+          .filter((p) => !p.exception && !p.signoff)
+          .some((p) => {
+            const i = p.steps.findIndex((s) => !s.d);
+            if (i >= 0) {
+              firstOpen = p.steps[i];
+              return true;
+            }
+          });
+        const ordered = [
+          ...w.plans.filter((p) => !p.exception && !p.signoff),
+          ...w.plans.filter((p) => p.exception),
+          ...w.plans.filter((p) => p.signoff)
+        ];
+        return `<div class="ph"><h2>Execute</h2><span class="hint">Work plans in execution order. Sign-off unlocks when the work plans are complete.</span></div>
+    ${ordered
+      .map((p) => {
+        const pi = w.plans.indexOf(p);
+        const sd = p.steps.filter((s) => s.d).length;
+        const locked = p.signoff && !workDone;
+        const open = p.exception ? S.openExc === w.num + pi : true;
+        return `<div class="plan ${locked ? "locked" : ""}">
+        <button class="plan-h" onclick="${p.exception ? `S.openExc = S.openExc==='${w.num + pi}'?null:'${w.num + pi}';render()` : ""}"><span class="o">${p.exception ? "!" : p.signoff ? "✍" : pi + 1}</span><span class="nm">${p.n}</span><span class="k">${p.exception ? "Use only if something blocks the work" : ""}</span>${ring(sd, p.steps.length)}</button>
+        ${
+          locked
+            ? `<div class="lock">🔒 Locked: ${d.st.length - d.sd} work step${d.st.length - d.sd > 1 ? "s" : ""} still open${d.unl.length ? ` · ${d.unl.length} finding without task` : ""}</div>`
+            : open
+              ? p.steps
+                  .map(
+                    (s, i) =>
+                      `<div class="srow ${s === firstOpen ? "nx" : ""}"><button class="chk ${s.d ? "on" : ""}" onclick="togStep('${w.num}',${pi},${i})">${s.d ? "✓" : ""}</button><span class="sn ${s.d ? "dn" : ""}">${i + 1}. ${s.n}</span>${s === firstOpen ? '<span class="act">Next ›</span>' : ""}</div>`
+                  )
+                  .join("")
+              : ""
+        }
+      </div>`;
+      })
+      .join("")}`;
+      }
+
+      function partsView(w, d) {
+        const total = w.parts.reduce((a, p) => a + p.used * (p.cost || 0), 0);
+        return `<div class="ph"><h2>Parts</h2><span class="hint">Required (ProductRequired) vs consumed (ProductConsumed) on this WO</span><div class="right"><span class="chip">Consumed $${total.toFixed(2)}</span></div></div>
+    ${
+      w.parts.length
+        ? `<table class="pt"><tr><th>Part</th><th class="num">Required</th><th class="num">Consumed</th><th class="num">Unit $</th><th></th></tr>
+      ${w.parts
+        .map(
+          (
+            p,
+            i
+          ) => `<tr><td>${p.n}</td><td class="num">${p.req}</td><td class="num ${p.used >= p.req ? "full" : ""}">${p.used}</td><td class="num">${(p.cost || 0).toFixed(2)}</td>
+        <td style="text-align:right">${p.used < p.req ? `<button class="btn btn-g btn-sm" onclick="consume('${w.num}',${i})">+ Consume 1</button>` : '<span style="color:var(--ok)">✓ done</span>'}</td></tr>`
+        )
+        .join("")}</table>`
+        : '<div class="empty">No parts required on this work order.</div>'
+    }
+    <div class="addp"><select id="newPart"><option value="">Add a part not on the list…</option><option>Hydraulic oil 20L</option><option>Filter</option><option>Rag pack</option><option>Seal kit — HP</option></select><input id="newQty" type="number" value="1" min="1"><button class="btn btn-b btn-sm" onclick="addPart('${w.num}')">Add &amp; consume</button></div>`;
+      }
+
+      function notesView(w) {
+        return `<div class="ph"><h2>Notes &amp; codes</h2><span class="hint">Same data as Notes &amp; Codes in workOrderDetail</span></div>
+    <div class="nh">${w.notes.length ? w.notes.map((n) => `<div class="note"><div class="w">${n.w}</div>${n.t}</div>`).join("") : '<div class="note" style="color:var(--dim)">No notes yet.</div>'}</div>
+    <div class="f"><label>Add note</label><textarea id="noteIn" rows="3" placeholder="What did you find / do?"></textarea></div>
+    <div class="f3"><div class="f"><label>Cause code</label><select><option>— Select —</option><option>0010 – Wear and Tear</option><option>0001 – Accidental Damage</option></select></div>
+      <div class="f"><label>Delay code</label><select><option>— Select —</option><option>Awaiting parts</option><option>Awaiting labour</option></select></div>
+      <div class="f"><label>Damage code</label><select><option>— Select —</option><option>Leak</option><option>Crack</option><option>Wear</option></select></div></div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn btn-b" onclick="addNote('${w.num}')">Save note &amp; codes</button></div>`;
+      }
+
+      /* ───────────── actions ───────────── */
+      function pick(id) {
+        S.sel = id;
+        S.focus = kids(id).length ? id : asset(id).parent || id;
+        const ids = S.inclSub ? desc(id) : [id];
+        const first = D.wos.find((w) => !w.isWp && ids.includes(w.assetId));
+        if (first && !ids.includes(wo(S.wo).assetId)) S.wo = first.num;
+        if (!asset(id).parent) S.wo = D.wos[0].num;
+        render();
+      }
+      function zoom(id) {
+        S.focus = id;
+        S.sel = id;
+        render();
+      }
+      function selWo(num) {
+        S.wo = num;
+        S.tab = "measure";
+        const d = woD(wo(num));
+        if (!d.pend.length && !d.unl.length) S.tab = "execute";
+        render();
+      }
+      function setTab(t) {
+        S.tab = t;
+        render();
+      }
+      function setOut(num, mid, o) {
+        const m = wo(num).measures.find((x) => x.id === mid);
+        m.out = o;
+        render();
+        if (isF(m) && !m.link)
+          toast("Finding recorded. Raise a task from the row");
+      }
+      function setVal(num, mid, v) {
+        const m = wo(num).measures.find((x) => x.id === mid);
+        m.val = v === "" ? null : Number(v);
+        if (!m.out) m.out = "Measure";
+        render();
+      }
+      function togStep(num, pi, i) {
+        const w = wo(num),
+          s = w.plans[pi].steps[i];
+        s.d = !s.d;
+        const d = woD(w);
+        w.status = d.allSteps.every((x) => x.d) ? "Completed" : "In Progress";
+        render();
+      }
+      function consume(num, i) {
+        const p = wo(num).parts[i];
+        p.used = Math.min(p.req, p.used + 1);
+        render();
+      }
+      function addPart(num) {
+        const n = document.getElementById("newPart").value,
+          q = +document.getElementById("newQty").value || 1;
+        if (!n) return toast("Pick a part");
+        wo(num).parts.push(P(n, q, q, { cost: 20 }));
+        render();
+        toast(`${q} × ${n} consumed`);
+      }
+      function addNote(num) {
+        const t = document.getElementById("noteIn").value.trim();
+        if (!t) return toast("Type a note");
+        wo(num).notes.push({ w: "J. Smith · now", t });
+        render();
+        toast("Note saved");
+      }
+
+      function openRaise(fromWo, mid) {
+        const f =
+          fromWo && mid && wo(fromWo).measures.find((m) => m.id === mid);
+        const aid = f ? f.assetId : S.sel;
+        const types = [
+          ...new Set(D.wos.filter((w) => !w.isWp).map((w) => w.wt))
+        ];
+        const opts = D.assets
+          .map(
+            (a) =>
+              `<option value="${a.id}" ${a.id === aid ? "selected" : ""}>${"— ".repeat(depthOf(a.id))}${a.name}</option>`
+          )
+          .join("");
+        document.getElementById("drawer").innerHTML =
+          `<h3>Raise Task<button onclick="closeAll()">✕</button></h3>
+    <div class="sub">Creates a defect work order under ${D.wp}.</div>
+    ${f ? `<div class="prefill">From finding on ${fromWo}: ${f.comp} · ${f.val ?? ""}${f.val != null ? unit(f.vt) : ""} (${f.out})${f.comment ? " · " + f.comment : ""}</div>` : ""}
+    <div class="f"><label>Asset</label><select id="rAsset">${opts}</select></div>
+    <div class="f"><label>Work type</label><select id="rWt">${types.map((t) => `<option>${t}</option>`).join("")}</select></div>
+    <div class="f"><label>Subject</label><input id="rSubj" value="${f ? `Defect: ${f.comp} on ${short(asset(aid).name)}` : ""}" placeholder="Short description of the defect"></div>
+    <div class="f"><label>Description</label><textarea rows="3">${f && f.comment ? f.comment : ""}</textarea></div>
+    <div class="f2"><div class="f"><label>Priority</label><select><option>${f && f.out === "Scrap" ? "High" : "Medium"}</option><option>Low</option><option>High</option><option>Critical</option></select></div>
+      <div class="f"><label>Cause code</label><select><option>0010 – Wear and Tear</option><option>0001 – Accidental Damage</option></select></div></div>
+    <div class="f"><label>Photo</label><button class="btn btn-g" style="text-align:left" onclick="toast('Camera / attach image')">📷 Take photo / attach</button></div>
+    <details style="margin-bottom:14px;color:var(--mu)"><summary style="cursor:pointer;min-height:40px">More fields (delay code, start, duration, component FLOC)</summary>
+      <div class="f2" style="margin-top:10px"><div class="f"><label>Start</label><input type="datetime-local"></div><div class="f"><label>Duration (hrs)</label><input type="number"></div></div></details>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-g" onclick="closeAll()">Cancel</button><button class="btn btn-p" onclick="saveRaise('${fromWo || ""}','${mid || ""}')">Create task</button></div>`;
+        openL("drawer");
+      }
+      function saveRaise(fromWo, mid) {
+        const aid = document.getElementById("rAsset").value,
+          wt = document.getElementById("rWt").value,
+          subj = document.getElementById("rSubj").value || "Defect";
+        const num = "000" + (13000 + ++seq);
+        D.wos.push({
+          num,
+          subject: subj,
+          wt,
+          assetId: aid,
+          status: "New",
+          measures: [],
+          plans: [
+            {
+              n: wt + " Work Plan",
+              steps: steps([
+                "Isolate",
+                "Assess defect",
+                "Repair",
+                "Verify",
+                "Close-out"
+              ])
+            }
+          ],
+          parts: [],
+          notes: []
+        });
+        if (mid) wo(fromWo).measures.find((m) => m.id === mid).link = num;
+        closeAll();
+        render();
+        toast(`Task ${num} raised on ${short(asset(aid).name)}`);
+      }
+
+      function openL(id) {
+        document.getElementById("scrim").classList.add("open");
+        document.getElementById(id).classList.add("open");
+      }
+      function closeAll() {
+        ["scrim", "drawer", "dn"].forEach((i) =>
+          document.getElementById(i).classList.remove("open")
+        );
+      }
+      function toast(t) {
+        const el = document.getElementById("toast");
+        el.textContent = t;
+        el.classList.add("show");
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.classList.remove("show"), 2400);
+      }
+
+      loadDs("HT");
+    </script>
+  </body>
+</html>

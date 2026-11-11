@@ -1,0 +1,1789 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wagon Asset Review — redesign mock</title>
+    <style>
+      :root {
+        --rt-bg: #0b0f14;
+        --rt-surface: #131a22;
+        --rt-surface-2: #1b2530;
+        --rt-surface-3: #243040;
+        --rt-border: #2a3744;
+        --rt-text: #f2f5f7;
+        --rt-text-muted: #a6b2bd;
+        --rt-text-dim: #6b7a89;
+        --rt-accent: #e25822;
+        --rt-accent-hover: #f06a2a;
+        --rt-accent-2: #2e8fe6;
+        --rt-success: #21c07a;
+        --rt-warning: #f2b441;
+        --rt-danger: #e84b4b;
+        --rt-radius: 14px;
+        --rt-radius-sm: 8px;
+        --rt-touch: 56px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--rt-bg);
+        color: var(--rt-text);
+        font:
+          16px/1.4 -apple-system,
+          "SF Pro Text",
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        border: none;
+        background: none;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 24px;
+        background: var(--rt-surface);
+        border-bottom: 1px solid var(--rt-border);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      .back {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: var(--rt-radius-sm);
+        background: var(--rt-surface-2);
+        border: 1px solid var(--rt-border);
+        color: var(--rt-text-muted);
+      }
+      .wagon-name {
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .chip {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--rt-surface-3);
+        color: var(--rt-text-muted);
+        font-size: 13px;
+      }
+      .overall {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--rt-text-muted);
+        font-size: 14px;
+      }
+      .overall-bar {
+        width: 180px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--rt-surface-3);
+        overflow: hidden;
+      }
+      .overall-bar > i {
+        display: block;
+        height: 100%;
+        background: var(--rt-success);
+        transition: width 0.3s;
+      }
+      .notes-btn {
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: var(--rt-radius-sm);
+        border: 1px dashed var(--rt-accent-2);
+        color: var(--rt-accent-2);
+        font-size: 14px;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 20px;
+        padding: 20px 24px 40px;
+        align-items: start;
+      }
+
+      .rail {
+        position: sticky;
+        top: 84px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .card {
+        background: var(--rt-surface);
+        border: 1px solid var(--rt-border);
+        border-radius: var(--rt-radius);
+      }
+      .diagram {
+        position: relative;
+        padding: 10px;
+      }
+      .diagram img {
+        width: 100%;
+        display: block;
+        border-radius: 6px;
+        opacity: 0.85;
+      }
+      .diagram .zone {
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        border-radius: 6px;
+        border: 2px solid transparent;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 4px;
+      }
+      .diagram .zone.sel {
+        border-color: var(--rt-accent);
+        background: rgba(226, 88, 34, 0.12);
+      }
+      .diagram .zone .dot {
+        width: 14px;
+        height: 14px;
+        box-shadow: 0 0 0 2px var(--rt-bg);
+      }
+      .rail-title {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--rt-text-dim);
+        padding: 0 4px;
+      }
+      .tree {
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .node {
+        display: grid;
+        grid-template-columns: 16px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        text-align: left;
+        min-height: var(--rt-touch);
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+      }
+      .node:hover {
+        background: var(--rt-surface-2);
+      }
+      .node.sel {
+        background: var(--rt-surface-2);
+        border-color: var(--rt-accent);
+      }
+      .node.child {
+        margin-left: 22px;
+        min-height: 46px;
+        font-size: 14px;
+      }
+      .node .nm {
+        font-weight: 600;
+      }
+      .node .sub {
+        display: block;
+        font-size: 12px;
+        color: var(--rt-text-dim);
+        font-weight: 400;
+        margin-top: 2px;
+      }
+      .mini {
+        display: flex;
+        gap: 3px;
+      }
+      .mini i {
+        width: 18px;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--rt-surface-3);
+      }
+      .mini i.done {
+        background: var(--rt-success);
+      }
+      .mini i.act {
+        background: var(--rt-warning);
+      }
+      .mini i.bad {
+        background: var(--rt-danger);
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        flex: none;
+      }
+      .s-grey {
+        background: var(--rt-text-dim);
+      }
+      .s-amber {
+        background: var(--rt-warning);
+      }
+      .s-red {
+        background: var(--rt-danger);
+      }
+      .s-green {
+        background: var(--rt-success);
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        padding: 10px 14px;
+        font-size: 12px;
+        color: var(--rt-text-muted);
+      }
+      .legend span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .main {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 20px;
+      }
+      .head h1 {
+        margin: 0;
+        font-size: 26px;
+      }
+      .head .meta {
+        color: var(--rt-text-muted);
+        font-size: 14px;
+      }
+      .head .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: var(--rt-radius-sm);
+        font-weight: 600;
+      }
+      .btn-primary {
+        background: var(--rt-accent);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--rt-accent-hover);
+      }
+      .btn-ghost {
+        background: var(--rt-surface-2);
+        border: 1px solid var(--rt-border);
+        color: var(--rt-text-muted);
+      }
+      .btn-blue {
+        background: var(--rt-accent-2);
+        color: #fff;
+      }
+      .btn-sm {
+        min-height: 40px;
+        padding: 0 14px;
+        font-size: 14px;
+      }
+
+      .next {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 20px;
+        border-left: 6px solid var(--rt-accent);
+        background: linear-gradient(
+          90deg,
+          rgba(226, 88, 34, 0.14),
+          var(--rt-surface) 60%
+        );
+      }
+      .next.ok {
+        border-left-color: var(--rt-success);
+        background: linear-gradient(
+          90deg,
+          rgba(33, 192, 122, 0.14),
+          var(--rt-surface) 60%
+        );
+      }
+      .next.bad {
+        border-left-color: var(--rt-danger);
+        background: linear-gradient(
+          90deg,
+          rgba(232, 75, 75, 0.16),
+          var(--rt-surface) 60%
+        );
+      }
+      .next .lbl {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--rt-text-dim);
+      }
+      .next .txt {
+        font-size: 20px;
+        font-weight: 600;
+      }
+      .next .btn {
+        margin-left: auto;
+      }
+
+      .stepper {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        overflow: hidden;
+      }
+      .step {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        min-height: 72px;
+        text-align: left;
+        border-right: 1px solid var(--rt-border);
+      }
+      .step:last-child {
+        border-right: none;
+      }
+      .step.active {
+        background: var(--rt-surface-2);
+        box-shadow: inset 0 -3px 0 var(--rt-accent);
+      }
+      .step .num {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        background: var(--rt-surface-3);
+        color: var(--rt-text-muted);
+        flex: none;
+      }
+      .step.done .num {
+        background: var(--rt-success);
+        color: #05210f;
+      }
+      .step.warn .num {
+        background: var(--rt-danger);
+        color: #fff;
+      }
+      .step.prog .num {
+        background: var(--rt-warning);
+        color: #2b1d00;
+      }
+      .step .t {
+        font-weight: 700;
+        font-size: 17px;
+      }
+      .step .d {
+        font-size: 13px;
+        color: var(--rt-text-muted);
+      }
+
+      .panel {
+        padding: 18px 20px;
+      }
+      .panel-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .panel-head h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .panel-head .hint {
+        color: var(--rt-text-dim);
+        font-size: 14px;
+      }
+      .panel-head .right {
+        margin-left: auto;
+        display: flex;
+        gap: 8px;
+      }
+
+      .mrow {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 110px auto;
+        gap: 14px;
+        align-items: center;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: var(--rt-surface-2);
+        margin-bottom: 8px;
+        border-left: 4px solid var(--rt-surface-3);
+      }
+      .mrow.o-ok {
+        border-left-color: var(--rt-success);
+      }
+      .mrow.o-meas {
+        border-left-color: var(--rt-accent-2);
+      }
+      .mrow.o-att {
+        border-left-color: var(--rt-warning);
+      }
+      .mrow.o-scrap {
+        border-left-color: var(--rt-danger);
+      }
+      .mrow .c {
+        font-weight: 600;
+      }
+      .mrow .l {
+        font-size: 13px;
+        color: var(--rt-text-muted);
+      }
+      .mrow .v {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .mrow .v small {
+        font-size: 12px;
+        color: var(--rt-text-dim);
+        font-weight: 400;
+        margin-left: 4px;
+      }
+      .mrow .v.empty {
+        color: var(--rt-text-dim);
+        font-size: 14px;
+        font-weight: 400;
+      }
+      .outs {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .out {
+        min-height: 42px;
+        padding: 0 12px;
+        border-radius: 8px;
+        background: var(--rt-surface-3);
+        color: var(--rt-text-muted);
+        font-size: 14px;
+        font-weight: 600;
+        border: 1px solid transparent;
+      }
+      .out.on.ok {
+        background: rgba(33, 192, 122, 0.2);
+        border-color: var(--rt-success);
+        color: var(--rt-success);
+      }
+      .out.on.att {
+        background: rgba(242, 180, 65, 0.2);
+        border-color: var(--rt-warning);
+        color: var(--rt-warning);
+      }
+      .out.on.scrap {
+        background: rgba(232, 75, 75, 0.2);
+        border-color: var(--rt-danger);
+        color: var(--rt-danger);
+      }
+      .finding-link {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: var(--rt-text-muted);
+        padding-top: 8px;
+        border-top: 1px dashed var(--rt-border);
+      }
+      .finding-link .btn {
+        margin-left: auto;
+      }
+      .wo-tag {
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: rgba(46, 143, 230, 0.18);
+        color: var(--rt-accent-2);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .trend {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .trend .card {
+        padding: 12px 14px;
+        background: var(--rt-surface-2);
+      }
+      .trend .tt {
+        font-size: 13px;
+        color: var(--rt-text-muted);
+        margin-bottom: 6px;
+      }
+      .trend svg {
+        width: 100%;
+        height: 90px;
+      }
+
+      .wo {
+        border: 1px solid var(--rt-border);
+        border-radius: 12px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .wo-h {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--rt-surface-2);
+        width: 100%;
+        text-align: left;
+      }
+      .wo-h .no {
+        font-weight: 700;
+      }
+      .wo-h .subj {
+        color: var(--rt-text-muted);
+      }
+      .wo-h .right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--rt-surface-3);
+        color: var(--rt-text-muted);
+      }
+      .pill.inprog {
+        background: rgba(242, 180, 65, 0.2);
+        color: var(--rt-warning);
+      }
+      .pill.done {
+        background: rgba(33, 192, 122, 0.2);
+        color: var(--rt-success);
+      }
+      .pill.pm02 {
+        background: rgba(226, 88, 34, 0.18);
+        color: var(--rt-accent);
+      }
+      .ring {
+        width: 40px;
+        height: 40px;
+      }
+      .wo-b {
+        display: grid;
+        grid-template-columns: 1.3fr 1fr;
+      }
+      .wo-b > div {
+        padding: 14px 16px;
+      }
+      .wo-b > div + div {
+        border-left: 1px solid var(--rt-border);
+      }
+      .sec-t {
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--rt-text-dim);
+        margin-bottom: 8px;
+      }
+      .srow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 52px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--rt-surface-3);
+      }
+      .srow:last-child {
+        border-bottom: none;
+      }
+      .chk {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 2px solid var(--rt-border);
+        display: grid;
+        place-items: center;
+        flex: none;
+        font-weight: 800;
+      }
+      .chk.on {
+        background: var(--rt-success);
+        border-color: var(--rt-success);
+        color: #05210f;
+      }
+      .srow.next-step {
+        background: rgba(226, 88, 34, 0.08);
+        border-radius: 8px;
+        padding-left: 8px;
+      }
+      .srow .sn {
+        flex: 1;
+      }
+      .srow .sn.done {
+        color: var(--rt-text-dim);
+        text-decoration: line-through;
+      }
+      .act {
+        font-size: 13px;
+        color: var(--rt-accent-2);
+      }
+      .prow {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 52px;
+        border-bottom: 1px solid var(--rt-surface-3);
+      }
+      .prow:last-child {
+        border-bottom: none;
+      }
+      .prow .q {
+        font-variant-numeric: tabular-nums;
+        color: var(--rt-text-muted);
+      }
+      .prow .q.full {
+        color: var(--rt-success);
+      }
+      .wo-foot {
+        padding: 10px 16px;
+        font-size: 13px;
+        color: var(--rt-text-dim);
+        border-top: 1px solid var(--rt-border);
+        display: flex;
+        gap: 16px;
+        align-items: center;
+      }
+      .src {
+        color: var(--rt-warning);
+      }
+
+      .gate {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: var(--rt-surface-2);
+        margin-bottom: 8px;
+      }
+      .gate .ic {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        flex: none;
+      }
+      .gate.pass .ic {
+        background: var(--rt-success);
+        color: #05210f;
+      }
+      .gate.fail .ic {
+        background: var(--rt-danger);
+        color: #fff;
+      }
+      .gate .gt {
+        font-weight: 600;
+      }
+      .gate .gd {
+        font-size: 13px;
+        color: var(--rt-text-muted);
+      }
+      .gate .btn {
+        margin-left: auto;
+      }
+      .signed {
+        padding: 22px;
+        text-align: center;
+        border: 2px solid var(--rt-success);
+        border-radius: 12px;
+        color: var(--rt-success);
+        font-size: 20px;
+        font-weight: 700;
+      }
+
+      .ovgrid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .ovc {
+        padding: 16px;
+        text-align: left;
+        border-radius: 12px;
+        background: var(--rt-surface-2);
+        border: 1px solid var(--rt-border);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 150px;
+      }
+      .ovc:hover {
+        border-color: var(--rt-accent);
+      }
+      .ovc .top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .ovc .ln {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        color: var(--rt-text-muted);
+      }
+      .ovc .ln b {
+        color: var(--rt-text);
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .kpi {
+        padding: 14px 16px;
+      }
+      .kpi .k {
+        font-size: 13px;
+        color: var(--rt-text-dim);
+      }
+      .kpi .v {
+        font-size: 30px;
+        font-weight: 800;
+      }
+
+      .scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 20;
+        display: none;
+      }
+      .scrim.open {
+        display: block;
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 440px;
+        background: var(--rt-surface);
+        border-left: 1px solid var(--rt-border);
+        z-index: 21;
+        transform: translateX(100%);
+        transition: transform 0.25s;
+        padding: 22px;
+        overflow: auto;
+      }
+      .drawer.open {
+        transform: none;
+      }
+      .drawer h3 {
+        margin: 0 0 16px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+      }
+      .drawer h3 button {
+        margin-left: auto;
+        font-size: 22px;
+        color: var(--rt-text-muted);
+      }
+      .f {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .f label {
+        font-size: 13px;
+        color: var(--rt-text-muted);
+      }
+      .f input,
+      .f select,
+      .f textarea {
+        min-height: 48px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--rt-surface-2);
+        border: 1px solid var(--rt-border);
+        color: var(--rt-text);
+        font: inherit;
+        color-scheme: dark;
+      }
+      .f .ro {
+        padding: 10px 0;
+        font-weight: 600;
+      }
+      .f2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      .prefill {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(242, 180, 65, 0.12);
+        color: var(--rt-warning);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .vin {
+        width: 96px;
+        min-height: 42px;
+        border-radius: 8px;
+        background: var(--rt-surface-3);
+        border: 1px solid var(--rt-border);
+        color: var(--rt-text);
+        padding: 0 10px;
+        font: inherit;
+      }
+
+      .notes {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 520px;
+        background: #0e141b;
+        border-right: 1px solid var(--rt-accent-2);
+        z-index: 21;
+        transform: translateX(-100%);
+        transition: transform 0.25s;
+        padding: 24px;
+        overflow: auto;
+        font-size: 15px;
+      }
+      .notes.open {
+        transform: none;
+      }
+      .notes h3 {
+        margin-top: 0;
+        color: var(--rt-accent-2);
+        display: flex;
+      }
+      .notes h3 button {
+        margin-left: auto;
+        color: var(--rt-text-muted);
+        font-size: 20px;
+      }
+      .notes h4 {
+        margin: 18px 0 6px;
+        color: var(--rt-text);
+      }
+      .notes li {
+        margin-bottom: 6px;
+        color: var(--rt-text-muted);
+      }
+      .notes b {
+        color: var(--rt-text);
+      }
+      .empty {
+        padding: 30px;
+        text-align: center;
+        color: var(--rt-text-dim);
+      }
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--rt-surface-3);
+        border: 1px solid var(--rt-border);
+        padding: 12px 20px;
+        border-radius: 10px;
+        z-index: 30;
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <button class="back">‹ Back to Workpack</button>
+      <span class="wagon-name">WG 20213</span>
+      <span class="chip">FLOC RT-WG-20213</span>
+      <span class="chip">Workpack 00010070</span>
+      <div class="overall">
+        <span id="overallTxt"></span>
+        <div class="overall-bar"><i id="overallBar"></i></div>
+      </div>
+      <button class="notes-btn" onclick="toggleNotes(true)">
+        ⓘ Design notes
+      </button>
+    </div>
+
+    <div class="layout">
+      <aside class="rail">
+        <div class="card diagram" id="diagram">
+          <img
+            src="../../force-app/main/default/staticresources/WagonDiagramTop.png"
+            alt="Wagon diagram"
+            onerror="
+              this.replaceWith(
+                Object.assign(document.createElement('div'), {
+                  style:
+                    'height:90px;border:1px dashed #2A3744;border-radius:6px'
+                })
+              )
+            "
+          />
+        </div>
+        <div class="rail-title">Components</div>
+        <div class="card tree" id="tree"></div>
+        <div class="card legend">
+          <span><i class="dot s-grey"></i>Not started</span>
+          <span><i class="dot s-amber"></i>In progress</span>
+          <span><i class="dot s-red"></i>Needs action</span>
+          <span><i class="dot s-green"></i>Complete</span>
+        </div>
+      </aside>
+      <main class="main" id="main"></main>
+    </div>
+
+    <div class="scrim" id="scrim" onclick="closeAll()"></div>
+    <div class="drawer" id="drawer"></div>
+    <div class="notes" id="notes">
+      <h3>Why this layout <button onclick="toggleNotes(false)">✕</button></h3>
+      <h4>Problems in the current page</h4>
+      <ul>
+        <li>
+          <b>7 stacked collapsibles</b> (Components, Measure Performance,
+          Overview, Inspection &amp; Tasks, Work Plans, Parts) with equal
+          weight: no order and no "start here".
+        </li>
+        <li>
+          <b>Hidden coupling</b>: tapping a Work Order card silently filters
+          Measures + Work Plans. Plans and Parts sit in separate panels even
+          though both belong to a WO.
+        </li>
+        <li>
+          <b>Three selectors</b> for the same thing: diagram zones, chip strip,
+          sub-asset strip.
+        </li>
+        <li>
+          <b>Green = "In progress"</b> in today's legend, which reads as "done".
+          There is no "complete" state.
+        </li>
+        <li>
+          Asset Overview (rarely changed) sits <b>above</b> the work. Charts sit
+          above everything and don't follow the selection.
+        </li>
+        <li>
+          Inspection is <b>form-first</b>: every measure needs "+ New Measure"
+          and a 7-field form.
+        </li>
+      </ul>
+      <h4>What changes</h4>
+      <ul>
+        <li>
+          <b>One navigator</b> (left rail): diagram + tree of wagon → wheelsets
+          → sub-assets. Each row shows a 3-segment bar (Inspect / Repair /
+          Sign-off).
+        </li>
+        <li>
+          <b>Next-step banner</b>: one sentence + one button telling the worker
+          what to do now, computed from data.
+        </li>
+        <li>
+          <b>3-step flow</b> per component: <b>Inspect → Repair → Sign-off</b>,
+          replacing 5 panels.
+        </li>
+        <li>
+          <b>Inspect = checklist</b>: one-tap outcome (OK / Attention / Scrap)
+          on each point, value inline. A finding gets an inline "Raise PM02"
+          that prefills the task from the finding, linking measure to work.
+        </li>
+        <li>
+          <b>Repair = WO-centric</b>: each WO card holds its Work Plan steps
+          <i>and</i> its Parts side by side. No filter mode. Next step
+          highlighted.
+        </li>
+        <li>
+          <b>Sign-off = gates</b>: points recorded · every finding has a WO ·
+          steps done · parts consumed · serial present. Each failing gate jumps
+          to the fix.
+        </li>
+        <li>
+          <b>Details drawer</b>: Asset Overview + serial edit move to a side
+          drawer (ⓘ Details).
+        </li>
+        <li>
+          <b>Wagon level</b>: tapping the wagon gives a summary with
+          per-wheelset cards, KPIs, and the cross-wheelset trend charts.
+        </li>
+        <li>
+          <b>4 status colours</b>: grey not started · amber in progress · red
+          needs action · green complete.
+        </li>
+      </ul>
+      <h4>Open questions (not verified against org)</h4>
+      <ul>
+        <li>
+          <b>Expected measure points</b>: mock assumes each component has
+          placeholder points with no outcome yet (like today's PDF-checklist
+          placeholders). Need to confirm they're reliably present.
+        </li>
+        <li>
+          <b>Sign-off persistence</b>: no field exists. Options: derived only
+          (no write), set Asset.Status, or close the related WOs. Your call.
+        </li>
+        <li>
+          Linking a finding to its PM02 via
+          <code>Measure_Point__c.Work_Order__c</code>: today that field holds
+          the <i>workpack</i> id, so a PM02 link would overwrite it. May need a
+          separate lookup.
+        </li>
+        <li>
+          Sample data, units (mm/°C) and the 14 mm scrap limit are invented for
+          the mock.
+        </li>
+      </ul>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const mp = (id, comp, loc, vt, val, out, extra = {}) => ({
+        id,
+        comp,
+        loc,
+        vt,
+        val,
+        out,
+        woId: null,
+        ...extra
+      });
+      const DATA = {
+        wagon: {
+          id: "W",
+          name: "WG 20213",
+          serial: "WG-20213",
+          status: "In Service",
+          warranty: "Out of Warranty",
+          install: "2014-08-11",
+          purchase: "2014-06-02",
+          floc: "RT-WG-20213"
+        },
+        comps: [
+          {
+            id: "L1",
+            name: "Wheelset L1",
+            serial: "WS-88121",
+            status: "Installed",
+            warranty: "In Warranty",
+            install: "2021-03-02",
+            purchase: "2021-01-15",
+            floc: "RT-WG-20213-L1",
+            signed: true,
+            children: [],
+            measures: [
+              mp("m1", "Wheel flange", "Back Radius", "Depth", 29.1, "OK"),
+              mp("m2", "Wheel tread", "Palm", "Depth", 24.0, "OK"),
+              mp("m3", "Axle bearing", "Lower Lug", "Temperature", 41, "OK")
+            ],
+            wos: []
+          },
+          {
+            id: "L2",
+            name: "Wheelset L2",
+            serial: "WS-88122",
+            status: "Installed",
+            warranty: "In Warranty",
+            install: "2021-03-02",
+            purchase: "2021-01-15",
+            floc: "RT-WG-20213-L2",
+            signed: false,
+            children: [
+              { id: "L2A", name: "Axle L2-A" },
+              { id: "L2W", name: "Wheel pair L2-W" }
+            ],
+            measures: [
+              mp(
+                "m4",
+                "Wheel flange",
+                "Back Radius",
+                "Depth",
+                18.2,
+                "Attention Required",
+                { woId: "wo1", comment: "Flange wear near limit" }
+              ),
+              mp("m5", "Wheel tread", "Palm", "Depth", 23.4, "OK"),
+              mp(
+                "m6",
+                "Rotary knuckle",
+                "Upper Knuckle Pin Hole",
+                "Width",
+                null,
+                null
+              ),
+              mp("m7", "Axle bearing", "Lower Lug", "Temperature", null, null)
+            ],
+            wos: [
+              {
+                id: "wo1",
+                num: "00010695",
+                type: "PM02",
+                subject: "Re-profile L2 wheel flange",
+                status: "In Progress",
+                from: "m4",
+                steps: [
+                  { n: "Isolate & lock out wagon", d: true },
+                  { n: "Lift bogie / remove wheelset", d: true },
+                  {
+                    n: "Re-profile flange on lathe",
+                    d: false,
+                    act: "Data capture form"
+                  },
+                  { n: "Re-measure flange depth", d: false },
+                  { n: "Refit & torque", d: false }
+                ],
+                parts: [
+                  { n: "Bearing seal kit", r: 2, u: 2, c: 84 },
+                  { n: "Axle nut M48", r: 2, u: 0, c: 19 }
+                ]
+              }
+            ]
+          },
+          {
+            id: "L3",
+            name: "Wheelset L3",
+            serial: "WS-88123",
+            status: "Installed",
+            warranty: "In Warranty",
+            install: "2021-03-02",
+            purchase: "2021-01-15",
+            floc: "RT-WG-20213-L3",
+            signed: false,
+            children: [],
+            measures: [
+              mp("m8", "Wheel flange", "Back Radius", "Depth", 12.6, "Scrap", {
+                comment: "Below scrap limit 14mm"
+              }),
+              mp("m9", "Wheel tread", "Palm", "Depth", 22.1, "OK"),
+              mp("m10", "Axle bearing", "Lower Lug", "Temperature", null, null)
+            ],
+            wos: []
+          },
+          {
+            id: "L4",
+            name: "Wheelset L4",
+            serial: "",
+            status: "Installed",
+            warranty: "Unknown",
+            install: "2019-11-20",
+            purchase: "2019-10-01",
+            floc: "RT-WG-20213-L4",
+            signed: false,
+            children: [],
+            measures: [
+              mp("m11", "Wheel flange", "Back Radius", "Depth", null, null),
+              mp("m12", "Wheel tread", "Palm", "Depth", null, null),
+              mp("m13", "Axle bearing", "Lower Lug", "Temperature", null, null)
+            ],
+            wos: []
+          }
+        ]
+      };
+      let state = { sel: "W", tab: "inspect", openWo: null };
+      let woSeq = 700;
+
+      const comp = (id) => DATA.comps.find((c) => c.id === id);
+      const unit = (vt) => (vt === "Temperature" ? "°C" : "mm");
+      function derive(c) {
+        const pending = c.measures.filter((m) => !m.out);
+        const findings = c.measures.filter(
+          (m) => m.out === "Attention Required" || m.out === "Scrap"
+        );
+        const unlinked = findings.filter((m) => !m.woId);
+        const steps = c.wos.flatMap((w) => w.steps);
+        const stepsDone = steps.filter((s) => s.d).length;
+        const parts = c.wos.flatMap((w) => w.parts);
+        const partsShort = parts.filter((p) => p.u < p.r);
+        const touched = c.measures.some((m) => m.out) || c.wos.length;
+        const inspectDone = pending.length === 0;
+        const repairDone =
+          unlinked.length === 0 &&
+          stepsDone === steps.length &&
+          partsShort.length === 0;
+        let status = "grey";
+        if (c.signed) status = "green";
+        else if (unlinked.length) status = "red";
+        else if (touched) status = "amber";
+        return {
+          pending,
+          findings,
+          unlinked,
+          steps,
+          stepsDone,
+          parts,
+          partsShort,
+          inspectDone,
+          repairDone,
+          status,
+          inspState: inspectDone
+            ? "done"
+            : c.measures.some((m) => m.out)
+              ? "act"
+              : "",
+          repState: unlinked.length
+            ? "bad"
+            : repairDone && inspectDone
+              ? "done"
+              : c.wos.length
+                ? "act"
+                : "",
+          signState: c.signed ? "done" : ""
+        };
+      }
+      function nextAction(c, d) {
+        if (c.signed)
+          return { cls: "ok", txt: `${c.name} is signed off.`, btn: null };
+        if (d.pending.length)
+          return {
+            cls: "",
+            txt: `Record ${d.pending.length} remaining measure${d.pending.length > 1 ? "s" : ""}. Next: ${d.pending[0].comp} (${d.pending[0].loc})`,
+            btn: "Go to inspection",
+            go: () => setTab("inspect")
+          };
+        if (d.unlinked.length) {
+          const f = d.unlinked[0];
+          return {
+            cls: "bad",
+            txt: `${f.out === "Scrap" ? "Scrap" : "Attention"} finding on ${f.comp} has no work order`,
+            btn: "Raise PM02 task",
+            go: () => openTaskSheet(c.id, f.id)
+          };
+        }
+        for (const w of c.wos) {
+          const s = w.steps.find((s) => !s.d);
+          if (s)
+            return {
+              cls: "",
+              txt: `WO ${w.num}: “${s.n}”`,
+              btn: "Go to step",
+              go: () => {
+                state.openWo = w.id;
+                setTab("repair");
+              }
+            };
+        }
+        if (d.partsShort.length)
+          return {
+            cls: "",
+            txt: `Consume ${d.partsShort.length} required part${d.partsShort.length > 1 ? "s" : ""} (${d.partsShort[0].n})`,
+            btn: "Go to parts",
+            go: () => setTab("repair")
+          };
+        return {
+          cls: "ok",
+          txt: "All checks pass. Ready to sign off",
+          btn: "Sign off",
+          go: () => setTab("signoff")
+        };
+      }
+
+      const ZONES = [
+        { l: 6, w: 18 },
+        { l: 30, w: 18 },
+        { l: 55, w: 18 },
+        { l: 76, w: 18 }
+      ];
+      function render() {
+        renderRail();
+        renderTop();
+        renderMain();
+      }
+
+      function renderTop() {
+        const done = DATA.comps.filter((c) => c.signed).length;
+        document.getElementById("overallTxt").textContent =
+          `${done} of ${DATA.comps.length} wheelsets signed off`;
+        document.getElementById("overallBar").style.width =
+          (done / DATA.comps.length) * 100 + "%";
+      }
+
+      function renderRail() {
+        const dg = document.getElementById("diagram");
+        dg.querySelectorAll(".zone").forEach((z) => z.remove());
+        DATA.comps.forEach((c, i) => {
+          const d = derive(c),
+            z = document.createElement("button");
+          z.className = "zone" + (state.sel.startsWith(c.id) ? " sel" : "");
+          z.style.left = `calc(10px + (100% - 20px) * ${ZONES[i].l / 100})`;
+          z.style.width = `calc((100% - 20px) * ${ZONES[i].w / 100})`;
+          z.innerHTML = `<i class="dot s-${d.status}"></i>`;
+          z.onclick = () => select(c.id);
+          dg.appendChild(z);
+        });
+        const done = DATA.comps.filter((c) => c.signed).length;
+        let h = `<button class="node ${state.sel === "W" ? "sel" : ""}" onclick="select('W')">
+      <i class="dot ${done === DATA.comps.length ? "s-green" : "s-amber"}"></i>
+      <span class="nm">WG 20213 <span class="sub">Wagon · summary</span></span><span class="chip">${done}/${DATA.comps.length}</span></button>`;
+        DATA.comps.forEach((c) => {
+          const d = derive(c);
+          const sub = c.signed
+            ? "Signed off"
+            : d.pending.length
+              ? `${d.pending.length} measures to record`
+              : d.unlinked.length
+                ? `${d.unlinked.length} finding needs task`
+                : d.steps.length > d.stepsDone
+                  ? `${d.stepsDone}/${d.steps.length} steps`
+                  : "Ready to sign off";
+          h += `<button class="node ${state.sel === c.id ? "sel" : ""}" onclick="select('${c.id}')">
+        <i class="dot s-${d.status}"></i>
+        <span class="nm">${c.name}<span class="sub">${sub}</span></span>
+        <span class="mini" title="Inspect · Repair · Sign-off"><i class="${d.inspState}"></i><i class="${d.repState}"></i><i class="${d.signState}"></i></span></button>`;
+          if (state.sel.startsWith(c.id))
+            c.children.forEach((k) => {
+              h += `<button class="node child ${state.sel === k.id ? "sel" : ""}" onclick="select('${k.id}')"><i class="dot s-grey"></i><span class="nm">${k.name}</span><span></span></button>`;
+            });
+        });
+        document.getElementById("tree").innerHTML = h;
+      }
+
+      function renderMain() {
+        const m = document.getElementById("main");
+        if (state.sel === "W") {
+          m.innerHTML = wagonView();
+          return;
+        }
+        const child = DATA.comps
+          .flatMap((c) => c.children.map((k) => ({ ...k, parent: c })))
+          .find((k) => k.id === state.sel);
+        const c = child ? child.parent : comp(state.sel);
+        const d = derive(c),
+          n = nextAction(c, d);
+        const title = child
+          ? `${child.name} <span class="meta">· part of ${c.name}</span>`
+          : c.name;
+        const repDesc =
+          c.wos.length || d.unlinked.length
+            ? `${c.wos.length} WO · ${d.stepsDone}/${d.steps.length} steps${d.unlinked.length ? ` · ${d.unlinked.length} needs WO` : ""}`
+            : "No work raised";
+        const repSt = d.unlinked.length
+          ? "warn"
+          : c.wos.length
+            ? d.repairDone
+              ? "done"
+              : "prog"
+            : d.inspectDone
+              ? "done"
+              : "";
+        m.innerHTML = `
+    <div class="card head">
+      <i class="dot s-${d.status}" style="width:16px;height:16px"></i>
+      <div><h1>${title}</h1><div class="meta">S/N ${c.serial || '<span style="color:var(--rt-warning)">missing</span>'} · ${c.floc} · ${c.status}</div></div>
+      <div class="right"><button class="btn btn-ghost btn-sm" onclick="openDetails('${c.id}')">ⓘ Details</button></div>
+    </div>
+    <div class="card next ${n.cls}">
+      <div><div class="lbl">${c.signed ? "Status" : "Next step"}</div><div class="txt">${n.txt}</div></div>
+      ${n.btn ? `<button class="btn ${n.cls === "ok" ? "btn-blue" : "btn-primary"}" id="nextBtn">${n.btn} →</button>` : ""}
+    </div>
+    <div class="card stepper">
+      ${stepBtn("inspect", 1, "Inspect", `${c.measures.length - d.pending.length}/${c.measures.length} recorded${d.findings.length ? ` · ${d.findings.length} finding${d.findings.length > 1 ? "s" : ""}` : ""}`, d.inspectDone ? "done" : c.measures.some((x) => x.out) ? "prog" : "")}
+      ${stepBtn("repair", 2, "Repair", repDesc, repSt)}
+      ${stepBtn("signoff", 3, "Sign-off", c.signed ? "Signed" : "5 gates", c.signed ? "done" : "")}
+    </div>
+    <div class="card panel">${state.tab === "inspect" ? inspectView(c, d) : state.tab === "repair" ? repairView(c, d) : signoffView(c, d)}</div>`;
+        if (n.btn) document.getElementById("nextBtn").onclick = n.go;
+      }
+      function stepBtn(key, num, t, desc, st) {
+        return `<button class="step ${state.tab === key ? "active" : ""} ${st}" onclick="setTab('${key}')">
+    <span class="num">${st === "done" ? "✓" : st === "warn" ? "!" : num}</span><span><div class="t">${t}</div><div class="d">${desc}</div></span></button>`;
+      }
+
+      function inspectView(c, d) {
+        const outBtn = (m, o, cls, lbl) =>
+          `<button class="out ${m.out === o ? "on " + cls : ""}" onclick="setOutcome('${c.id}','${m.id}','${o}')">${lbl}</button>`;
+        const rows = c.measures
+          .map((m) => {
+            const oc =
+              m.out === "OK"
+                ? "o-ok"
+                : m.out === "Measure"
+                  ? "o-meas"
+                  : m.out === "Attention Required"
+                    ? "o-att"
+                    : m.out === "Scrap"
+                      ? "o-scrap"
+                      : "";
+            const isF = m.out === "Attention Required" || m.out === "Scrap";
+            const wo = m.woId && c.wos.find((w) => w.id === m.woId);
+            return `<div class="mrow ${oc}">
+      <div><div class="c">${m.comp}</div><div class="l">📍 ${m.loc}</div></div>
+      <div class="l">${m.comment || (m.out ? "" : "<i>Not yet recorded</i>")}</div>
+      <div class="v ${m.val == null ? "empty" : ""}">${m.val == null ? `<input class="vin" inputmode="decimal" placeholder="${m.vt}" onchange="setValue('${c.id}','${m.id}',this.value)">` : `${m.val}<small>${unit(m.vt)}</small>`}</div>
+      <div class="outs">${outBtn(m, "OK", "ok", "✓ OK")}${outBtn(m, "Attention Required", "att", "⚠ Attention")}${outBtn(m, "Scrap", "scrap", "✕ Scrap")}<button class="out" title="Photo" onclick="toast('Opens camera / attach image')">📷</button></div>
+      ${isF ? `<div class="finding-link">${wo ? `Linked to <span class="wo-tag">PM02 ${wo.num}</span> ${wo.subject}<button class="btn btn-ghost btn-sm" onclick="state.openWo='${wo.id}';setTab('repair')">Open WO →</button>` : `<span style="color:var(--rt-danger);font-weight:600">No work order for this finding</span><button class="btn btn-primary btn-sm" onclick="openTaskSheet('${c.id}','${m.id}')">Raise PM02 task →</button>`}</div>` : ""}
+    </div>`;
+          })
+          .join("");
+        return `<div class="panel-head"><h2>Inspection checklist</h2><span class="hint">Tap an outcome for each point. Enter the value inline.</span>
+      <div class="right"><button class="btn btn-ghost btn-sm" onclick="toast('Opens the ad-hoc measure sheet (today\\'s form)')">+ Ad-hoc measure</button></div></div>
+    ${rows}
+    <div class="sec-t" style="margin-top:20px">Compared with other wheelsets</div>
+    <div class="trend">${trendChart("Depth", "Wheel flange", c.id)}${trendChart("Temperature", "Axle bearing", c.id)}</div>`;
+      }
+      function trendChart(vt, compName, selId) {
+        const pts = DATA.comps.map((c) => {
+          const m = c.measures.find((x) => x.vt === vt && x.comp === compName);
+          return { id: c.id, v: m ? m.val : null };
+        });
+        const vals = pts.filter((p) => p.v != null).map((p) => p.v);
+        if (!vals.length) return "";
+        const max = Math.max(...vals) * 1.2,
+          W = 300,
+          H = 90,
+          x = (i) => 30 + (i * (W - 60)) / 3,
+          y = (v) => H - 20 - (v / max) * (H - 34);
+        const line = pts
+          .map((p, i) => (p.v != null ? `${x(i)},${y(p.v)}` : null))
+          .filter(Boolean)
+          .join(" ");
+        const limit =
+          vt === "Depth" && compName === "Wheel flange"
+            ? `<line x1="20" x2="${W - 10}" y1="${y(14)}" y2="${y(14)}" stroke="#E84B4B" stroke-dasharray="4 4"/><text x="${W - 12}" y="${y(14) - 4}" fill="#E84B4B" font-size="10" text-anchor="end">scrap 14mm</text>`
+            : "";
+        return `<div class="card"><div class="tt">${compName} · ${vt}</div><svg viewBox="0 0 ${W} ${H}">${limit}
+    <polyline points="${line}" fill="none" stroke="#2E8FE6" stroke-width="2"/>
+    ${pts
+      .map(
+        (
+          p,
+          i
+        ) => `${p.v != null ? `<circle cx="${x(i)}" cy="${y(p.v)}" r="${p.id === selId ? 6 : 4}" fill="${p.id === selId ? "#E25822" : "#2E8FE6"}"/><text x="${x(i)}" y="${y(p.v) - 9}" fill="#F2F5F7" font-size="11" text-anchor="middle">${p.v}</text>` : `<text x="${x(i)}" y="${H - 34}" fill="#6B7A89" font-size="10" text-anchor="middle">—</text>`}
+      <text x="${x(i)}" y="${H - 4}" fill="${p.id === selId ? "#E25822" : "#A6B2BD"}" font-size="11" font-weight="${p.id === selId ? 700 : 400}" text-anchor="middle">${p.id}</text>`
+      )
+      .join("")}</svg></div>`;
+      }
+
+      function ring(done, total) {
+        const r = 16,
+          C = 2 * Math.PI * r,
+          p = total ? done / total : 0;
+        return `<svg class="ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="${r}" fill="none" stroke="#243040" stroke-width="4"/>
+    <circle cx="20" cy="20" r="${r}" fill="none" stroke="${p === 1 ? "#21C07A" : "#F2B441"}" stroke-width="4" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p)}" transform="rotate(-90 20 20)" stroke-linecap="round"/>
+    <text x="20" y="20" fill="#F2F5F7" font-size="10" text-anchor="middle" dominant-baseline="central">${Math.round(p * 100)}%</text></svg>`;
+      }
+      function repairView(c, d) {
+        const unl = d.unlinked
+          .map(
+            (f) =>
+              `<div class="gate fail"><span class="ic">!</span><div><div class="gt">${f.out} · ${f.comp} (${f.loc}) · ${f.val ?? ""}${unit(f.vt)}</div><div class="gd">Finding from inspection has no work order</div></div><button class="btn btn-primary btn-sm" onclick="openTaskSheet('${c.id}','${f.id}')">Raise PM02 →</button></div>`
+          )
+          .join("");
+        if (!c.wos.length && !unl)
+          return `<div class="panel-head"><h2>Work orders</h2><div class="right"><button class="btn btn-ghost btn-sm" onclick="openTaskSheet('${c.id}')">+ PM02 task</button></div></div><div class="empty">No findings and no work orders on this component.<br>Nothing to repair. Continue to Sign-off.</div>`;
+        const firstOpen = c.wos
+          .flatMap((w) => w.steps.map((s) => ({ w, s })))
+          .find((x) => !x.s.d);
+        const wos = c.wos
+          .map((w) => {
+            const open = state.openWo ? state.openWo === w.id : true;
+            const sd = w.steps.filter((s) => s.d).length;
+            const src = c.measures.find((m) => m.id === w.from);
+            return `<div class="wo">
+      <button class="wo-h" onclick="state.openWo = state.openWo==='${w.id}' ? '__none' : '${w.id}'; render()">
+        <span class="pill pm02">${w.type}</span><span class="no">${w.num}</span><span class="subj">${w.subject}</span>
+        <span class="right"><span class="pill ${w.status === "Completed" ? "done" : "inprog"}">${w.status}</span>${ring(sd, w.steps.length)}<span>${open ? "▾" : "›"}</span></span>
+      </button>
+      ${
+        open
+          ? `<div class="wo-b">
+        <div><div class="sec-t">Work plan · steps ${sd}/${w.steps.length}</div>
+          ${w.steps
+            .map(
+              (
+                s,
+                i
+              ) => `<div class="srow ${firstOpen && firstOpen.s === s ? "next-step" : ""}">
+            <button class="chk ${s.d ? "on" : ""}" onclick="toggleStep('${c.id}','${w.id}',${i})">${s.d ? "✓" : ""}</button>
+            <span class="sn ${s.d ? "done" : ""}">${i + 1}. ${s.n}</span>${s.act && !s.d ? `<button class="act" onclick="toast('Opens step action: ${s.act}')">Open action ›</button>` : ""}</div>`
+            )
+            .join("")}
+        </div>
+        <div><div class="sec-t">Parts for this WO</div>
+          ${w.parts
+            .map(
+              (
+                p,
+                i
+              ) => `<div class="prow"><span>${p.n}</span><span class="q ${p.u >= p.r ? "full" : ""}">${p.u}/${p.r}</span>
+            ${p.u < p.r ? `<button class="btn btn-ghost btn-sm" onclick="consume('${c.id}','${w.id}',${i})">+ Consume</button>` : '<span style="color:var(--rt-success);width:96px;text-align:center">✓</span>'}</div>`
+            )
+            .join("")}
+          <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="toast('Opens part picker (today\\'s Add part)')">+ Add part</button>
+        </div></div>
+        <div class="wo-foot">${src ? `<span class="src">⚠ Raised from: ${src.comp} · ${src.loc} (${src.out})</span>` : ""}<span>Parts $${w.parts.reduce((a, p) => a + p.u * p.c, 0)}</span><button class="act" style="margin-left:auto" onclick="openTaskSheet('${c.id}',null,'${w.id}')">Edit WO ›</button></div>`
+          : ""
+      }
+    </div>`;
+          })
+          .join("");
+        return `<div class="panel-head"><h2>Work orders</h2><span class="hint">Each WO carries its own plan steps and parts.</span><div class="right"><button class="btn btn-ghost btn-sm" onclick="openTaskSheet('${c.id}')">+ PM02 task</button></div></div>${unl}${wos}`;
+      }
+
+      function signoffView(c, d) {
+        const gates = [
+          {
+            ok: d.pending.length === 0,
+            t: "All measure points recorded",
+            fail: `${d.pending.length} still pending`,
+            go: "setTab('inspect')"
+          },
+          {
+            ok: d.unlinked.length === 0,
+            t: "Every finding has a work order",
+            fail: `${d.unlinked.length} finding without WO`,
+            go: "setTab('repair')"
+          },
+          {
+            ok: d.stepsDone === d.steps.length,
+            t: "All work plan steps complete",
+            fail: `${d.steps.length - d.stepsDone} steps open`,
+            go: "setTab('repair')"
+          },
+          {
+            ok: d.partsShort.length === 0,
+            t: "Required parts consumed",
+            fail: `${d.partsShort.length} part line(s) short`,
+            go: "setTab('repair')"
+          },
+          {
+            ok: !!c.serial,
+            t: "Serial number captured",
+            fail: "Serial missing",
+            go: `openDetails('${c.id}')`
+          }
+        ];
+        const all = gates.every((g) => g.ok);
+        if (c.signed)
+          return `<div class="signed">✓ ${c.name} signed off by J. Smith · 11 Nov 2026 14:32</div><div style="text-align:center;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="comp('${c.id}').signed=false;render()">Reopen</button></div>`;
+        return `<div class="panel-head"><h2>Sign-off gates</h2><span class="hint">All must pass. Tap a failing gate to fix it.</span></div>
+    ${gates.map((g) => `<div class="gate ${g.ok ? "pass" : "fail"}"><span class="ic">${g.ok ? "✓" : "!"}</span><div><div class="gt">${g.t}</div>${g.ok ? "" : `<div class="gd">${g.fail}</div>`}</div>${g.ok ? "" : `<button class="btn btn-ghost btn-sm" onclick="${g.go}">Fix →</button>`}</div>`).join("")}
+    <div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn ${all ? "btn-blue" : "btn-ghost"}" ${all ? "" : 'disabled style="opacity:.5;cursor:not-allowed"'} onclick="signOff('${c.id}')">✓ Sign off ${c.name}</button></div>`;
+      }
+
+      function wagonView() {
+        const ds = DATA.comps.map((c) => ({ c, d: derive(c) }));
+        const open = ds.reduce(
+          (a, x) => a + x.c.wos.filter((w) => w.status !== "Completed").length,
+          0
+        );
+        const findings = ds.reduce((a, x) => a + x.d.findings.length, 0);
+        const unl = ds.reduce((a, x) => a + x.d.unlinked.length, 0);
+        const pend = ds.reduce((a, x) => a + x.d.pending.length, 0);
+        const nextC =
+          ds.find((x) => !x.c.signed && x.d.unlinked.length) ||
+          ds.find((x) => !x.c.signed && x.c.measures.some((m) => m.out)) ||
+          ds.find((x) => !x.c.signed);
+        return `
+    <div class="card head"><i class="dot s-amber" style="width:16px;height:16px"></i><div><h1>WG 20213 · wagon summary</h1><div class="meta">S/N ${DATA.wagon.serial} · ${DATA.wagon.floc} · ${DATA.wagon.status}</div></div>
+      <div class="right"><button class="btn btn-ghost btn-sm" onclick="openDetails('W')">ⓘ Details</button></div></div>
+    ${nextC ? `<div class="card next ${nextC.d.unlinked.length ? "bad" : ""}"><div><div class="lbl">Next step</div><div class="txt">${nextC.d.unlinked.length ? `${nextC.c.name}: ${nextC.d.unlinked.length} finding needs a work order` : `Continue ${nextC.c.name}`}</div></div><button class="btn btn-primary" onclick="select('${nextC.c.id}')">Open ${nextC.c.id} →</button></div>` : `<div class="card next ok"><div><div class="lbl">Status</div><div class="txt">All wheelsets signed off</div></div></div>`}
+    <div class="kpis">
+      <div class="card kpi"><div class="k">Measures pending</div><div class="v">${pend}</div></div>
+      <div class="card kpi"><div class="k">Findings</div><div class="v" style="color:${findings ? "var(--rt-warning)" : ""}">${findings}</div></div>
+      <div class="card kpi"><div class="k">Findings without WO</div><div class="v" style="color:${unl ? "var(--rt-danger)" : ""}">${unl}</div></div>
+      <div class="card kpi"><div class="k">Open work orders</div><div class="v">${open}</div></div>
+    </div>
+    <div class="ovgrid">${ds
+      .map(
+        ({ c, d }) => `<button class="ovc" onclick="select('${c.id}')">
+      <div class="top"><i class="dot s-${d.status}"></i>${c.id}<span class="mini" style="margin-left:auto"><i class="${d.inspState}"></i><i class="${d.repState}"></i><i class="${d.signState}"></i></span></div>
+      <div class="ln">Recorded <b>${c.measures.length - d.pending.length}/${c.measures.length}</b></div>
+      <div class="ln">Findings <b style="color:${d.unlinked.length ? "var(--rt-danger)" : ""}">${d.findings.length}${d.unlinked.length ? " (no WO)" : ""}</b></div>
+      <div class="ln">Steps <b>${d.steps.length ? d.stepsDone + "/" + d.steps.length : "—"}</b></div>
+      <div class="ln">Signed off <b>${c.signed ? "✓" : "—"}</b></div></button>`
+      )
+      .join("")}</div>
+    <div class="card panel"><div class="panel-head"><h2>Measure performance across wheelsets</h2></div>
+      <div class="trend" style="margin-top:0">${trendChart("Depth", "Wheel flange", "")}${trendChart("Depth", "Wheel tread", "")}${trendChart("Temperature", "Axle bearing", "")}</div></div>`;
+      }
+
+      function select(id) {
+        state.sel = id;
+        state.openWo = null;
+        const c = comp(id);
+        if (c) {
+          const d = derive(c);
+          state.tab = c.signed
+            ? "signoff"
+            : d.pending.length
+              ? "inspect"
+              : d.unlinked.length ||
+                  d.steps.length > d.stepsDone ||
+                  d.partsShort.length
+                ? "repair"
+                : "signoff";
+        }
+        render();
+      }
+      function setTab(t) {
+        state.tab = t;
+        render();
+      }
+      function setOutcome(cid, mid, o) {
+        const m = comp(cid).measures.find((x) => x.id === mid);
+        m.out = o;
+        if (o === "OK" && m.val == null)
+          m.val = m.vt === "Temperature" ? 40 : 25;
+        render();
+        if (o !== "OK" && !m.woId)
+          toast("Finding recorded. Raise a PM02 from the row");
+      }
+      function setValue(cid, mid, v) {
+        const m = comp(cid).measures.find((x) => x.id === mid);
+        m.val = v === "" ? null : Number(v);
+        if (!m.out) m.out = "Measure";
+        render();
+      }
+      function toggleStep(cid, wid, i) {
+        const w = comp(cid).wos.find((x) => x.id === wid);
+        w.steps[i].d = !w.steps[i].d;
+        w.status = w.steps.every((s) => s.d) ? "Completed" : "In Progress";
+        render();
+      }
+      function consume(cid, wid, i) {
+        const p = comp(cid).wos.find((x) => x.id === wid).parts[i];
+        p.u = Math.min(p.r, p.u + 1);
+        render();
+      }
+      function signOff(cid) {
+        comp(cid).signed = true;
+        render();
+        toast(`${comp(cid).name} signed off`);
+      }
+
+      function openDetails(id) {
+        const a = id === "W" ? DATA.wagon : comp(id);
+        document.getElementById("drawer").innerHTML =
+          `<h3>${a.name} · details<button onclick="closeAll()">✕</button></h3>
+    <div class="f"><label>Serial number</label><div style="display:flex;gap:8px"><input id="serialIn" value="${a.serial}" style="flex:1"><button class="btn btn-blue btn-sm" onclick="saveSerial('${id}')">Save</button></div></div>
+    <div class="f2"><div class="f"><label>Status</label><div class="ro">${a.status}</div></div><div class="f"><label>Warranty</label><div class="ro">${a.warranty}</div></div></div>
+    <div class="f2"><div class="f"><label>Installed</label><div class="ro">${a.install}</div></div><div class="f"><label>Purchased</label><div class="ro">${a.purchase}</div></div></div>
+    <div class="f"><label>FLOC</label><div class="ro">${a.floc}</div></div>`;
+        openLayer("drawer");
+      }
+      function saveSerial(id) {
+        const a = id === "W" ? DATA.wagon : comp(id);
+        a.serial = document.getElementById("serialIn").value;
+        closeAll();
+        render();
+        toast("Serial saved");
+      }
+
+      function openTaskSheet(cid, fromId, editWoId) {
+        const c = comp(cid),
+          f = fromId && c.measures.find((m) => m.id === fromId),
+          w = editWoId && c.wos.find((x) => x.id === editWoId);
+        const subj = w
+          ? w.subject
+          : f
+            ? `${f.out === "Scrap" ? "Replace" : "Repair"} ${c.id} ${f.comp.toLowerCase()} (${f.loc})`
+            : "";
+        document.getElementById("drawer").innerHTML =
+          `<h3>${w ? "Edit " + w.num : "New PM02 task"}<button onclick="closeAll()">✕</button></h3>
+    ${f ? `<div class="prefill">Prefilled from finding: ${f.comp} · ${f.loc} · ${f.val ?? ""}${unit(f.vt)} (${f.out})</div>` : ""}
+    <div class="f"><label>Component</label><div class="ro">${c.name} · ${c.floc}</div></div>
+    <div class="f"><label>Subject</label><input id="tSubj" value="${subj}"></div>
+    <div class="f"><label>Description</label><textarea rows="3">${f && f.comment ? f.comment : ""}</textarea></div>
+    <div class="f2"><div class="f"><label>Cause code</label><select><option>0010 – Wear and Tear</option><option>0001 – Accidental Damage</option></select></div>
+      <div class="f"><label>Priority</label><select><option>${f && f.out === "Scrap" ? "High" : "Medium"}</option><option>Low</option><option>High</option></select></div></div>
+    <details style="margin-bottom:14px;color:var(--rt-text-muted)"><summary style="cursor:pointer;min-height:40px">More fields (delay code, start, duration, status, comments)</summary>
+      <div class="f2" style="margin-top:10px"><div class="f"><label>Start</label><input type="datetime-local"></div><div class="f"><label>Duration (hrs)</label><input type="number"></div></div></details>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" onclick="saveTask('${cid}','${fromId || ""}','${editWoId || ""}')">${w ? "Save" : "Create task"}</button></div>`;
+        openLayer("drawer");
+      }
+      function saveTask(cid, fromId, editId) {
+        const c = comp(cid),
+          subj = document.getElementById("tSubj").value || "PM02 task";
+        if (editId) {
+          c.wos.find((w) => w.id === editId).subject = subj;
+        } else {
+          const id = "wo" + ++woSeq;
+          c.wos.push({
+            id,
+            num: "00010" + woSeq,
+            type: "PM02",
+            subject: subj,
+            status: "New",
+            from: fromId || null,
+            steps: [
+              { n: "Isolate & lock out wagon", d: false },
+              { n: "Remove wheelset", d: false },
+              { n: "Replace / repair component", d: false },
+              { n: "Re-measure", d: false }
+            ],
+            parts: [{ n: "Wheelset (exchange)", r: 1, u: 0, c: 4200 }]
+          });
+          if (fromId) c.measures.find((m) => m.id === fromId).woId = id;
+          state.openWo = id;
+        }
+        closeAll();
+        state.tab = "repair";
+        render();
+        toast(editId ? "Task saved" : "PM02 created and linked to finding");
+      }
+
+      function openLayer(id) {
+        document.getElementById("scrim").classList.add("open");
+        document.getElementById(id).classList.add("open");
+      }
+      function closeAll() {
+        ["scrim", "drawer", "notes"].forEach((i) =>
+          document.getElementById(i).classList.remove("open")
+        );
+      }
+      function toggleNotes(o) {
+        o ? openLayer("notes") : closeAll();
+      }
+      function toast(t) {
+        const el = document.getElementById("toast");
+        el.textContent = t;
+        el.classList.add("show");
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.classList.remove("show"), 2200);
+      }
+
+      render();
+    </script>
+  </body>
+</html>

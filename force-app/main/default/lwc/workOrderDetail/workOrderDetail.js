@@ -140,7 +140,7 @@ export default class WorkOrderDetail extends LightningElement {
   @track showAssetReview = false;
   @track timeHistoryExpanded = false; // Time History: collapsed shows only the most recent entry
   @track wpTab = "notes"; // workpack page tab, kept across Asset Review round-trips
-  assetReviewWoId = null; // WO to preselect in Asset Review (used from Phase 7)
+  assetReviewWoId = null; // WO to preselect in Asset Review (deep link)
 
   connectedCallback() {
     if (this._workOrderId) this.loadDetail();
@@ -247,6 +247,7 @@ export default class WorkOrderDetail extends LightningElement {
   }
   handleAssetReviewBack() {
     this.showAssetReview = false;
+    this.assetReviewWoId = null;
   }
 
   async handleClockIn() {

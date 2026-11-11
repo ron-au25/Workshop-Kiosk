@@ -99,6 +99,26 @@ public with sharing class WorkpackPdfProcessor {
       jsonObject,
       ExtractionResult.class
     );
+    // checklist_items mixes strings and objects, which typed JSON.deserialize
+    // rejects ("Apex Type unsupported in JSON: Object"), so read them untyped.
+    Map<String, Object> untyped = (Map<String, Object>) JSON.deserializeUntyped(
+      jsonObject
+    );
+    List<Object> rawOrders = untyped.get(
+        'maintenance_orders'
+      ) instanceof List<Object>
+      ? (List<Object>) untyped.get('maintenance_orders')
+      : new List<Object>();
+    Map<String, List<Object>> itemsByOrder = new Map<String, List<Object>>();
+    for (Object ro : rawOrders) {
+      if (!(ro instanceof Map<String, Object>))
+        continue;
+      Map<String, Object> om = (Map<String, Object>) ro;
+      Object orderNo = om.get('order_number');
+      Object ci = om.get('checklist_items');
+      if (orderNo != null && ci instanceof List<Object>)
+        itemsByOrder.put(String.valueOf(orderNo), (List<Object>) ci);
+    }
     if (
       extraction == null ||
       extraction.maintenance_orders == null ||
@@ -248,8 +268,9 @@ public with sharing class WorkpackPdfProcessor {
         }
       }
 
-      if (order.checklist_items != null) {
-        for (Object rawItem : order.checklist_items) {
+      List<Object> orderItems = itemsByOrder.get(order.order_number);
+      if (orderItems != null) {
+        for (Object rawItem : orderItems) {
           ChecklistItem ci = parseChecklistItem(rawItem);
           if (ci == null)
             continue;
@@ -564,7 +585,6 @@ public with sharing class WorkpackPdfProcessor {
     public String planner_group;
     public String start_date;
     public List<OperationDTO> operations;
-    public List<Object> checklist_items;
   }
 
   public class OperationDTO {

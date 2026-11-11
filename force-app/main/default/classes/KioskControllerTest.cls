@@ -564,6 +564,52 @@ private class KioskControllerTest {
   }
 
   @IsTest
+  static void testAssetFields_getAndSave() {
+    String token = loginTestWorker('TESTAST01', '2468');
+    if (token == null)
+      return;
+    List<Asset> assets = [SELECT Id, SerialNumber FROM Asset LIMIT 1];
+    if (assets.isEmpty())
+      return;
+    Test.startTest();
+    List<Object> rows = (List<Object>) JSON.deserializeUntyped(
+      KioskController.getAssetFields(
+        token,
+        assets[0].Id,
+        '["Name","SerialNumber","Bogus__c","Id"]'
+      )
+    );
+    Integer n = KioskController.saveAssetFields(
+      token,
+      assets[0].Id,
+      '{"Bogus__c":"x","Id":"y"}'
+    );
+    Test.stopTest();
+    System.assert(!rows.isEmpty());
+    for (Object o : rows) {
+      Map<String, Object> m = (Map<String, Object>) o;
+      System.assert(m.get('key') != 'Bogus__c' && m.get('key') != 'Id');
+    }
+    System.assertEquals(0, n);
+  }
+
+  @IsTest
+  static void testAssetFields_expiredToken_throws() {
+    try {
+      KioskController.getAssetFields('bad', null, '["Name"]');
+      System.assert(false, 'Expected exception');
+    } catch (AuraHandledException e) {
+      System.assert(true);
+    }
+    try {
+      KioskController.saveAssetFields('bad', null, '{}');
+      System.assert(false, 'Expected exception');
+    } catch (AuraHandledException e) {
+      System.assert(true);
+    }
+  }
+
+  @IsTest
   static void testGetMeasurePdf_gates() {
     String token = loginTestWorker('TESTPDF01', '6802');
     if (token == null)

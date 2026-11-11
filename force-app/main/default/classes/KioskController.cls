@@ -4238,6 +4238,145 @@ public with sharing class KioskController {
     update a;
   }
 
+  // Asset fields the Asset Review drawer may show/edit (config keys == API names).
+  private static final Set<String> ASSET_DRAWER_FIELDS = new Set<String>{
+    'Name',
+    'SerialNumber',
+    'Status',
+    'Asset_Type__c',
+    'FLOC__c',
+    'Entitlement_Status__c',
+    'InstallDate',
+    'PurchaseDate'
+  };
+
+  /**
+   * Raw values + editability for the Asset Review drawer.
+   * Returns JSON [{key,value,type,editable,options:[...]}]. Unknown keys are ignored;
+   * fields the user cannot read (or the org lacks) are omitted; editable follows FLS.
+   */
+  @AuraEnabled(cacheable=false)
+  public static String getAssetFields(
+    String token,
+    String assetId,
+    String fieldsJson
+  ) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<Object> out = new List<Object>();
+    if (String.isBlank(assetId) || String.isBlank(fieldsJson))
+      return JSON.serialize(out);
+    Id aId = (Id) assetId;
+    Map<String, Schema.SObjectField> fm = Schema.SObjectType.Asset.fields.getMap();
+    List<String> keys = new List<String>();
+    for (Object o : (List<Object>) JSON.deserializeUntyped(fieldsJson)) {
+      String k = String.valueOf(o);
+      if (
+        ASSET_DRAWER_FIELDS.contains(k) &&
+        fm.containsKey(k) &&
+        fm.get(k).getDescribe().isAccessible() &&
+        !keys.contains(k)
+      )
+        keys.add(k);
+    }
+    if (keys.isEmpty())
+      return JSON.serialize(out);
+    List<Asset> rows = (List<Asset>) Database.query(
+      'SELECT ' +
+        String.join(keys, ',') +
+        ' FROM Asset WHERE Id = :aId WITH SECURITY_ENFORCED LIMIT 1'
+    );
+    if (rows.isEmpty())
+      return JSON.serialize(out);
+    for (String k : keys) {
+      Schema.DescribeFieldResult d = fm.get(k).getDescribe();
+      Schema.DisplayType t = d.getType();
+      String type = 'OTHER';
+      if (t == Schema.DisplayType.DATE)
+        type = 'DATE';
+      else if (t == Schema.DisplayType.PICKLIST)
+        type = 'PICKLIST';
+      else if (
+        t == Schema.DisplayType.STRING ||
+        t == Schema.DisplayType.TEXTAREA
+      )
+        type = 'STRING';
+      List<String> opts = new List<String>();
+      if (type == 'PICKLIST') {
+        for (Schema.PicklistEntry pe : d.getPicklistValues()) {
+          if (pe.isActive())
+            opts.add(pe.getValue());
+        }
+      }
+      Object v = rows[0].get(k);
+      Map<String, Object> e = new Map<String, Object>();
+      e.put('key', k);
+      e.put('value', v == null ? null : String.valueOf(v));
+      e.put('type', type);
+      e.put('editable', d.isUpdateable() && type != 'OTHER');
+      e.put('options', opts);
+      out.add(e);
+    }
+    return JSON.serialize(out);
+  }
+
+  /**
+   * Saves drawer edits. valuesJson = {"SerialNumber":"x","InstallDate":"2025-01-31"}.
+   * Only whitelisted, FLS-updateable STRING/PICKLIST/DATE fields are written; others are ignored.
+   * Returns the number of fields written.
+   */
+  @AuraEnabled(cacheable=false)
+  public static Integer saveAssetFields(
+    String token,
+    String assetId,
+    String valuesJson
+  ) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (String.isBlank(assetId) || String.isBlank(valuesJson))
+      throw new AuraHandledException('MISSING_ID');
+    Map<String, Object> vals = (Map<String, Object>) JSON.deserializeUntyped(
+      valuesJson
+    );
+    Map<String, Schema.SObjectField> fm = Schema.SObjectType.Asset.fields.getMap();
+    Asset a = new Asset(Id = (Id) assetId);
+    Integer n = 0;
+    for (String k : vals.keySet()) {
+      if (!ASSET_DRAWER_FIELDS.contains(k) || !fm.containsKey(k))
+        continue;
+      Schema.DescribeFieldResult d = fm.get(k).getDescribe();
+      if (!d.isUpdateable())
+        continue;
+      Schema.DisplayType t = d.getType();
+      String raw = vals.get(k) == null ? null : String.valueOf(vals.get(k));
+      if (String.isBlank(raw))
+        raw = null;
+      if (t == Schema.DisplayType.DATE) {
+        try {
+          a.put(k, raw == null ? null : Date.valueOf(raw));
+        } catch (Exception ex) {
+          throw new AuraHandledException('BAD_DATE:' + k);
+        }
+      } else if (
+        t == Schema.DisplayType.STRING ||
+        t == Schema.DisplayType.PICKLIST ||
+        t == Schema.DisplayType.TEXTAREA
+      ) {
+        if (k == 'Name' && raw == null)
+          throw new AuraHandledException('NAME_REQUIRED');
+        a.put(k, raw);
+      } else {
+        continue;
+      }
+      n++;
+    }
+    if (n > 0)
+      Database.update(a, AccessLevel.USER_MODE);
+    return n;
+  }
+
   @AuraEnabled(cacheable=false)
   public static List<WorkOrderAttachment> getWorkOrderAttachments(
     String token,

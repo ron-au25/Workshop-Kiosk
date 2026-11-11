@@ -55,50 +55,98 @@
             <span class="collapse-icon">{diagramToggleIcon}</span>
           </button>
 
-          <!-- Icicle asset map: wagon > component > sub-asset -->
-          <div class="ic-map">
-            <button class="ic-root" onclick={handleIcicleRoot}>
-              {icicleRootLabel}
-              <span class="ic-root-hint">Show all</span>
-            </button>
-            <div class="ic-cols">
-              <template for:each={icicleCols} for:item="col">
-                <div key={col.id} class="ic-col" style={col.flexStyle}>
-                  <button
-                    class={col.cls}
-                    data-id={col.id}
-                    onclick={handleSelectWheelset}
-                    aria-label={col.name}
-                  >
-                    <span class={col.dotClass}></span>
-                    <span class="chip-label">{col.name}</span>
-                    <template lwc:if={col.hasWos}>
-                      <span class="wo-badge">{col.woCount}</span>
-                    </template>
-                  </button>
-                  <div class="ic-kids">
-                    <template for:each={col.kids} for:item="kid">
-                      <button
-                        key={kid.id}
-                        class={kid.cls}
-                        data-id={kid.id}
-                        onclick={handleSelectChild}
-                        aria-label={kid.name}
-                      >
-                        <span class={kid.dotClass}></span>
-                        <span class="chip-label">{kid.name}</span>
-                        <template lwc:if={kid.hasWos}>
-                          <span class="wo-badge">{kid.woCount}</span>
-                        </template>
-                      </button>
-                    </template>
-                  </div>
-                </div>
+          <div class="ic-toolbar">
+            <nav class="ic-crumbs" aria-label="Asset path">
+              <template for:each={crumbs} for:item="c">
+                <button
+                  key={c.key}
+                  class="ic-crumb"
+                  data-level={c.level}
+                  onclick={handleCrumb}
+                  disabled={c.last}
+                >
+                  {c.label}
+                </button>
               </template>
-            </div>
+            </nav>
+            <template lwc:if={canSchematic}>
+              <span class="ic-views">
+                <template for:each={mapViewButtons} for:item="v">
+                  <button
+                    key={v.value}
+                    class={v.cls}
+                    data-view={v.value}
+                    onclick={handleMapView}
+                  >
+                    {v.label}
+                  </button>
+                </template>
+              </span>
+            </template>
           </div>
 
+          <!-- Icicle asset map: wagon > component > sub-asset -->
+          <template lwc:if={showMap}>
+            <div class="ic-map">
+              <button class="ic-root" onclick={handleIcicleRoot}>
+                {icicleRootLabel}
+                <span class="ic-root-hint">Show all</span>
+              </button>
+              <div class="ic-cols">
+                <template for:each={icicleCols} for:item="col">
+                  <div key={col.id} class="ic-col" style={col.flexStyle}>
+                    <button
+                      class={col.cls}
+                      data-id={col.id}
+                      onclick={handleSelectWheelset}
+                      aria-label={col.name}
+                    >
+                      <span class={col.dotClass}></span>
+                      <span class="chip-label">{col.name}</span>
+                      <template lwc:if={col.hasWos}>
+                        <span class="wo-badge">{col.woCount}</span>
+                      </template>
+                    </button>
+                    <div class="ic-kids">
+                      <template for:each={col.kids} for:item="kid">
+                        <button
+                          key={kid.id}
+                          class={kid.cls}
+                          data-id={kid.id}
+                          onclick={handleSelectChild}
+                          aria-label={kid.name}
+                        >
+                          <span class={kid.dotClass}></span>
+                          <span class="chip-label">{kid.name}</span>
+                          <template lwc:if={kid.hasWos}>
+                            <span class="wo-badge">{kid.woCount}</span>
+                          </template>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
           <template lwc:if={showSchematic}>
+            <template lwc:if={hasChildComponents}>
+              <div class="child-strip">
+                <span class="child-strip-label">Sub-assets</span>
+                <template for:each={childComponents} for:item="child">
+                  <button
+                    key={child.id}
+                    class={child.chipClass}
+                    data-id={child.id}
+                    onclick={handleSelectChild}
+                  >
+                    <span class={child.dotClass}></span>
+                    <span class="chip-label">{child.name}</span>
+                  </button>
+                </template>
+              </div>
+            </template>
             <div class="diagram-frame">
               <img
                 class="diagram-img"
@@ -364,59 +412,81 @@
                 </div>
                 <template lwc:if={drawerOpen}>
                   <div class="aw-drawer">
-                    <div class="overview-grid">
+                    <template lwc:if={hasDrawerRows}>
                       <div class="overview-grid">
-                        <div class="ov-field">
-                          <span class="ov-key">Asset Name</span>
-                          <span class="ov-val">{selectedWheelset.name}</span>
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">Serial Number</span>
-                          <div class="serial-row">
-                            <input
-                              type="text"
-                              class="form-input"
-                              value={serialDraft}
-                              oninput={handleSerialChange}
-                              onkeydown={handleInputKeydown}
-                            />
-                            <button
-                              class="btn-serial-save"
-                              onclick={handleSaveSerial}
-                              disabled={savingSerial}
-                            >
-                              {serialSaveLabel}
-                            </button>
+                        <template for:each={drawerRows} for:item="r">
+                          <div key={r.key} class={r.cls}>
+                            <span class="ov-key">{r.label}</span>
+                            <template lwc:if={r.isRead}>
+                              <span class="ov-val">{r.value}</span>
+                            </template>
+                            <template lwc:if={r.isText}>
+                              <input
+                                type="text"
+                                class="form-input"
+                                data-key={r.key}
+                                value={r.value}
+                                oninput={handleDrawerInput}
+                                onkeydown={handleInputKeydown}
+                              />
+                            </template>
+                            <template lwc:if={r.isDate}>
+                              <input
+                                type="date"
+                                class="form-input"
+                                data-key={r.key}
+                                value={r.value}
+                                onchange={handleDrawerInput}
+                                onkeydown={handleInputKeydown}
+                              />
+                            </template>
+                            <template lwc:if={r.isPick}>
+                              <select
+                                class="form-select"
+                                data-key={r.key}
+                                onchange={handleDrawerInput}
+                                onkeydown={handleInputKeydown}
+                              >
+                                <template for:each={r.options} for:item="o">
+                                  <option
+                                    key={o.value}
+                                    value={o.value}
+                                    selected={o.selected}
+                                  >
+                                    {o.label}
+                                  </option>
+                                </template>
+                              </select>
+                            </template>
                           </div>
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">Status</span>
-                          <span class="ov-val">{selectedWheelset.status}</span>
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">Warranty Status</span>
-                          <span class="ov-val"
-                            >{selectedWheelset.warrantyStatus}</span
-                          >
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">Installation Date</span>
-                          <span class="ov-val"
-                            >{selectedWheelset.installDate}</span
-                          >
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">Purchase Date</span>
-                          <span class="ov-val"
-                            >{selectedWheelset.purchaseDate}</span
-                          >
-                        </div>
-                        <div class="ov-field">
-                          <span class="ov-key">FLOC</span>
-                          <span class="ov-val">{selectedWheelset.floc}</span>
-                        </div>
+                        </template>
                       </div>
-                    </div>
+                      <template lwc:if={drawerDirty}>
+                        <div class="dr-actions">
+                          <button
+                            class="btn-cancel"
+                            onclick={handleDrawerReset}
+                          >
+                            Reset
+                          </button>
+                          <button
+                            class="btn-save-entry"
+                            onclick={handleDrawerSave}
+                            disabled={drawerSaveDisabled}
+                          >
+                            {drawerSaveLabel}
+                          </button>
+                        </div>
+                      </template>
+                      <template lwc:if={drawerFeedback}>
+                        <p class={drawerFeedbackClass}>{drawerFeedback}</p>
+                      </template>
+                    </template>
+                    <template lwc:else>
+                      <p class="mz-side-empty">
+                        No drawer fields configured or readable.
+                      </p>
+                    </template>
                   </div>
                 </template>
               </template>

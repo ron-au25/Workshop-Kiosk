@@ -1941,3 +1941,54 @@ span.ok .type-badge {
 .ic-node.dim {
   opacity: 0.35;
 }
+
+.ic-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.ic-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.ic-crumb {
+  background: transparent;
+  border: 0;
+  color: #4aa3ff;
+  font-size: 14px;
+  padding: 8px 6px;
+  min-height: 40px;
+}
+.ic-crumb:disabled {
+  color: var(--rt-text, #e6edf3);
+  font-weight: 600;
+}
+.ic-crumb + .ic-crumb::before {
+  content: "›";
+  color: var(--rt-text-muted, #8a97a6);
+  margin-right: 10px;
+}
+.ic-views {
+  display: flex;
+  gap: 6px;
+}
+.dr-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.dr-fb {
+  font-size: 13px;
+  color: #21c07a;
+  margin: 6px 0 0;
+}
+.dr-fb.error {
+  color: #e5484d;
+}
+.ov-field.dirty .ov-key {
+  color: #f2b441;
+}

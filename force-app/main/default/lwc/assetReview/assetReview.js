@@ -28,6 +28,8 @@ import getRaisedTasks from "@salesforce/apex/KioskController.getRaisedTasks";
 import getWorkOrderDetail from "@salesforce/apex/KioskController.getWorkOrderDetail";
 import saveWorkOrderNotes from "@salesforce/apex/KioskController.saveWorkOrderNotes";
 import getWorkTypes from "@salesforce/apex/KioskController.getWorkTypes";
+import getAssetFields from "@salesforce/apex/KioskController.getAssetFields";
+import saveAssetFields from "@salesforce/apex/KioskController.saveAssetFields";
 import { woStatus, woNextStep, COLORS, RANK } from "c/kioskStatus";
 import { WO_FIELDS, ASSET_FIELDS, mergeConfig } from "c/kioskConfigDefaults";
 
@@ -164,6 +166,13 @@ export default class AssetReview extends LightningElement {
   @track listCollapsed = false;
   @track listPinned = false;
   @track drawerOpen = false;
+  @track drawerServer = []; // [{key,value,type,editable,options}] from getAssetFields
+  @track drawerDraft = {}; // key -> edited value
+  @track drawerSaving = false;
+  @track drawerFeedback = "";
+  @track drawerFeedbackIsError = false;
+  @track mapView = "map"; // map | schematic
+  @track zoomed = false; // icicle zoomed to the selected component
   @track woNotes = "";
   @track newNote = "";
   @track notesCause = "";
@@ -551,6 +560,169 @@ export default class AssetReview extends LightningElement {
   }
   handleToggleDrawer() {
     this.drawerOpen = !this.drawerOpen;
+    if (this.drawerOpen) this._loadDrawer();
+  }
+
+  async _loadDrawer() {
+    const assetId = this.activeAssetId;
+    this.drawerDraft = {};
+    this.drawerFeedback = "";
+    if (!assetId) {
+      this.drawerServer = [];
+      return;
+    }
+    try {
+      const raw = await getAssetFields({
+        token: this.sessionToken,
+        assetId,
+        fieldsJson: JSON.stringify(ASSET_FIELDS.map((f) => f[0]))
+      });
+      if (assetId === this.activeAssetId) this.drawerServer = JSON.parse(raw);
+    } catch {
+      this.drawerServer = [];
+    }
+  }
+
+  handleDrawerInput(evt) {
+    const key = evt.target.dataset.key;
+    this.drawerDraft = { ...this.drawerDraft, [key]: evt.target.value };
+    this.drawerFeedback = "";
+  }
+
+  handleDrawerReset() {
+    this.drawerDraft = {};
+    this.drawerFeedback = "";
+  }
+
+  async handleDrawerSave() {
+    const assetId = this.activeAssetId;
+    const keys = Object.keys(this.drawerDraft);
+    if (!assetId || !keys.length) return;
+    this.drawerSaving = true;
+    try {
+      await saveAssetFields({
+        token: this.sessionToken,
+        assetId,
+        valuesJson: JSON.stringify(this.drawerDraft)
+      });
+      const prop = {
+        Name: "name",
+        SerialNumber: "serialNumber",
+        Status: "status",
+        Asset_Type__c: "assetType",
+        FLOC__c: "floc",
+        Entitlement_Status__c: "warrantyStatus",
+        InstallDate: "installDate",
+        PurchaseDate: "purchaseDate"
+      };
+      const patch = {};
+      keys.forEach((k) => {
+        if (prop[k]) patch[prop[k]] = this.drawerDraft[k] || null;
+      });
+      this._patchAsset(assetId, patch);
+      this._notifyDataUpdate();
+      await this._loadDrawer();
+      this.drawerFeedback = "Saved.";
+      this.drawerFeedbackIsError = false;
+    } catch (e) {
+      const msg = (e && e.body && e.body.message) || "";
+      this.drawerFeedback = msg.includes("SESSION_EXPIRED")
+        ? "Session expired. Sign in again."
+        : "Save failed. Check the values and try again.";
+      this.drawerFeedbackIsError = true;
+    } finally {
+      this.drawerSaving = false;
+    }
+  }
+
+  get drawerRows() {
+    const cfg = this._cfg.assetDrawer || {};
+    const byKey = {};
+    this.drawerServer.forEach((e) => {
+      byKey[e.key] = e;
+    });
+    const rows = [];
+    ASSET_FIELDS.forEach(([key, label]) => {
+      const mode = cfg[key];
+      const e = byKey[key];
+      if (!mode || !e) return;
+      const edited = Object.prototype.hasOwnProperty.call(
+        this.drawerDraft,
+        key
+      );
+      const value = edited ? this.drawerDraft[key] : e.value || "";
+      const canEdit = mode === "E" && e.editable;
+      rows.push({
+        key,
+        label,
+        value,
+        isRead: !canEdit,
+        isText: canEdit && e.type === "STRING",
+        isDate: canEdit && e.type === "DATE",
+        isPick: canEdit && e.type === "PICKLIST",
+        options: [
+          { value: "", label: "—", selected: value === "" },
+          ...(e.options || []).map((o) => {
+            return { value: o, label: o, selected: o === value };
+          })
+        ],
+        cls: "ov-field" + (edited ? " dirty" : "")
+      });
+    });
+    return rows;
+  }
+  get hasDrawerRows() {
+    return this.drawerRows.length > 0;
+  }
+  get drawerDirty() {
+    return Object.keys(this.drawerDraft).length > 0;
+  }
+  get drawerSaveDisabled() {
+    return this.drawerSaving || !this.drawerDirty;
+  }
+  get drawerSaveLabel() {
+    return this.drawerSaving ? "Saving…" : "Save changes";
+  }
+  get drawerFeedbackClass() {
+    return this.drawerFeedbackIsError ? "dr-fb error" : "dr-fb";
+  }
+
+  // ─── Map view toggle + breadcrumb ────────────────────────────────────────
+  handleMapView(evt) {
+    this.mapView = evt.currentTarget.dataset.view;
+    this.diagramExpanded = this.mapView === "schematic";
+  }
+  get canSchematic() {
+    return !!(this.wagon && this.wagon.hasWagonNumber);
+  }
+  get mapViewButtons() {
+    return [
+      ["map", "Map"],
+      ["schematic", "Schematic"]
+    ].map(([value, label]) => {
+      return {
+        value,
+        label,
+        cls: "mz-seg" + (this.mapView === value ? " on" : "")
+      };
+    });
+  }
+  get showMap() {
+    return !this.showSchematic;
+  }
+
+  async handleCrumb(evt) {
+    const level = evt.currentTarget.dataset.level;
+    if (level === "root") {
+      this.zoomed = false;
+      this.handleIcicleRoot();
+    } else if (level === "l2" && this.selectedChildId) {
+      this._autoExpand();
+      this.selectedChildId = null;
+      this._clearWoFilter();
+      this.zoomed = true;
+      await this.loadDetail(this.selectedWheelsetId);
+    }
   }
   handleToggleWt(evt) {
     const name = evt.currentTarget.dataset.wt;
@@ -720,6 +892,7 @@ export default class AssetReview extends LightningElement {
     const id = evt.currentTarget.dataset.id;
     if (!id) return;
     const firstSelection = !this.selectedWheelsetId;
+    this.zoomed = true;
     this._autoExpand();
     this.selectedWheelsetId = id;
     this.selectedChildId = null; // reset the level-3 drill on a new component
@@ -761,6 +934,7 @@ export default class AssetReview extends LightningElement {
   }
 
   async loadDetail(assetId) {
+    if (this.drawerOpen) this._loadDrawer();
     this.loadingDetail = true;
     this.expandedPlanIds = {};
     try {
@@ -1599,7 +1773,11 @@ export default class AssetReview extends LightningElement {
 
   // Wagon schematic shows only when expanded AND the workpack has a Wagon Number.
   get showSchematic() {
-    return this.diagramExpanded && !!(this.wagon && this.wagon.hasWagonNumber);
+    return (
+      this.mapView === "schematic" &&
+      this.diagramExpanded &&
+      !!(this.wagon && this.wagon.hasWagonNumber)
+    );
   }
 
   // ─── Derived: diagram zones ──────────────────────────────────────────────
@@ -1659,13 +1837,18 @@ export default class AssetReview extends LightningElement {
   }
 
   get icicleCols() {
-    return this.wheelsets.map((w) => {
+    const list =
+      this.zoomed && this.selectedWheelsetId
+        ? this.wheelsets.filter((w) => w.id === this.selectedWheelsetId)
+        : this.wheelsets;
+    return list.map((w) => {
       const kids = (w.children || []).map((c) => {
         return this._icicleNode(c, 3, w.id);
       });
       return {
         ...this._icicleNode(w, 2, null),
-        flexStyle: "flex:" + Math.max(1, kids.length) + " 1 0;",
+        flexStyle:
+          "flex:" + (this.zoomed ? 1 : Math.max(1, kids.length)) + " 1 0;",
         kids
       };
     });
@@ -1676,16 +1859,24 @@ export default class AssetReview extends LightningElement {
   }
 
   get crumbs() {
-    const out = [];
+    const out = [
+      { key: "c0", level: "root", label: this.icicleRootLabel, last: false }
+    ];
     const w = this.wheelsets.find((x) => x.id === this.selectedWheelsetId);
-    if (w) out.push(w.label || w.name);
+    if (w) {
+      out.push({
+        key: "c1",
+        level: "l2",
+        label: w.label || w.name,
+        last: !this.selectedChildId
+      });
+    }
     if (this.selectedChildId) {
       const c = this._findChild(this.selectedChildId);
-      if (c) out.push(c.name);
+      if (c) out.push({ key: "c2", level: "l3", label: c.name, last: true });
     }
-    return out.map((label, i) => {
-      return { key: "c" + i, label, last: i === out.length - 1 };
-    });
+    out[out.length - 1].last = true;
+    return out;
   }
 
   // ─── Derived: active asset + level-3 children ────────────────────────────

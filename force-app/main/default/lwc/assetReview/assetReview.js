@@ -23,6 +23,13 @@ import updateWorkStepStatus from "@salesforce/apex/KioskController.updateWorkSte
 import consumePart from "@salesforce/apex/KioskController.consumePart";
 import getConsumableProducts from "@salesforce/apex/KioskController.getConsumableProducts";
 import getWorkpackChildProgress from "@salesforce/apex/KioskController.getWorkpackChildProgress";
+import getWorkOrderTile from "@salesforce/apex/KioskController.getWorkOrderTile";
+import getRaisedTasks from "@salesforce/apex/KioskController.getRaisedTasks";
+import getWorkOrderDetail from "@salesforce/apex/KioskController.getWorkOrderDetail";
+import saveWorkOrderNotes from "@salesforce/apex/KioskController.saveWorkOrderNotes";
+import getWorkTypes from "@salesforce/apex/KioskController.getWorkTypes";
+import { woStatus, woNextStep, COLORS, RANK } from "c/kioskStatus";
+import { WO_FIELDS, ASSET_FIELDS, mergeConfig } from "c/kioskConfigDefaults";
 
 // Per-plan progress ring geometry (small inline donut).
 const RING_R = 18;
@@ -145,6 +152,37 @@ export default class AssetReview extends LightningElement {
   @api workerName;
   // Deep link: WO to preselect on open (from the workpack page). Back returns to that page.
   @api initialWorkOrderId;
+  // Merged Kiosk Config (woTile, assetTile, wtFilter, assetDrawer).
+  @api config;
+
+  // v6 workspace state
+  @track woRows = []; // getWorkpackChildProgress rows (all depths under the workpack)
+  @track wpInfo = null; // the workpack itself: { id, number, subject }
+  @track activeTab = "measure";
+  @track wtSel = []; // work type names selected in the focus filter
+  @track tile = {};
+  @track listCollapsed = false;
+  @track listPinned = false;
+  @track drawerOpen = false;
+  @track woNotes = "";
+  @track newNote = "";
+  @track notesCause = "";
+  @track notesDelay = "";
+  @track notesDamage = "";
+  @track notesFeedback = "";
+  @track notesFeedbackIsError = false;
+  @track savingNotes = false;
+  @track raised = [];
+  // Raise Task modal
+  @track showRaise = false;
+  @track raiseAssetId = "";
+  @track raiseWtQuery = "";
+  @track raiseWtId = "";
+  @track raiseSubject = "";
+  @track raiseDescription = "";
+  @track raiseFeedback = "";
+  @track raiseSaving = false;
+  @track workTypeList = [];
 
   wagonDiagramUrl = WAGON_DIAGRAM;
 
@@ -338,7 +376,7 @@ export default class AssetReview extends LightningElement {
     this.isLoading = true;
     this.hasError = false;
     try {
-      const [wagon, points] = await Promise.all([
+      const [wagon, points, rawRows, wpDetail] = await Promise.all([
         getWagonAsset({
           token: this.sessionToken,
           workOrderId: this.workOrderId
@@ -346,8 +384,22 @@ export default class AssetReview extends LightningElement {
         getMeasurePoints({
           token: this.sessionToken,
           workOrderId: this.workOrderId
+        }),
+        getWorkpackChildProgress({
+          token: this.sessionToken,
+          workpackId: this.workOrderId
+        }),
+        getWorkOrderDetail({
+          token: this.sessionToken,
+          workOrderId: this.workOrderId
         })
       ]);
+      this.woRows = JSON.parse(rawRows || "[]");
+      this.wpInfo = {
+        id: this.workOrderId,
+        number: wpDetail.woNumber,
+        subject: wpDetail.subject
+      };
       this.wagon = wagon;
       this.wheelsets = wagon.wheelsets || [];
       this.allPoints = points || [];
@@ -361,41 +413,286 @@ export default class AssetReview extends LightningElement {
     }
   }
 
-  // Preselect the asset a WO sits on (L2 component, then L3 sub-asset) and filter to that WO.
+  // Select the asset a WO sits on (L2 component, then L3 sub-asset) and load its detail.
+  async _selectAssetForRow(row) {
+    const l2Id = row.l2AssetId || row.assetId;
+    const ws = this.wheelsets.find((w) => w.id === l2Id);
+    if (!ws) return false;
+    this.selectedWheelsetId = ws.id;
+    this.selectedChildId = null;
+    this.diagramExpanded = false;
+    this.chartsExpanded = false;
+    this.serialDraft = ws.serialNumber || "";
+    let loadId = ws.id;
+    if (
+      row.assetId &&
+      row.assetId !== ws.id &&
+      ws.children &&
+      ws.children.some((c) => c.id === row.assetId)
+    ) {
+      this.selectedChildId = row.assetId;
+      const child = this._findChild(row.assetId);
+      this.serialDraft = child ? child.serialNumber || "" : "";
+      loadId = row.assetId;
+    }
+    await this.loadDetail(loadId);
+    return true;
+  }
+
   async _applyDeepLink(woId) {
     try {
+      const row = this.woRows.find((r) => r.id === woId);
+      if (!row) return;
+      if (await this._selectAssetForRow(row)) {
+        await this._selectWo(woId);
+      }
+    } catch {
+      // deep link is best-effort; fall back to the normal landing view
+    }
+  }
+
+  async _selectWo(woId) {
+    const row = this.woRows.find((r) => r.id === woId);
+    this.selectedFilterWoId = woId;
+    this.selectedFilterWoNumber = row
+      ? row.number || ""
+      : (this.wpInfo && this.wpInfo.number) || "";
+    this._loadTile(woId);
+    this._loadWoNotes(woId);
+    if (this.activeTab === "raised") this._loadRaised();
+  }
+
+  async _loadTile(woId) {
+    try {
+      const raw = await getWorkOrderTile({
+        token: this.sessionToken,
+        workOrderId: woId,
+        fieldsJson: JSON.stringify(this._cfg.woTile)
+      });
+      if (this.selectedFilterWoId === woId) this.tile = JSON.parse(raw || "{}");
+    } catch {
+      this.tile = {};
+    }
+  }
+
+  async _loadWoNotes(woId) {
+    try {
+      const d = await getWorkOrderDetail({
+        token: this.sessionToken,
+        workOrderId: woId
+      });
+      if (this.selectedFilterWoId !== woId) return;
+      this.woNotes = d.supervisorNotes || "";
+      this.notesCause = d.causeCodes || "";
+      this.notesDelay = d.workDelayCodes || "";
+      this.notesDamage = d.damageCodes || "";
+      this.newNote = "";
+      this.notesFeedback = "";
+      this._syncNotesTa = true;
+    } catch {
+      this.woNotes = "";
+    }
+  }
+
+  async _loadRaised() {
+    const assetId = this.activeAssetId || (this.wagon && this.wagon.id);
+    if (!assetId) return;
+    try {
+      this.raised =
+        (await getRaisedTasks({ token: this.sessionToken, assetId })) || [];
+    } catch {
+      this.raised = [];
+    }
+  }
+
+  get _cfg() {
+    return mergeConfig(this.config);
+  }
+
+  // ─── WO list handlers ───
+  async handlePickWo(evt) {
+    const woId = evt.currentTarget.dataset.woId;
+    if (!woId) return;
+    if (this.selectedFilterWoId === woId) {
+      this._clearWoFilter();
+      return;
+    }
+    const row = this.woRows.find((r) => r.id === woId);
+    if (row && !this._rowInScope(row)) {
+      await this._selectAssetForRow(row);
+    }
+    await this._selectWo(woId);
+  }
+
+  _rowInScope(row) {
+    const l2 = this.selectedWheelsetId;
+    if (!l2) return false;
+    if (this.selectedChildId) return row.assetId === this.selectedChildId;
+    return row.l2AssetId === l2 || row.assetId === l2;
+  }
+
+  handleToggleList() {
+    this.listCollapsed = !this.listCollapsed;
+  }
+  handleTogglePin() {
+    this.listPinned = !this.listPinned;
+    if (this.listPinned) this.listCollapsed = false;
+  }
+  handleToggleDrawer() {
+    this.drawerOpen = !this.drawerOpen;
+  }
+  handleToggleWt(evt) {
+    const name = evt.currentTarget.dataset.wt;
+    this.wtSel = this.wtSel.includes(name)
+      ? this.wtSel.filter((x) => x !== name)
+      : [...this.wtSel, name];
+    this.listCollapsed = false;
+  }
+  handleClearWt() {
+    this.wtSel = [];
+    this.listCollapsed = false;
+  }
+  handleTab(evt) {
+    this.activeTab = evt.currentTarget.dataset.tab;
+    if (this.activeTab === "raised") this._loadRaised();
+    if (this.activeTab === "notes") this._syncNotesTa = true;
+  }
+
+  // ─── Notes tab ───
+  handleNewNoteChange(evt) {
+    this.newNote = evt.target.value;
+  }
+  handleNotesCauseChange(evt) {
+    this.notesCause = evt.target.value;
+  }
+  handleNotesDelayChange(evt) {
+    this.notesDelay = evt.target.value;
+  }
+  get _notesWoId() {
+    return this.selectedFilterWoId || this.workOrderId;
+  }
+  async handleSaveNotes() {
+    this.savingNotes = true;
+    try {
+      let combined = this.woNotes;
+      if (this.newNote.trim()) {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, "0");
+        const parts = (this.workerName || "XX").trim().split(" ");
+        const ini =
+          parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : (this.workerName || "XX").substring(0, 2).toUpperCase();
+        const entry =
+          "[" +
+          ini +
+          " " +
+          pad(d.getDate()) +
+          "/" +
+          pad(d.getMonth() + 1) +
+          "/" +
+          String(d.getFullYear()).slice(-2) +
+          "]: " +
+          this.newNote.trim();
+        combined = this.woNotes ? entry + "\n" + this.woNotes : entry;
+      }
+      await saveWorkOrderNotes({
+        token: this.sessionToken,
+        reqJson: JSON.stringify({
+          workOrderId: this._notesWoId,
+          supervisorNotes: combined,
+          causeCodes: this.notesCause,
+          workDelayCodes: this.notesDelay,
+          damageCodes: this.notesDamage
+        })
+      });
+      this._notifyDataUpdate();
+      this.woNotes = combined;
+      this.newNote = "";
+      this._syncNotesTa = true;
+      this.notesFeedback = "Saved.";
+      this.notesFeedbackIsError = false;
+    } catch {
+      this.notesFeedback = "Save failed. Try again.";
+      this.notesFeedbackIsError = true;
+    } finally {
+      this.savingNotes = false;
+    }
+  }
+
+  // ─── Raise Task modal ───
+  async handleOpenRaise() {
+    this.raiseAssetId =
+      this.activeAssetId || (this.wagon && this.wagon.id) || "";
+    this.raiseWtQuery = "";
+    this.raiseWtId = "";
+    this.raiseSubject = "";
+    this.raiseDescription = "";
+    this.raiseFeedback = "";
+    this.showRaise = true;
+    if (!this.workTypeList.length) {
+      try {
+        this.workTypeList = JSON.parse(
+          (await getWorkTypes({ token: this.sessionToken })) || "[]"
+        );
+      } catch {
+        this.raiseFeedback = "Could not load work types.";
+      }
+    }
+  }
+  handleRaiseCancel() {
+    this.showRaise = false;
+  }
+  handleRaiseAssetChange(evt) {
+    this.raiseAssetId = evt.target.value;
+  }
+  handleRaiseWtSearch(evt) {
+    this.raiseWtQuery = evt.target.value;
+  }
+  handleRaiseWtPick(evt) {
+    this.raiseWtId = evt.target.value;
+  }
+  handleRaiseSubject(evt) {
+    this.raiseSubject = evt.target.value;
+  }
+  handleRaiseDescription(evt) {
+    this.raiseDescription = evt.target.value;
+  }
+  async handleRaiseSave() {
+    if (!this.raiseWtId) {
+      this.raiseFeedback = "Pick a work type.";
+      return;
+    }
+    if (!this.raiseSubject.trim()) {
+      this.raiseFeedback = "Subject is required.";
+      return;
+    }
+    this.raiseSaving = true;
+    try {
+      await createAssetTask({
+        token: this.sessionToken,
+        reqJson: JSON.stringify({
+          workOrderId: this.workOrderId,
+          assetId: this.raiseAssetId || null,
+          subject: this.raiseSubject.trim(),
+          description: this.raiseDescription || null,
+          raised: true,
+          workTypeId: this.raiseWtId
+        })
+      });
+      this._notifyDataUpdate();
+      this.showRaise = false;
       const raw = await getWorkpackChildProgress({
         token: this.sessionToken,
         workpackId: this.workOrderId
       });
-      const rows = JSON.parse(raw || "[]");
-      const row = rows.find((r) => r.id === woId);
-      if (!row) return;
-      const l2Id = row.l2AssetId || row.assetId;
-      const ws = this.wheelsets.find((w) => w.id === l2Id);
-      if (!ws) return;
-      this.selectedWheelsetId = ws.id;
-      this.selectedChildId = null;
-      this.diagramExpanded = false;
-      this.chartsExpanded = false;
-      this.serialDraft = ws.serialNumber || "";
-      let loadId = ws.id;
-      if (
-        row.assetId &&
-        row.assetId !== ws.id &&
-        ws.children &&
-        ws.children.some((c) => c.id === row.assetId)
-      ) {
-        this.selectedChildId = row.assetId;
-        const child = this._findChild(row.assetId);
-        this.serialDraft = child ? child.serialNumber || "" : "";
-        loadId = row.assetId;
-      }
-      await this.loadDetail(loadId);
-      this.selectedFilterWoId = woId;
-      this.selectedFilterWoNumber = row.number || "";
-    } catch {
-      // deep link is best-effort; fall back to the normal landing view
+      this.woRows = JSON.parse(raw || "[]");
+      if (this.activeTab === "raised") this._loadRaised();
+    } catch (e) {
+      this.raiseFeedback =
+        (e && e.body && e.body.message) || "Could not raise task.";
+    } finally {
+      this.raiseSaving = false;
     }
   }
 
@@ -993,6 +1290,7 @@ export default class AssetReview extends LightningElement {
   _clearWoFilter() {
     this.selectedFilterWoId = null;
     this.selectedFilterWoNumber = "";
+    this.tile = {};
   }
 
   handleEditTask(evt) {
@@ -1021,6 +1319,11 @@ export default class AssetReview extends LightningElement {
   }
 
   renderedCallback() {
+    if (this._syncNotesTa) {
+      this._syncNotesTa = false;
+      const ta = this.template.querySelector('[data-id="newNote"]');
+      if (ta) ta.value = this.newNote;
+    }
     if (this._syncTaskTextareas) {
       this._syncTaskTextareas = false;
       const desc = this.template.querySelector('[data-id="taskDescription"]');
@@ -1577,6 +1880,236 @@ export default class AssetReview extends LightningElement {
   get wagonStatusPill() {
     return this.wagon?.status || "";
   }
+  // ─── v6 workspace getters ───
+  get hasWorkspace() {
+    return this.hasSelection || this.woRows.length > 0;
+  }
+  get listClass() {
+    return "ar-wolist" + (this.listCollapsed ? " rail" : "");
+  }
+  get pinClass() {
+    return "wl-rail-btn" + (this.listPinned ? " on" : "");
+  }
+  get wpRow() {
+    if (!this.wpInfo) return null;
+    const sel = this.selectedFilterWoId === this.wpInfo.id;
+    return {
+      ...this.wpInfo,
+      rowClass: "wl-row wp" + (sel ? " selected" : ""),
+      railClass: "wl-rail-btn wp" + (sel ? " selected" : "")
+    };
+  }
+  _dotStyle(row) {
+    return "background:" + COLORS[woStatus(row)];
+  }
+  get _scopeRows() {
+    const l2 = this.selectedWheelsetId;
+    let rows = this.woRows;
+    if (l2) {
+      rows = rows.filter((r) => this._rowInScope(r));
+    }
+    if (this.wtSel.length) {
+      rows = rows.filter((r) => this.wtSel.includes(r.workTypeName));
+    }
+    return rows;
+  }
+  get woGroups() {
+    const editable = new Set(this.tasks.map((t) => t.id));
+    const groups = {};
+    this._scopeRows.forEach((r) => {
+      const key = r.assetId || "none";
+      if (!groups[key]) {
+        groups[key] = { key, name: r.assetName || "No asset", rows: [] };
+      }
+      const st = woStatus(r);
+      groups[key].rows.push({
+        ...r,
+        rank: RANK[st],
+        dotStyle: this._dotStyle(r),
+        canEdit: editable.has(r.id),
+        rowClass:
+          "wl-row" + (this.selectedFilterWoId === r.id ? " selected" : "")
+      });
+    });
+    return Object.values(groups).map((g) => {
+      g.rows.sort(
+        (a, b) => a.rank - b.rank || a.number.localeCompare(b.number)
+      );
+      return g;
+    });
+  }
+  get noRows() {
+    return this._scopeRows.length === 0;
+  }
+  get railRows() {
+    return this._scopeRows.map((r) => ({
+      id: r.id,
+      short: String(r.number || "").slice(-3),
+      title: r.number + " " + (r.subject || ""),
+      dotStyle: this._dotStyle(r),
+      railClass:
+        "wl-rail-btn" + (this.selectedFilterWoId === r.id ? " selected" : "")
+    }));
+  }
+  get showWtChips() {
+    return this._cfg.wtFilter && this.wtChips.length > 1;
+  }
+  get wtActive() {
+    return this.wtSel.length > 0;
+  }
+  get wtChips() {
+    const counts = {};
+    this.woRows.forEach((r) => {
+      const n = r.workTypeName || "—";
+      if (!counts[n]) counts[n] = 0;
+      if (woStatus(r) !== "green") counts[n] += 1;
+    });
+    return Object.keys(counts)
+      .sort()
+      .map((name) => ({
+        name,
+        open: counts[name],
+        chipClass: "wl-chip" + (this.wtSel.includes(name) ? " on" : "")
+      }));
+  }
+  get selectedRow() {
+    return this.woRows.find((r) => r.id === this.selectedFilterWoId) || null;
+  }
+  get selectedDotStyle() {
+    const r = this.selectedRow;
+    return r ? this._dotStyle(r) : "background:" + COLORS.grey;
+  }
+  get selectedSubject() {
+    const r = this.selectedRow;
+    if (r) return r.subject;
+    return this.wpInfo && this.selectedFilterWoId === this.wpInfo.id
+      ? this.wpInfo.subject
+      : "";
+  }
+  get nextStepText() {
+    const r = this.selectedRow;
+    return r ? woNextStep(r).text : "";
+  }
+  get tileFields() {
+    return this._cfg.woTile
+      .map((key) => {
+        const f = WO_FIELDS.find((x) => x[0] === key);
+        return f && this.tile[key]
+          ? { key, label: f[1], value: this.tile[key] }
+          : null;
+      })
+      .filter(Boolean);
+  }
+  get hasTile() {
+    return this.tileFields.length > 0;
+  }
+  get assetTileFields() {
+    const a = this.activeAsset;
+    if (!a) return [];
+    const map = {
+      SerialNumber: a.serialNumber,
+      Status: a.status,
+      Asset_Type__c: a.assetType,
+      FLOC__c: a.floc,
+      Entitlement_Status__c: a.warrantyStatus,
+      InstallDate: a.installDate,
+      PurchaseDate: a.purchaseDate,
+      Name: a.name
+    };
+    return this._cfg.assetTile
+      .map((key) => {
+        const f = ASSET_FIELDS.find((x) => x[0] === key);
+        return f && map[key] ? { key, label: f[1], value: map[key] } : null;
+      })
+      .filter(Boolean);
+  }
+  get tabs() {
+    return [
+      ["measure", "Measure"],
+      ["execute", "Execute"],
+      ["parts", "Parts"],
+      ["notes", "Notes"],
+      ["raised", "Raised"]
+    ].map(([key, label]) => ({
+      key,
+      label,
+      cls: "aw-tab" + (this.activeTab === key ? " on" : "")
+    }));
+  }
+  get isMeasureTab() {
+    return this.activeTab === "measure";
+  }
+  get isExecuteTab() {
+    return this.activeTab === "execute";
+  }
+  get isPartsTab() {
+    return this.activeTab === "parts";
+  }
+  get isNotesTab() {
+    return this.activeTab === "notes";
+  }
+  get isRaisedTab() {
+    return this.activeTab === "raised";
+  }
+  get hasWoNotes() {
+    return !!this.woNotes;
+  }
+  get notesCauseOptions() {
+    return CAUSE_OPTIONS.map((o) => ({
+      ...o,
+      selected: o.value === this.notesCause
+    }));
+  }
+  get notesDelayOptions() {
+    return DELAY_OPTIONS.map((o) => ({
+      ...o,
+      selected: o.value === this.notesDelay
+    }));
+  }
+  get notesFeedbackClass() {
+    return this.notesFeedbackIsError ? "form-feedback error" : "form-feedback";
+  }
+  get notesSaveLabel() {
+    return this.savingNotes ? "Saving…" : "Save Notes & Codes";
+  }
+  get notesSaveDisabled() {
+    return this.savingNotes;
+  }
+  get hasRaised() {
+    return this.raised.length > 0;
+  }
+  get raisedRows() {
+    return this.raised.map((t) => ({
+      ...t,
+      statusClass:
+        "status-pill " +
+        (t.status === "Completed" || t.status === "Closed"
+          ? "completed"
+          : "new")
+    }));
+  }
+  get raiseAssetOptions() {
+    const opts = [];
+    if (this.wagon) opts.push({ value: this.wagon.id, label: this.wagon.name });
+    this.wheelsets.forEach((w) => {
+      opts.push({ value: w.id, label: w.name });
+      (w.children || []).forEach((c) =>
+        opts.push({ value: c.id, label: "— " + c.name })
+      );
+    });
+    return opts.map((o) => ({ ...o, selected: o.value === this.raiseAssetId }));
+  }
+  get raiseWtOptions() {
+    const q = this.raiseWtQuery.trim().toLowerCase();
+    return this.workTypeList
+      .filter((w) => !q || (w.name || "").toLowerCase().includes(q))
+      .slice(0, 50)
+      .map((w) => ({ ...w, selected: w.id === this.raiseWtId }));
+  }
+  get raiseSaveLabel() {
+    return this.raiseSaving ? "Raising…" : "Raise Task";
+  }
+
   get detailHeading() {
     const a = this.activeAsset;
     return a ? a.name : "";

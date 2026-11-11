@@ -1,714 +1,1261 @@
 <template>
-    <div class="ar-wrapper">
+  <div class="ar-wrapper">
+    <!-- Top bar -->
+    <div class="ar-topbar">
+      <button
+        class="ar-back-btn"
+        onclick={handleBack}
+        aria-label="Back to work pack"
+      >
+        ‹ Back to Workpack
+      </button>
+      <template lwc:if={wagon}>
+        <div class="ar-topbar-info">
+          <span class="ar-wagon-name">{wagon.name}</span>
+          <template lwc:if={wagonStatusPill}>
+            <span class="ar-status-pill">{wagonStatusPill}</span>
+          </template>
+          <template lwc:if={wagon.floc}>
+            <span class="ar-chip">FLOC {wagon.floc}</span>
+          </template>
+        </div>
+      </template>
+    </div>
 
-        <!-- Top bar -->
-        <div class="ar-topbar">
-            <button class="ar-back-btn" onclick={handleBack} aria-label="Back to work pack">
-                ‹ Back to Workpack
-            </button>
-            <template lwc:if={wagon}>
-                <div class="ar-topbar-info">
-                    <span class="ar-wagon-name">{wagon.name}</span>
-                    <template lwc:if={wagonStatusPill}>
-                        <span class="ar-status-pill">{wagonStatusPill}</span>
-                    </template>
-                    <template lwc:if={wagon.floc}>
-                        <span class="ar-chip">FLOC {wagon.floc}</span>
-                    </template>
-                </div>
+    <!-- Loading -->
+    <template lwc:if={isLoading}>
+      <div class="ar-center">
+        <div class="spinner"></div>
+        <p>Loading wagon asset…</p>
+      </div>
+    </template>
+
+    <!-- Error -->
+    <template lwc:elseif={hasError}>
+      <div class="ar-center">
+        <span class="ar-error-icon">⚠</span>
+        <p>Failed to load the wagon asset. This work pack may have no asset.</p>
+        <button class="btn-secondary" onclick={loadWagon}>Retry</button>
+      </div>
+    </template>
+
+    <!-- Main -->
+    <template lwc:else>
+      <div class="ar-body">
+        <!-- ─── Wagon diagram with wheelset zones ─── -->
+        <div class="ar-section">
+          <button
+            class="collapse-header"
+            onclick={handleToggleDiagram}
+            aria-expanded={diagramExpanded}
+          >
+            <span class="section-title nomargin"
+              >Components — tap a section</span
+            >
+            <span class="collapse-icon">{diagramToggleIcon}</span>
+          </button>
+
+          <!-- Compact indicator strip: always visible; the only control when collapsed -->
+          <div class="indicator-strip">
+            <template for:each={diagramZones} for:item="zone">
+              <button
+                key={zone.id}
+                class={zone.chipClass}
+                data-id={zone.id}
+                onclick={handleSelectWheelset}
+                aria-label={zone.label}
+              >
+                <span class={zone.dotClass}></span>
+                <span class="chip-label">{zone.label}</span>
+                <template lwc:if={zone.hasWos}>
+                  <span class="wo-badge" title="Work orders in this workpack"
+                    >{zone.woCount}</span
+                  >
+                </template>
+              </button>
             </template>
+          </div>
+
+          <!-- Level-3 sub-assets of the selected component -->
+          <template lwc:if={hasChildComponents}>
+            <div class="child-strip">
+              <span class="child-strip-label">Sub-assets</span>
+              <template for:each={childComponents} for:item="child">
+                <button
+                  key={child.id}
+                  class={child.chipClass}
+                  data-id={child.id}
+                  onclick={handleSelectChild}
+                  aria-label={child.name}
+                >
+                  <span class={child.dotClass}></span>
+                  <span class="chip-label">{child.name}</span>
+                  <template lwc:if={child.hasWos}>
+                    <span class="wo-badge" title="Work orders in this workpack"
+                      >{child.woCount}</span
+                    >
+                  </template>
+                </button>
+              </template>
+            </div>
+          </template>
+
+          <template lwc:if={showSchematic}>
+            <div class="diagram-frame">
+              <img
+                class="diagram-img"
+                src={wagonDiagramUrl}
+                alt="Wagon diagram"
+              />
+              <template for:each={diagramZones} for:item="zone">
+                <button
+                  key={zone.id}
+                  class={zone.zoneClass}
+                  style={zone.zoneStyle}
+                  data-id={zone.id}
+                  onclick={handleSelectWheelset}
+                  aria-label={zone.label}
+                >
+                  <span class={zone.dotClass}></span>
+                  <span class="zone-label">{zone.label}</span>
+                </button>
+              </template>
+            </div>
+            <div class="diagram-legend">
+              <span class="legend-item"
+                ><span class="zone-dot status-grey"></span> No activity</span
+              >
+              <span class="legend-item"
+                ><span class="zone-dot status-green"></span> In progress</span
+              >
+              <span class="legend-item"
+                ><span class="zone-dot status-red"></span> Attention /
+                Scrap</span
+              >
+            </div>
+          </template>
         </div>
 
-        <!-- Loading -->
-        <template lwc:if={isLoading}>
-            <div class="ar-center">
-                <div class="spinner"></div>
-                <p>Loading wagon asset…</p>
-            </div>
-        </template>
-
-        <!-- Error -->
-        <template lwc:elseif={hasError}>
-            <div class="ar-center">
-                <span class="ar-error-icon">⚠</span>
-                <p>Failed to load the wagon asset. This work pack may have no asset.</p>
-                <button class="btn-secondary" onclick={loadWagon}>Retry</button>
-            </div>
-        </template>
-
-        <!-- Main -->
-        <template lwc:else>
-            <div class="ar-body">
-
-                <!-- ─── Wagon diagram with wheelset zones ─── -->
-                <div class="ar-section">
-                    <button class="collapse-header" onclick={handleToggleDiagram} aria-expanded={diagramExpanded}>
-                        <span class="section-title nomargin">Components — tap a section</span>
-                        <span class="collapse-icon">{diagramToggleIcon}</span>
-                    </button>
-
-                    <!-- Compact indicator strip: always visible; the only control when collapsed -->
-                    <div class="indicator-strip">
-                        <template for:each={diagramZones} for:item="zone">
-                            <button
-                                key={zone.id}
-                                class={zone.chipClass}
-                                data-id={zone.id}
-                                onclick={handleSelectWheelset}
-                                aria-label={zone.label}
+        <!-- ─── Performance graphs ─── -->
+        <template lwc:if={hasCharts}>
+          <div class="ar-section">
+            <button
+              class="collapse-header"
+              onclick={handleToggleCharts}
+              aria-expanded={chartsExpanded}
+            >
+              <span class="section-title nomargin">Measure Performance</span>
+              <span class="collapse-icon">{chartsToggleIcon}</span>
+            </button>
+            <template lwc:if={chartsExpanded}>
+              <div class="charts-grid">
+                <template for:each={charts} for:item="chart">
+                  <div key={chart.key} class="chart-card">
+                    <div class="chart-title">{chart.title}</div>
+                    <svg
+                      class="chart-svg"
+                      viewBox={chart.viewBox}
+                      preserveAspectRatio="xMidYMid meet"
+                    >
+                      <!-- gridlines -->
+                      <template for:each={chart.gridlines} for:item="g">
+                        <g key={g.key}>
+                          <line
+                            x1={g.x1}
+                            y1={g.y}
+                            x2={g.x2}
+                            y2={g.y}
+                            class="chart-grid"
+                          />
+                          <text x="8" y={g.labelY} class="chart-axis-text">
+                            {g.valText}
+                          </text>
+                        </g>
+                      </template>
+                      <!-- series line -->
+                      <polyline points={chart.polyline} class="chart-line" />
+                      <!-- dots + labels -->
+                      <template for:each={chart.dots} for:item="d">
+                        <g key={d.key}>
+                          <template lwc:if={d.cy}>
+                            <circle
+                              cx={d.cx}
+                              cy={d.cy}
+                              r="4"
+                              class="chart-dot"
+                            />
+                            <text
+                              x={d.cx}
+                              y={d.valueY}
+                              class="chart-value-text"
+                              text-anchor="middle"
                             >
-                                <span class={zone.dotClass}></span>
-                                <span class="chip-label">{zone.label}</span>
-                                <template lwc:if={zone.hasWos}>
-                                    <span class="wo-badge" title="Work orders in this workpack">{zone.woCount}</span>
-                                </template>
-                            </button>
-                        </template>
-                    </div>
-
-                    <!-- Level-3 sub-assets of the selected component -->
-                    <template lwc:if={hasChildComponents}>
-                        <div class="child-strip">
-                            <span class="child-strip-label">Sub-assets</span>
-                            <template for:each={childComponents} for:item="child">
-                                <button
-                                    key={child.id}
-                                    class={child.chipClass}
-                                    data-id={child.id}
-                                    onclick={handleSelectChild}
-                                    aria-label={child.name}
-                                >
-                                    <span class={child.dotClass}></span>
-                                    <span class="chip-label">{child.name}</span>
-                                    <template lwc:if={child.hasWos}>
-                                        <span class="wo-badge" title="Work orders in this workpack">{child.woCount}</span>
-                                    </template>
-                                </button>
-                            </template>
-                        </div>
-                    </template>
-
-                    <template lwc:if={showSchematic}>
-                        <div class="diagram-frame">
-                            <img class="diagram-img" src={wagonDiagramUrl} alt="Wagon diagram" />
-                            <template for:each={diagramZones} for:item="zone">
-                                <button
-                                    key={zone.id}
-                                    class={zone.zoneClass}
-                                    style={zone.zoneStyle}
-                                    data-id={zone.id}
-                                    onclick={handleSelectWheelset}
-                                    aria-label={zone.label}
-                                >
-                                    <span class={zone.dotClass}></span>
-                                    <span class="zone-label">{zone.label}</span>
-                                </button>
-                            </template>
-                        </div>
-                        <div class="diagram-legend">
-                            <span class="legend-item"><span class="zone-dot status-grey"></span> No activity</span>
-                            <span class="legend-item"><span class="zone-dot status-green"></span> In progress</span>
-                            <span class="legend-item"><span class="zone-dot status-red"></span> Attention / Scrap</span>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- ─── Performance graphs ─── -->
-                <template lwc:if={hasCharts}>
-                    <div class="ar-section">
-                        <button class="collapse-header" onclick={handleToggleCharts} aria-expanded={chartsExpanded}>
-                            <span class="section-title nomargin">Measure Performance</span>
-                            <span class="collapse-icon">{chartsToggleIcon}</span>
-                        </button>
-                        <template lwc:if={chartsExpanded}>
-                            <div class="charts-grid">
-                                <template for:each={charts} for:item="chart">
-                                    <div key={chart.key} class="chart-card">
-                                        <div class="chart-title">{chart.title}</div>
-                                        <svg class="chart-svg" viewBox={chart.viewBox} preserveAspectRatio="xMidYMid meet">
-                                            <!-- gridlines -->
-                                            <template for:each={chart.gridlines} for:item="g">
-                                                <g key={g.key}>
-                                                    <line x1={g.x1} y1={g.y} x2={g.x2} y2={g.y} class="chart-grid" />
-                                                    <text x="8" y={g.labelY} class="chart-axis-text">{g.valText}</text>
-                                                </g>
-                                            </template>
-                                            <!-- series line -->
-                                            <polyline points={chart.polyline} class="chart-line" />
-                                            <!-- dots + labels -->
-                                            <template for:each={chart.dots} for:item="d">
-                                                <g key={d.key}>
-                                                    <template lwc:if={d.cy}>
-                                                        <circle cx={d.cx} cy={d.cy} r="4" class="chart-dot" />
-                                                        <text x={d.cx} y={d.valueY} class="chart-value-text" text-anchor="middle">{d.valueText}</text>
-                                                    </template>
-                                                    <text x={d.labelX} y={d.labelY} class="chart-x-text" text-anchor="middle">{d.label}</text>
-                                                </g>
-                                            </template>
-                                        </svg>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
+                              {d.valueText}
+                            </text>
+                          </template>
+                          <text
+                            x={d.labelX}
+                            y={d.labelY}
+                            class="chart-x-text"
+                            text-anchor="middle"
+                          >
+                            {d.label}
+                          </text>
+                        </g>
+                      </template>
+                    </svg>
+                  </div>
                 </template>
-
-                <!-- ─── Selected wheelset detail ─── -->
-                <template lwc:if={hasSelection}>
-
-                    <!-- Asset Overview -->
-                    <div class="ar-section">
-                        <button class="collapse-header" onclick={handleToggleOverview} aria-expanded={overviewExpanded}>
-                            <span class="section-title nomargin">{detailHeading} — Asset Overview</span>
-                            <span class="collapse-icon">{overviewToggleIcon}</span>
-                        </button>
-                        <template lwc:if={overviewExpanded}>
-                            <div class="overview-grid">
-                                <div class="ov-field">
-                                    <span class="ov-key">Asset Name</span>
-                                    <span class="ov-val">{selectedWheelset.name}</span>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">Serial Number</span>
-                                    <div class="serial-row">
-                                        <input
-                                            type="text"
-                                            class="form-input"
-                                            value={serialDraft}
-                                            oninput={handleSerialChange}
-                                            onkeydown={handleInputKeydown}
-                                        />
-                                        <button class="btn-serial-save" onclick={handleSaveSerial} disabled={savingSerial}>{serialSaveLabel}</button>
-                                    </div>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">Status</span>
-                                    <span class="ov-val">{selectedWheelset.status}</span>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">Warranty Status</span>
-                                    <span class="ov-val">{selectedWheelset.warrantyStatus}</span>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">Installation Date</span>
-                                    <span class="ov-val">{selectedWheelset.installDate}</span>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">Purchase Date</span>
-                                    <span class="ov-val">{selectedWheelset.purchaseDate}</span>
-                                </div>
-                                <div class="ov-field">
-                                    <span class="ov-key">FLOC</span>
-                                    <span class="ov-val">{selectedWheelset.floc}</span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- Measure Points (LEFT) + Tasks (RIGHT) -->
-                    <div class="ar-section">
-                        <button class="collapse-header" onclick={handleToggleDetail} aria-expanded={detailExpanded}>
-                            <span class="section-title nomargin">Inspection & Tasks</span>
-                            <span class="collapse-icon">{detailToggleIcon}</span>
-                        </button>
-                        <template lwc:if={detailExpanded}>
-                            <template lwc:if={woFilterActive}>
-                                <div class="wo-filter-bar">
-                                    <span class="wo-filter-text">Filtered to work order <strong>{selectedFilterWoNumber}</strong> — measures &amp; work plans below show only this WO.</span>
-                                    <button class="wo-filter-clear" onclick={handleClearWoFilter}>✕ Clear filter</button>
-                                </div>
-                            </template>
-                            <div class="detail-cols">
-
-                                <!-- LEFT: Measure Points -->
-                                <div class="detail-col">
-                                    <div class="col-header">
-                                        <span class="col-title">Measure Points</span>
-                                        <button class="btn-add-entry" onclick={handleAddMeasure}>+ New Measure</button>
-                                    </div>
-
-                                    <template lwc:if={showMeasureForm}>
-                                        <div class="entry-form">
-                                            <div class="form-group">
-                                                <label class="form-label">Component Name</label>
-                                                <input type="text" class="form-input large"
-                                                    placeholder="e.g. Rotary Knuckle…"
-                                                    value={editComponentName}
-                                                    oninput={handleComponentNameChange}
-                                                    onkeydown={handleInputKeydown} />
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Type</label>
-                                                <div class="seg-control">
-                                                    <template for:each={measureTypeOptions} for:item="opt">
-                                                        <button key={opt.value} class="seg-btn"
-                                                            data-type={opt.value} data-selected={opt.isSelected}
-                                                            onclick={handleMeasureTypeSelect}>{opt.label}</button>
-                                                    </template>
-                                                </div>
-                                            </div>
-
-                                            <template lwc:if={showValueFields}>
-                                                <div class="form-row-2">
-                                                    <div class="form-group">
-                                                        <label class="form-label">Value</label>
-                                                        <input type="number" class="form-input" placeholder="0.0"
-                                                            value={editMeasureValue}
-                                                            oninput={handleMeasureValueChange}
-                                                            onkeydown={handleInputKeydown} step="any" />
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <label class="form-label">Value Type</label>
-                                                        <select class="form-select"
-                                                            onchange={handleMeasureValueTypeChange}
-                                                            onkeydown={handleInputKeydown}>
-                                                            <template for:each={valueTypeOptions} for:item="vt">
-                                                                <option key={vt.value} value={vt.value} selected={vt.isSelected}>{vt.label}</option>
-                                                            </template>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </template>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Defect Location</label>
-                                                <select class="form-select"
-                                                    onchange={handleDefectLocationChange}
-                                                    onkeydown={handleInputKeydown}>
-                                                    <template for:each={defectLocationOptions} for:item="dl">
-                                                        <option key={dl.value} value={dl.value} selected={dl.isSelected}>{dl.label}</option>
-                                                    </template>
-                                                </select>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Comments</label>
-                                                <textarea class="form-textarea" rows="2"
-                                                    data-id="editComments"
-                                                    placeholder="Observations, findings…"
-                                                    value={editComments}
-                                                    oninput={handleCommentsChange}
-                                                    onkeydown={handleInputKeydown}></textarea>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Review Notes <span class="optional">(optional)</span></label>
-                                                <textarea class="form-textarea" rows="2"
-                                                    data-id="editReviewNotes"
-                                                    placeholder="Notes for supervisor review…"
-                                                    value={editReviewNotes}
-                                                    oninput={handleReviewNotesChange}
-                                                    onkeydown={handleInputKeydown}></textarea>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Photo <span class="optional">(optional)</span></label>
-                                                <template lwc:if={pendingImagePreview}>
-                                                    <div class="img-preview">
-                                                        <img src={pendingImagePreview} alt="Selected" />
-                                                        <button type="button" class="img-remove" onclick={handleRemovePendingImage} title="Remove photo">✕</button>
-                                                    </div>
-                                                </template>
-                                                <template lwc:else>
-                                                    <label class="img-upload-btn">
-                                                        <span>📷 Take photo / attach image</span>
-                                                        <input type="file" accept="image/*" capture="environment"
-                                                            data-id="measureImageInput"
-                                                            onchange={handleImageSelect}
-                                                            onkeydown={handleInputKeydown} />
-                                                    </label>
-                                                </template>
-                                            </div>
-
-                                            <template lwc:if={measureFeedback}>
-                                                <p class={measureFeedbackClass}>{measureFeedback}</p>
-                                            </template>
-
-                                            <div class="form-actions">
-                                                <button class="btn-cancel" onclick={handleMeasureCancel}>Cancel</button>
-                                                <button class="btn-save-entry" onclick={handleMeasureSave} disabled={isSavingMeasure}>{measureSaveLabel}</button>
-                                            </div>
-                                        </div>
-                                    </template>
-
-                                    <div class="points-list">
-                                        <template lwc:if={hasPoints}>
-                                            <template for:each={enrichedPoints} for:item="pt">
-                                                <div key={pt.id} class="point-card">
-                                                    <div class="point-card-header">
-                                                        <span class={pt.typeClass}>
-                                                            <span class="type-badge">{pt.measureType}</span>
-                                                        </span>
-                                                        <div class="point-actions">
-                                                            <template lwc:if={pt.showOkBtn}>
-                                                                <button class="icon-btn ok-btn" data-point-id={pt.id} onclick={handleMarkOk} title="Mark as OK">✓</button>
-                                                            </template>
-                                                            <button class="icon-btn edit-btn" data-point-id={pt.id} onclick={handleEditMeasure} title="Edit">✏️</button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="point-meta-line">
-                                                        <span class="point-component">{pt.componentName}</span>
-                                                        <template lwc:if={pt.workOrderNumber}>
-                                                            <span class="point-wo" title="Related work order">🔧 WO {pt.workOrderNumber}</span>
-                                                        </template>
-                                                        <span class="point-date">{pt.formattedDate}</span>
-                                                    </div>
-                                                    <template lwc:if={pt.showMeasure}>
-                                                        <div class="point-measure">
-                                                            <span class="measure-value">{pt.measureValue}</span>
-                                                            <span class="measure-unit">{pt.measureValueType}</span>
-                                                        </div>
-                                                    </template>
-                                                    <template lwc:if={pt.showDefect}>
-                                                        <span class="point-defect">📍 {pt.defectLocation}</span>
-                                                    </template>
-                                                    <template lwc:if={pt.hasImage}>
-                                                        <div class="point-image">
-                                                            <img src={pt.imageUri} alt={pt.componentName} loading="lazy" />
-                                                        </div>
-                                                    </template>
-                                                    <template lwc:if={pt.comments}>
-                                                        <p class="point-comments">{pt.comments}</p>
-                                                    </template>
-                                                </div>
-                                            </template>
-                                        </template>
-                                        <template lwc:else>
-                                            <template lwc:if={showMeasureForm}></template>
-                                            <template lwc:else>
-                                                <div class="ar-empty">
-                                                    <span class="ar-empty-icon">🔍</span>
-                                                    <p>No measure points yet.<br/>Tap "+ New Measure".</p>
-                                                </div>
-                                            </template>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <!-- RIGHT: Tasks -->
-                                <div class="detail-col">
-                                    <div class="col-header">
-                                        <span class="col-title">Work Orders</span>
-                                        <button class="btn-add-entry" onclick={handleAddTask}>+ New PM02 Task</button>
-                                    </div>
-
-                                    <template lwc:if={showTaskForm}>
-                                        <div class="entry-form">
-                                            <div class="form-group">
-                                                <label class="form-label">Subject</label>
-                                                <input type="text" class="form-input large"
-                                                    placeholder="e.g. Replace rotary knuckle…"
-                                                    value={taskSubject}
-                                                    oninput={handleTaskSubjectChange}
-                                                    onkeydown={handleInputKeydown} />
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Description</label>
-                                                <textarea class="form-textarea" rows="2"
-                                                    data-id="taskDescription"
-                                                    placeholder="Scope of work…"
-                                                    value={taskDescription}
-                                                    oninput={handleTaskDescriptionChange}
-                                                    onkeydown={handleInputKeydown}></textarea>
-                                            </div>
-
-                                            <div class="form-row-2">
-                                                <div class="form-group">
-                                                    <label class="form-label">Cause Code</label>
-                                                    <select class="form-select" onchange={handleTaskCauseChange} onkeydown={handleInputKeydown}>
-                                                        <template for:each={taskCauseOptions} for:item="opt">
-                                                            <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                                                        </template>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="form-label">Delay Code</label>
-                                                    <select class="form-select" onchange={handleTaskDelayChange} onkeydown={handleInputKeydown}>
-                                                        <template for:each={taskDelayOptions} for:item="opt">
-                                                            <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                                                        </template>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-row-2">
-                                                <div class="form-group">
-                                                    <label class="form-label">Start Date</label>
-                                                    <input type="datetime-local" class="form-input"
-                                                        value={taskStartDate}
-                                                        onchange={handleTaskStartDateChange}
-                                                        onkeydown={handleInputKeydown} />
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="form-label">Duration (hrs)</label>
-                                                    <input type="number" class="form-input" placeholder="0.0" step="any"
-                                                        value={taskDurationHours}
-                                                        oninput={handleTaskDurationChange}
-                                                        onkeydown={handleInputKeydown} />
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Component (FLOC Desc)</label>
-                                                <input type="text" class="form-input"
-                                                    placeholder="SAP FLOC description…"
-                                                    value={taskComponent}
-                                                    oninput={handleTaskComponentChange}
-                                                    onkeydown={handleInputKeydown} />
-                                            </div>
-
-                                            <div class="form-row-2">
-                                                <div class="form-group">
-                                                    <label class="form-label">Maintenance Order</label>
-                                                    <select class="form-select" onchange={handleTaskPriorityChange} onkeydown={handleInputKeydown}>
-                                                        <template for:each={taskPriorityOptions} for:item="opt">
-                                                            <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                                                        </template>
-                                                    </select>
-                                                </div>
-                                                <div class="form-group">
-                                                    <label class="form-label">Status</label>
-                                                    <select class="form-select" onchange={handleTaskStatusChange} onkeydown={handleInputKeydown}>
-                                                        <template for:each={taskStatusOptions} for:item="opt">
-                                                            <option key={opt.value} value={opt.value} selected={opt.selected}>{opt.label}</option>
-                                                        </template>
-                                                    </select>
-                                                </div>
-                                            </div>
-
-                                            <div class="form-group">
-                                                <label class="form-label">Comments</label>
-                                                <textarea class="form-textarea" rows="2"
-                                                    data-id="taskComments"
-                                                    placeholder="Comments…"
-                                                    value={taskComments}
-                                                    oninput={handleTaskCommentsChange}
-                                                    onkeydown={handleInputKeydown}></textarea>
-                                            </div>
-
-                                            <template lwc:if={taskFeedback}>
-                                                <p class={taskFeedbackClass}>{taskFeedback}</p>
-                                            </template>
-                                            <div class="form-actions">
-                                                <button class="btn-cancel" onclick={handleTaskCancel}>Cancel</button>
-                                                <button class="btn-save-entry" onclick={handleTaskSave} disabled={isSavingTask}>{taskSaveLabel}</button>
-                                            </div>
-                                        </div>
-                                    </template>
-
-                                    <div class="points-list">
-                                        <template lwc:if={hasTasks}>
-                                            <template for:each={enrichedTasks} for:item="t">
-                                                <div key={t.id} class={t.cardClass}
-                                                    data-wo-id={t.id} onclick={handleSelectWorkOrder}
-                                                    title="Tap to filter measures & work plans to this work order">
-                                                    <div class="task-card-header">
-                                                        <span class="task-num">{t.woNumber}</span>
-                                                        <div class="task-header-right">
-                                                            <template lwc:if={t.isSelected}>
-                                                                <span class="wo-filter-tag">Filtering</span>
-                                                            </template>
-                                                            <span class={t.statusClass}>{t.status}</span>
-                                                            <button class="icon-btn edit-btn" data-task-id={t.id} onclick={handleEditTask} title="Edit task">✏️</button>
-                                                        </div>
-                                                    </div>
-                                                    <template lwc:if={t.workTypeName}>
-                                                        <span class={t.wtChipClass} title="Work type">{t.workTypeName}</span>
-                                                    </template>
-                                                    <div class="task-subject">{t.subject}</div>
-                                                    <template lwc:if={t.description}>
-                                                        <p class="task-description">{t.description}</p>
-                                                    </template>
-                                                    <div class="task-meta">
-                                                        <template lwc:if={t.priority}>
-                                                            <span class="task-chip">{t.priority}</span>
-                                                        </template>
-                                                        <template lwc:if={t.durationDisplay}>
-                                                            <span class="task-chip">{t.durationDisplay}</span>
-                                                        </template>
-                                                        <template lwc:if={t.component}>
-                                                            <span class="task-chip">📍 {t.component}</span>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </template>
-                                        <template lwc:else>
-                                            <template lwc:if={showTaskForm}></template>
-                                            <template lwc:else>
-                                                <div class="ar-empty">
-                                                    <span class="ar-empty-icon">🛠️</span>
-                                                    <p>No work orders yet.<br/>Tap "+ New PM02 Task".</p>
-                                                </div>
-                                            </template>
-                                        </template>
-                                    </div>
-                                </div>
-
-                            </div>
-                        </template>
-                    </div>
-
-                    <!-- ─── Work Plans of the associated work order ─── -->
-                    <div class="ar-section">
-                        <button class="collapse-header" onclick={handleTogglePlans} aria-expanded={plansExpanded}>
-                            <span class="section-title nomargin">{detailHeading} — Work Plans</span>
-                            <span class="collapse-icon">{plansToggleIcon}</span>
-                        </button>
-                        <template lwc:if={plansExpanded}>
-                            <template lwc:if={hasPlans}>
-                                <template lwc:if={planActionError}>
-                                    <p class="ar-plan-error">{planActionError}</p>
-                                </template>
-                                <div class="plan-list">
-                                    <template for:each={workPlansEnriched} for:item="plan">
-                                        <div key={plan.id} class="plan-card">
-                                            <button
-                                                class={plan.toggleClass}
-                                                data-plan-id={plan.id}
-                                                onclick={handleTogglePlan}
-                                                aria-expanded={plan.isExpanded}
-                                            >
-                                                <span class="plan-order">{plan.executionOrder}</span>
-                                                <span class="plan-name">{plan.name}</span>
-                                                <template lwc:if={plan.workOrderNumber}>
-                                                    <span class="plan-wo" title="Related work order">WO {plan.workOrderNumber}</span>
-                                                </template>
-                                                <span class="ar-plan-ring">
-                                                    <svg viewBox="0 0 44 44" class="ar-ring-svg">
-                                                        <circle class="ar-ring-track" cx="22" cy="22" r="18"></circle>
-                                                        <circle class="ar-ring-arc" cx="22" cy="22" r="18"
-                                                            stroke-dasharray={plan.ringDash}
-                                                            stroke-dashoffset={plan.ringOffset}
-                                                            transform="rotate(-90 22 22)"></circle>
-                                                        <text class="ar-ring-pct" x="22" y="22"
-                                                            text-anchor="middle" dominant-baseline="central">{plan.ringPercentText}</text>
-                                                    </svg>
-                                                </span>
-                                                <span class="plan-chevron">{plan.chevron}</span>
-                                            </button>
-                                            <template lwc:if={plan.isExpanded}>
-                                                <div class="step-list">
-                                                    <template for:each={plan.steps} for:item="step">
-                                                        <div key={step.id} class={step.stepClass}>
-                                                            <span class="step-num">{step.executionOrder}</span>
-                                                            <div class="step-body">
-                                                                <span class="step-name">{step.name}</span>
-                                                                <template lwc:if={step.description}>
-                                                                    <span class="step-desc">{step.description}</span>
-                                                                </template>
-                                                            </div>
-                                                            <span class="step-status">{step.status}</span>
-                                                            <template lwc:if={step.hasAction}>
-                                                                <button class="ar-step-action-btn"
-                                                                    data-step-id={step.id}
-                                                                    data-action-def={step.actionDefinition}
-                                                                    onclick={handleStepClick}>Open action</button>
-                                                            </template>
-                                                            <template lwc:if={step.canComplete}>
-                                                                <button class="ar-step-complete-btn"
-                                                                    data-step-id={step.id}
-                                                                    onclick={handleMarkStepComplete}>Mark complete</button>
-                                                            </template>
-                                                        </div>
-                                                    </template>
-                                                    <template lwc:if={plan.hasNoSteps}>
-                                                        <p class="no-steps">No steps defined.</p>
-                                                    </template>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                            <template lwc:else>
-                                <div class="ar-empty">
-                                    <span class="ar-empty-icon">📋</span>
-                                    <p>No work plans on the work order for this asset.</p>
-                                </div>
-                            </template>
-                        </template>
-                    </div>
-
-                    <!-- ─── Required Parts for the selected asset ─── -->
-                    <div class="ar-section">
-                        <button class="collapse-header" onclick={handleToggleParts} aria-expanded={partsExpanded}>
-                            <span class="section-title nomargin">{detailHeading} — Parts</span>
-                            <span class="collapse-icon">{partsToggleIcon}</span>
-                        </button>
-                        <template lwc:if={partsExpanded}>
-                            <template lwc:if={partActionError}>
-                                <p class="ar-plan-error">{partActionError}</p>
-                            </template>
-                            <template lwc:if={hasParts}>
-                                <div class="parts-table">
-                                    <div class="parts-head">
-                                        <span class="parts-col-name">Part</span>
-                                        <span class="parts-col-num">Consumed</span>
-                                        <span class="parts-col-num">Required</span>
-                                        <span class="parts-col-num">Cost</span>
-                                        <span class="parts-col-act"></span>
-                                    </div>
-                                    <template for:each={partsEnriched} for:item="part">
-                                        <div key={part.key} class="parts-row">
-                                            <span class="parts-col-name">{part.productName}</span>
-                                            <span class="parts-col-num">{part.consumedText}</span>
-                                            <span class="parts-col-num">{part.requiredText}</span>
-                                            <span class="parts-col-num">{part.costText}</span>
-                                            <span class="parts-col-act">
-                                                <template lwc:if={part.canConsume}>
-                                                    <button class="ar-consume-btn"
-                                                        data-wo-id={part.workOrderId}
-                                                        data-product-id={part.product2Id}
-                                                        data-pbe-id={part.pricebookEntryId}
-                                                        data-unit-price={part.unitPrice}
-                                                        onclick={handleConsumePart}>+ Consume</button>
-                                                </template>
-                                            </span>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                            <template lwc:else>
-                                <div class="ar-empty">
-                                    <span class="ar-empty-icon">📦</span>
-                                    <p>No parts recorded for this asset.</p>
-                                </div>
-                            </template>
-
-                            <template lwc:if={canAddPart}>
-                                <div class="ar-addpart">
-                                    <button class="ar-addpart-toggle" onclick={handleToggleAddPart}>+ Add part</button>
-                                    <template lwc:if={showAddPart}>
-                                        <div class="ar-addpart-row">
-                                            <select class="form-select" onchange={handleAddProductChange} onkeydown={handleInputKeydown}>
-                                                <option value="">Select a part…</option>
-                                                <template for:each={productOptions} for:item="opt">
-                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                                </template>
-                                            </select>
-                                            <button class="ar-consume-btn" onclick={handleAddPart} disabled={addPartDisabled}>Add</button>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                        </template>
-                    </div>
-
-                </template>
-
-                <template lwc:if={hasSelection}></template>
-                <template lwc:else>
-                    <div class="ar-hint">
-                        <span class="ar-empty-icon">👆</span>
-                        <p>Tap a component on the diagram to view its sub-assets, details, measures, work plans and tasks.</p>
-                    </div>
-                </template>
-
-            </div>
+              </div>
+            </template>
+          </div>
         </template>
 
-    </div>
+        <!-- ─── Work order list + workspace (v6) ─── -->
+        <template lwc:if={hasWorkspace}>
+          <div class="ar-split">
+            <aside class={listClass}>
+              <template lwc:if={listCollapsed}>
+                <div class="wl-rail">
+                  <button
+                    class="wl-rail-btn"
+                    onclick={handleToggleList}
+                    title="Expand list"
+                  >
+                    »
+                  </button>
+                  <template lwc:if={wpRow}>
+                    <button
+                      class={wpRow.railClass}
+                      data-wo-id={wpRow.id}
+                      onclick={handlePickWo}
+                      title={wpRow.number}
+                    >
+                      WP
+                    </button>
+                  </template>
+                  <template for:each={railRows} for:item="r">
+                    <button
+                      key={r.id}
+                      class={r.railClass}
+                      data-wo-id={r.id}
+                      onclick={handlePickWo}
+                      title={r.title}
+                    >
+                      <span class="wl-dot" style={r.dotStyle}></span>{r.short}
+                    </button>
+                  </template>
+                  <button
+                    class="wl-rail-btn raise"
+                    onclick={handleOpenRaise}
+                    title="Raise Task"
+                  >
+                    ＋
+                  </button>
+                </div>
+              </template>
+              <template lwc:else>
+                <div class="wl-head">
+                  <span class="wl-title">Work orders</span>
+                  <span class="wl-head-actions">
+                    <button
+                      class={pinClass}
+                      onclick={handleTogglePin}
+                      title="Keep list open"
+                    >
+                      📌
+                    </button>
+                    <button
+                      class="wl-rail-btn"
+                      onclick={handleToggleList}
+                      title="Collapse list"
+                    >
+                      «
+                    </button>
+                  </span>
+                </div>
+                <template lwc:if={showWtChips}>
+                  <div class="wl-chips">
+                    <template for:each={wtChips} for:item="c">
+                      <button
+                        key={c.name}
+                        class={c.chipClass}
+                        data-wt={c.name}
+                        onclick={handleToggleWt}
+                      >
+                        {c.name}<span class="wl-chip-n">{c.open}</span>
+                      </button>
+                    </template>
+                    <template lwc:if={wtActive}>
+                      <button class="wl-chip clear" onclick={handleClearWt}>
+                        Show all
+                      </button>
+                    </template>
+                  </div>
+                </template>
+                <div class="wl-body">
+                  <template lwc:if={wpRow}>
+                    <button
+                      class={wpRow.rowClass}
+                      data-wo-id={wpRow.id}
+                      onclick={handlePickWo}
+                    >
+                      <span class="wl-pin">WP</span>
+                      <span class="wl-num">{wpRow.number}</span>
+                      <span class="wl-sub">{wpRow.subject}</span>
+                    </button>
+                  </template>
+                  <template for:each={woGroups} for:item="g">
+                    <div key={g.key} class="wl-group">
+                      <div class="wl-group-name">{g.name}</div>
+                      <template for:each={g.rows} for:item="r">
+                        <div key={r.id} class="wl-rowwrap">
+                          <button
+                            class={r.rowClass}
+                            data-wo-id={r.id}
+                            onclick={handlePickWo}
+                          >
+                            <span class="wl-dot" style={r.dotStyle}></span>
+                            <span class="wl-num">{r.number}</span>
+                            <span class="wl-type">{r.workTypeName}</span>
+                            <span class="wl-sub">{r.subject}</span>
+                          </button>
+                          <template lwc:if={r.canEdit}>
+                            <button
+                              class="icon-btn edit-btn"
+                              data-task-id={r.id}
+                              onclick={handleEditTask}
+                              title="Edit task"
+                            >
+                              ✏️
+                            </button>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template lwc:if={noRows}>
+                    <p class="wl-empty">No work orders for this selection.</p>
+                  </template>
+                </div>
+                <button
+                  class="btn-add-entry wl-raise"
+                  onclick={handleOpenRaise}
+                >
+                  ＋ Raise Task
+                </button>
+              </template>
+            </aside>
+
+            <section class="ar-work">
+              <template lwc:if={hasSelection}>
+                <div class="aw-asset">
+                  <span class="aw-asset-name">{detailHeading}</span>
+                  <template for:each={assetTileFields} for:item="f">
+                    <span key={f.key} class="aw-chip"
+                      ><b>{f.label}</b> {f.value}</span
+                    >
+                  </template>
+                  <button
+                    class="aw-info"
+                    onclick={handleToggleDrawer}
+                    title="Asset details"
+                  >
+                    ⓘ
+                  </button>
+                </div>
+                <template lwc:if={drawerOpen}>
+                  <div class="aw-drawer">
+                    <div class="overview-grid">
+                      <div class="overview-grid">
+                        <div class="ov-field">
+                          <span class="ov-key">Asset Name</span>
+                          <span class="ov-val">{selectedWheelset.name}</span>
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">Serial Number</span>
+                          <div class="serial-row">
+                            <input
+                              type="text"
+                              class="form-input"
+                              value={serialDraft}
+                              oninput={handleSerialChange}
+                              onkeydown={handleInputKeydown}
+                            />
+                            <button
+                              class="btn-serial-save"
+                              onclick={handleSaveSerial}
+                              disabled={savingSerial}
+                            >
+                              {serialSaveLabel}
+                            </button>
+                          </div>
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">Status</span>
+                          <span class="ov-val">{selectedWheelset.status}</span>
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">Warranty Status</span>
+                          <span class="ov-val"
+                            >{selectedWheelset.warrantyStatus}</span
+                          >
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">Installation Date</span>
+                          <span class="ov-val"
+                            >{selectedWheelset.installDate}</span
+                          >
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">Purchase Date</span>
+                          <span class="ov-val"
+                            >{selectedWheelset.purchaseDate}</span
+                          >
+                        </div>
+                        <div class="ov-field">
+                          <span class="ov-key">FLOC</span>
+                          <span class="ov-val">{selectedWheelset.floc}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </template>
+
+              <template lwc:if={selectedFilterWoId}>
+                <div class="aw-wo">
+                  <div class="aw-wo-title">
+                    <span class="wl-dot" style={selectedDotStyle}></span>
+                    <span class="aw-wo-num">{selectedFilterWoNumber}</span>
+                    <span class="aw-wo-sub">{selectedSubject}</span>
+                    <button
+                      class="wo-filter-clear"
+                      onclick={handleClearWoFilter}
+                    >
+                      ✕ All on asset
+                    </button>
+                  </div>
+                  <template lwc:if={hasTile}>
+                    <div class="aw-tile">
+                      <template for:each={tileFields} for:item="f">
+                        <span key={f.key} class="aw-chip"
+                          ><b>{f.label}</b> {f.value}</span
+                        >
+                      </template>
+                    </div>
+                  </template>
+                  <template lwc:if={nextStepText}>
+                    <div class="aw-next">Next: {nextStepText}</div>
+                  </template>
+                </div>
+              </template>
+
+              <div class="aw-tabs">
+                <template for:each={tabs} for:item="t">
+                  <button
+                    key={t.key}
+                    class={t.cls}
+                    data-tab={t.key}
+                    onclick={handleTab}
+                  >
+                    {t.label}
+                  </button>
+                </template>
+              </div>
+
+              <template lwc:if={isMeasureTab}>
+                <div class="col-header">
+                  <span class="col-title">Measure Points</span>
+                  <button class="btn-add-entry" onclick={handleAddMeasure}>
+                    + New Measure
+                  </button>
+                </div>
+                <template lwc:if={showMeasureForm}>
+                  <div class="entry-form">
+                    <div class="form-group">
+                      <label class="form-label">Component Name</label>
+                      <input
+                        type="text"
+                        class="form-input large"
+                        placeholder="e.g. Rotary Knuckle…"
+                        value={editComponentName}
+                        oninput={handleComponentNameChange}
+                        onkeydown={handleInputKeydown}
+                      />
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Type</label>
+                      <div class="seg-control">
+                        <template for:each={measureTypeOptions} for:item="opt">
+                          <button
+                            key={opt.value}
+                            class="seg-btn"
+                            data-type={opt.value}
+                            data-selected={opt.isSelected}
+                            onclick={handleMeasureTypeSelect}
+                          >
+                            {opt.label}
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+
+                    <template lwc:if={showValueFields}>
+                      <div class="form-row-2">
+                        <div class="form-group">
+                          <label class="form-label">Value</label>
+                          <input
+                            type="number"
+                            class="form-input"
+                            placeholder="0.0"
+                            value={editMeasureValue}
+                            oninput={handleMeasureValueChange}
+                            onkeydown={handleInputKeydown}
+                            step="any"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label class="form-label">Value Type</label>
+                          <select
+                            class="form-select"
+                            onchange={handleMeasureValueTypeChange}
+                            onkeydown={handleInputKeydown}
+                          >
+                            <template for:each={valueTypeOptions} for:item="vt">
+                              <option
+                                key={vt.value}
+                                value={vt.value}
+                                selected={vt.isSelected}
+                              >
+                                {vt.label}
+                              </option>
+                            </template>
+                          </select>
+                        </div>
+                      </div>
+                    </template>
+
+                    <div class="form-group">
+                      <label class="form-label">Defect Location</label>
+                      <select
+                        class="form-select"
+                        onchange={handleDefectLocationChange}
+                        onkeydown={handleInputKeydown}
+                      >
+                        <template
+                          for:each={defectLocationOptions}
+                          for:item="dl"
+                        >
+                          <option
+                            key={dl.value}
+                            value={dl.value}
+                            selected={dl.isSelected}
+                          >
+                            {dl.label}
+                          </option>
+                        </template>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Comments</label>
+                      <textarea
+                        class="form-textarea"
+                        rows="2"
+                        data-id="editComments"
+                        placeholder="Observations, findings…"
+                        value={editComments}
+                        oninput={handleCommentsChange}
+                        onkeydown={handleInputKeydown}
+                      ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label"
+                        >Review Notes
+                        <span class="optional">(optional)</span></label
+                      >
+                      <textarea
+                        class="form-textarea"
+                        rows="2"
+                        data-id="editReviewNotes"
+                        placeholder="Notes for supervisor review…"
+                        value={editReviewNotes}
+                        oninput={handleReviewNotesChange}
+                        onkeydown={handleInputKeydown}
+                      ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label"
+                        >Photo <span class="optional">(optional)</span></label
+                      >
+                      <template lwc:if={pendingImagePreview}>
+                        <div class="img-preview">
+                          <img src={pendingImagePreview} alt="Selected" />
+                          <button
+                            type="button"
+                            class="img-remove"
+                            onclick={handleRemovePendingImage}
+                            title="Remove photo"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </template>
+                      <template lwc:else>
+                        <label class="img-upload-btn">
+                          <span>📷 Take photo / attach image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            data-id="measureImageInput"
+                            onchange={handleImageSelect}
+                            onkeydown={handleInputKeydown}
+                          />
+                        </label>
+                      </template>
+                    </div>
+
+                    <template lwc:if={measureFeedback}>
+                      <p class={measureFeedbackClass}>{measureFeedback}</p>
+                    </template>
+
+                    <div class="form-actions">
+                      <button class="btn-cancel" onclick={handleMeasureCancel}>
+                        Cancel
+                      </button>
+                      <button
+                        class="btn-save-entry"
+                        onclick={handleMeasureSave}
+                        disabled={isSavingMeasure}
+                      >
+                        {measureSaveLabel}
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <div class="points-list">
+                  <template lwc:if={hasPoints}>
+                    <template for:each={enrichedPoints} for:item="pt">
+                      <div key={pt.id} class="point-card">
+                        <div class="point-card-header">
+                          <span class={pt.typeClass}>
+                            <span class="type-badge">{pt.measureType}</span>
+                          </span>
+                          <div class="point-actions">
+                            <template lwc:if={pt.showOkBtn}>
+                              <button
+                                class="icon-btn ok-btn"
+                                data-point-id={pt.id}
+                                onclick={handleMarkOk}
+                                title="Mark as OK"
+                              >
+                                ✓
+                              </button>
+                            </template>
+                            <button
+                              class="icon-btn edit-btn"
+                              data-point-id={pt.id}
+                              onclick={handleEditMeasure}
+                              title="Edit"
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        </div>
+                        <div class="point-meta-line">
+                          <span class="point-component"
+                            >{pt.componentName}</span
+                          >
+                          <template lwc:if={pt.workOrderNumber}>
+                            <span class="point-wo" title="Related work order"
+                              >🔧 WO {pt.workOrderNumber}</span
+                            >
+                          </template>
+                          <span class="point-date">{pt.formattedDate}</span>
+                        </div>
+                        <template lwc:if={pt.showMeasure}>
+                          <div class="point-measure">
+                            <span class="measure-value">{pt.measureValue}</span>
+                            <span class="measure-unit"
+                              >{pt.measureValueType}</span
+                            >
+                          </div>
+                        </template>
+                        <template lwc:if={pt.showDefect}>
+                          <span class="point-defect"
+                            >📍 {pt.defectLocation}</span
+                          >
+                        </template>
+                        <template lwc:if={pt.hasImage}>
+                          <div class="point-image">
+                            <img
+                              src={pt.imageUri}
+                              alt={pt.componentName}
+                              loading="lazy"
+                            />
+                          </div>
+                        </template>
+                        <template lwc:if={pt.comments}>
+                          <p class="point-comments">{pt.comments}</p>
+                        </template>
+                      </div>
+                    </template>
+                  </template>
+                  <template lwc:else>
+                    <template lwc:if={showMeasureForm}></template>
+                    <template lwc:else>
+                      <div class="ar-empty">
+                        <span class="ar-empty-icon">🔍</span>
+                        <p>No measure points yet.<br />Tap "+ New Measure".</p>
+                      </div>
+                    </template>
+                  </template>
+                </div>
+              </template>
+
+              <template lwc:if={isExecuteTab}>
+                <template lwc:if={planActionError}>
+                  <p class="ar-plan-error">{planActionError}</p>
+                </template>
+                <template lwc:if={hasPlans}>
+                  <template lwc:if={planActionError}>
+                    <p class="ar-plan-error">{planActionError}</p>
+                  </template>
+                  <div class="plan-list">
+                    <template for:each={workPlansEnriched} for:item="plan">
+                      <div key={plan.id} class="plan-card">
+                        <button
+                          class={plan.toggleClass}
+                          data-plan-id={plan.id}
+                          onclick={handleTogglePlan}
+                          aria-expanded={plan.isExpanded}
+                        >
+                          <span class="plan-order">{plan.executionOrder}</span>
+                          <span class="plan-name">{plan.name}</span>
+                          <template lwc:if={plan.workOrderNumber}>
+                            <span class="plan-wo" title="Related work order"
+                              >WO {plan.workOrderNumber}</span
+                            >
+                          </template>
+                          <span class="ar-plan-ring">
+                            <svg viewBox="0 0 44 44" class="ar-ring-svg">
+                              <circle
+                                class="ar-ring-track"
+                                cx="22"
+                                cy="22"
+                                r="18"
+                              ></circle>
+                              <circle
+                                class="ar-ring-arc"
+                                cx="22"
+                                cy="22"
+                                r="18"
+                                stroke-dasharray={plan.ringDash}
+                                stroke-dashoffset={plan.ringOffset}
+                                transform="rotate(-90 22 22)"
+                              ></circle>
+                              <text
+                                class="ar-ring-pct"
+                                x="22"
+                                y="22"
+                                text-anchor="middle"
+                                dominant-baseline="central"
+                              >
+                                {plan.ringPercentText}
+                              </text>
+                            </svg>
+                          </span>
+                          <span class="plan-chevron">{plan.chevron}</span>
+                        </button>
+                        <template lwc:if={plan.isExpanded}>
+                          <div class="step-list">
+                            <template for:each={plan.steps} for:item="step">
+                              <div key={step.id} class={step.stepClass}>
+                                <span class="step-num"
+                                  >{step.executionOrder}</span
+                                >
+                                <div class="step-body">
+                                  <span class="step-name">{step.name}</span>
+                                  <template lwc:if={step.description}>
+                                    <span class="step-desc"
+                                      >{step.description}</span
+                                    >
+                                  </template>
+                                </div>
+                                <span class="step-status">{step.status}</span>
+                                <template lwc:if={step.hasAction}>
+                                  <button
+                                    class="ar-step-action-btn"
+                                    data-step-id={step.id}
+                                    data-action-def={step.actionDefinition}
+                                    onclick={handleStepClick}
+                                  >
+                                    Open action
+                                  </button>
+                                </template>
+                                <template lwc:if={step.canComplete}>
+                                  <button
+                                    class="ar-step-complete-btn"
+                                    data-step-id={step.id}
+                                    onclick={handleMarkStepComplete}
+                                  >
+                                    Mark complete
+                                  </button>
+                                </template>
+                              </div>
+                            </template>
+                            <template lwc:if={plan.hasNoSteps}>
+                              <p class="no-steps">No steps defined.</p>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <template lwc:else>
+                  <div class="ar-empty">
+                    <span class="ar-empty-icon">📋</span>
+                    <p>No work plans on the work order for this asset.</p>
+                  </div>
+                </template>
+              </template>
+
+              <template lwc:if={isPartsTab}>
+                <template lwc:if={partActionError}>
+                  <p class="ar-plan-error">{partActionError}</p>
+                </template>
+                <template lwc:if={hasParts}>
+                  <div class="parts-table">
+                    <div class="parts-head">
+                      <span class="parts-col-name">Part</span>
+                      <span class="parts-col-num">Consumed</span>
+                      <span class="parts-col-num">Required</span>
+                      <span class="parts-col-num">Cost</span>
+                      <span class="parts-col-act"></span>
+                    </div>
+                    <template for:each={partsEnriched} for:item="part">
+                      <div key={part.key} class="parts-row">
+                        <span class="parts-col-name">{part.productName}</span>
+                        <span class="parts-col-num">{part.consumedText}</span>
+                        <span class="parts-col-num">{part.requiredText}</span>
+                        <span class="parts-col-num">{part.costText}</span>
+                        <span class="parts-col-act">
+                          <template lwc:if={part.canConsume}>
+                            <button
+                              class="ar-consume-btn"
+                              data-wo-id={part.workOrderId}
+                              data-product-id={part.product2Id}
+                              data-pbe-id={part.pricebookEntryId}
+                              data-unit-price={part.unitPrice}
+                              onclick={handleConsumePart}
+                            >
+                              + Consume
+                            </button>
+                          </template>
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <template lwc:else>
+                  <div class="ar-empty">
+                    <span class="ar-empty-icon">📦</span>
+                    <p>No parts recorded for this asset.</p>
+                  </div>
+                </template>
+
+                <template lwc:if={canAddPart}>
+                  <div class="ar-addpart">
+                    <button
+                      class="ar-addpart-toggle"
+                      onclick={handleToggleAddPart}
+                    >
+                      + Add part
+                    </button>
+                    <template lwc:if={showAddPart}>
+                      <div class="ar-addpart-row">
+                        <select
+                          class="form-select"
+                          onchange={handleAddProductChange}
+                          onkeydown={handleInputKeydown}
+                        >
+                          <option value="">Select a part…</option>
+                          <template for:each={productOptions} for:item="opt">
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          </template>
+                        </select>
+                        <button
+                          class="ar-consume-btn"
+                          onclick={handleAddPart}
+                          disabled={addPartDisabled}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </template>
+
+              <template lwc:if={isNotesTab}>
+                <div class="notes-pane">
+                  <template lwc:if={hasWoNotes}>
+                    <pre class="notes-history">{woNotes}</pre>
+                  </template>
+                  <template lwc:else>
+                    <p class="wl-empty">No notes yet.</p>
+                  </template>
+                  <div class="form-group">
+                    <label class="form-label">Add note</label>
+                    <textarea
+                      class="form-textarea"
+                      rows="3"
+                      data-id="newNote"
+                      value={newNote}
+                      oninput={handleNewNoteChange}
+                      onkeydown={handleInputKeydown}
+                    ></textarea>
+                  </div>
+                  <div class="form-row-2">
+                    <div class="form-group">
+                      <label class="form-label">Cause Code</label>
+                      <select
+                        class="form-select"
+                        onchange={handleNotesCauseChange}
+                        onkeydown={handleInputKeydown}
+                      >
+                        <template for:each={notesCauseOptions} for:item="opt">
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            selected={opt.selected}
+                          >
+                            {opt.label}
+                          </option>
+                        </template>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Delay Code</label>
+                      <select
+                        class="form-select"
+                        onchange={handleNotesDelayChange}
+                        onkeydown={handleInputKeydown}
+                      >
+                        <template for:each={notesDelayOptions} for:item="opt">
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            selected={opt.selected}
+                          >
+                            {opt.label}
+                          </option>
+                        </template>
+                      </select>
+                    </div>
+                  </div>
+                  <template lwc:if={notesFeedback}>
+                    <p class={notesFeedbackClass}>{notesFeedback}</p>
+                  </template>
+                  <div class="form-actions">
+                    <button
+                      class="btn-save-entry"
+                      onclick={handleSaveNotes}
+                      disabled={notesSaveDisabled}
+                    >
+                      {notesSaveLabel}
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template lwc:if={isRaisedTab}>
+                <template lwc:if={hasRaised}>
+                  <template for:each={raisedRows} for:item="t">
+                    <div key={t.id} class="task-card">
+                      <div class="task-card-header">
+                        <span class="task-num">{t.woNumber}</span>
+                        <span class={t.statusClass}>{t.status}</span>
+                      </div>
+                      <div class="task-subject">{t.subject}</div>
+                      <template lwc:if={t.workTypeName}>
+                        <span class="wt-chip">{t.workTypeName}</span>
+                      </template>
+                    </div>
+                  </template>
+                </template>
+                <template lwc:else>
+                  <div class="ar-empty">
+                    <p>No raised tasks on this asset.</p>
+                  </div>
+                </template>
+              </template>
+            </section>
+          </div>
+        </template>
+
+        <!-- Task form (PM02 create/edit) -->
+        <template lwc:if={showTaskForm}>
+          <div class="entry-form">
+            <div class="form-group">
+              <label class="form-label">Subject</label>
+              <input
+                type="text"
+                class="form-input large"
+                placeholder="e.g. Replace rotary knuckle…"
+                value={taskSubject}
+                oninput={handleTaskSubjectChange}
+                onkeydown={handleInputKeydown}
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea
+                class="form-textarea"
+                rows="2"
+                data-id="taskDescription"
+                placeholder="Scope of work…"
+                value={taskDescription}
+                oninput={handleTaskDescriptionChange}
+                onkeydown={handleInputKeydown}
+              ></textarea>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Cause Code</label>
+                <select
+                  class="form-select"
+                  onchange={handleTaskCauseChange}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={taskCauseOptions} for:item="opt">
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      selected={opt.selected}
+                    >
+                      {opt.label}
+                    </option>
+                  </template>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Delay Code</label>
+                <select
+                  class="form-select"
+                  onchange={handleTaskDelayChange}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={taskDelayOptions} for:item="opt">
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      selected={opt.selected}
+                    >
+                      {opt.label}
+                    </option>
+                  </template>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Start Date</label>
+                <input
+                  type="datetime-local"
+                  class="form-input"
+                  value={taskStartDate}
+                  onchange={handleTaskStartDateChange}
+                  onkeydown={handleInputKeydown}
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Duration (hrs)</label>
+                <input
+                  type="number"
+                  class="form-input"
+                  placeholder="0.0"
+                  step="any"
+                  value={taskDurationHours}
+                  oninput={handleTaskDurationChange}
+                  onkeydown={handleInputKeydown}
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Component (FLOC Desc)</label>
+              <input
+                type="text"
+                class="form-input"
+                placeholder="SAP FLOC description…"
+                value={taskComponent}
+                oninput={handleTaskComponentChange}
+                onkeydown={handleInputKeydown}
+              />
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label">Maintenance Order</label>
+                <select
+                  class="form-select"
+                  onchange={handleTaskPriorityChange}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={taskPriorityOptions} for:item="opt">
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      selected={opt.selected}
+                    >
+                      {opt.label}
+                    </option>
+                  </template>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select
+                  class="form-select"
+                  onchange={handleTaskStatusChange}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={taskStatusOptions} for:item="opt">
+                    <option
+                      key={opt.value}
+                      value={opt.value}
+                      selected={opt.selected}
+                    >
+                      {opt.label}
+                    </option>
+                  </template>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Comments</label>
+              <textarea
+                class="form-textarea"
+                rows="2"
+                data-id="taskComments"
+                placeholder="Comments…"
+                value={taskComments}
+                oninput={handleTaskCommentsChange}
+                onkeydown={handleInputKeydown}
+              ></textarea>
+            </div>
+
+            <template lwc:if={taskFeedback}>
+              <p class={taskFeedbackClass}>{taskFeedback}</p>
+            </template>
+            <div class="form-actions">
+              <button class="btn-cancel" onclick={handleTaskCancel}>
+                Cancel
+              </button>
+              <button
+                class="btn-save-entry"
+                onclick={handleTaskSave}
+                disabled={isSavingTask}
+              >
+                {taskSaveLabel}
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <template lwc:if={showRaise}>
+          <div class="raise-backdrop">
+            <div class="raise-modal">
+              <h3 class="raise-title">Raise Task</h3>
+              <div class="form-group">
+                <label class="form-label">Asset</label>
+                <select
+                  class="form-select"
+                  onchange={handleRaiseAssetChange}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={raiseAssetOptions} for:item="o">
+                    <option key={o.value} value={o.value} selected={o.selected}>
+                      {o.label}
+                    </option>
+                  </template>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Work type</label>
+                <input
+                  type="text"
+                  class="form-input"
+                  placeholder="Search work types…"
+                  value={raiseWtQuery}
+                  oninput={handleRaiseWtSearch}
+                  onkeydown={handleInputKeydown}
+                />
+                <select
+                  class="form-select"
+                  size="5"
+                  onchange={handleRaiseWtPick}
+                  onkeydown={handleInputKeydown}
+                >
+                  <template for:each={raiseWtOptions} for:item="o">
+                    <option key={o.id} value={o.id} selected={o.selected}>
+                      {o.name}
+                    </option>
+                  </template>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Subject</label>
+                <input
+                  type="text"
+                  class="form-input large"
+                  value={raiseSubject}
+                  oninput={handleRaiseSubject}
+                  onkeydown={handleInputKeydown}
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea
+                  class="form-textarea"
+                  rows="3"
+                  value={raiseDescription}
+                  oninput={handleRaiseDescription}
+                  onkeydown={handleInputKeydown}
+                ></textarea>
+              </div>
+              <template lwc:if={raiseFeedback}>
+                <p class="form-feedback error">{raiseFeedback}</p>
+              </template>
+              <div class="form-actions">
+                <button class="btn-cancel" onclick={handleRaiseCancel}>
+                  Cancel
+                </button>
+                <button
+                  class="btn-save-entry"
+                  onclick={handleRaiseSave}
+                  disabled={raiseSaving}
+                >
+                  {raiseSaveLabel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
 </template>

@@ -1739,7 +1739,12 @@ span.ok .type-badge {
   margin: 0 0 12px;
   color: var(--rt-text, #f2f5f7);
 }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .ar-split {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
   .ar-split,
   .ar-split:has(.ar-wolist.rail) {
     grid-template-columns: 1fr;
@@ -2029,4 +2034,16 @@ span.ok .type-badge {
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
+}
+
+.wl-chipbar {
+  margin-bottom: 12px;
+}
+.wl-chipbar .wl-chips {
+  background: var(--rt-surface, #131a22);
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

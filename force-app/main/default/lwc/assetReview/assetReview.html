@@ -259,6 +259,27 @@
 
         <!-- ─── Work order list + workspace (v6) ─── -->
         <template lwc:if={hasWorkspace}>
+          <div class="wl-chipbar">
+            <template lwc:if={showWtChips}>
+              <div class="wl-chips">
+                <template for:each={wtChips} for:item="c">
+                  <button
+                    key={c.name}
+                    class={c.chipClass}
+                    data-wt={c.name}
+                    onclick={handleToggleWt}
+                  >
+                    {c.name}<span class="wl-chip-n">{c.open}</span>
+                  </button>
+                </template>
+                <template lwc:if={wtActive}>
+                  <button class="wl-chip clear" onclick={handleClearWt}>
+                    Show all
+                  </button>
+                </template>
+              </div>
+            </template>
+          </div>
           <div class="ar-split">
             <aside class={listClass}>
               <template lwc:if={listCollapsed}>
@@ -320,25 +341,6 @@
                     </button>
                   </span>
                 </div>
-                <template lwc:if={showWtChips}>
-                  <div class="wl-chips">
-                    <template for:each={wtChips} for:item="c">
-                      <button
-                        key={c.name}
-                        class={c.chipClass}
-                        data-wt={c.name}
-                        onclick={handleToggleWt}
-                      >
-                        {c.name}<span class="wl-chip-n">{c.open}</span>
-                      </button>
-                    </template>
-                    <template lwc:if={wtActive}>
-                      <button class="wl-chip clear" onclick={handleClearWt}>
-                        Show all
-                      </button>
-                    </template>
-                  </div>
-                </template>
                 <div class="wl-body">
                   <template lwc:if={wpRow}>
                     <button

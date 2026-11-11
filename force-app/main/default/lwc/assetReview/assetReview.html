@@ -69,7 +69,21 @@
               </button>
             </div>
             <template lwc:if={drawerOpen}>
-              <div class="aw-drawer">
+              <div class="aw-scrim" onclick={handleToggleDrawer}></div>
+              <div class="aw-drawer" role="dialog" aria-label="Asset details">
+                <div class="aw-drawer-h">
+                  <span class="aw-drawer-t">ⓘ {selectedAssetName}</span>
+                  <button
+                    class="aw-drawer-x"
+                    onclick={handleToggleDrawer}
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div class="aw-drawer-sub">
+                  Fields and edit rights from Kiosk Config
+                </div>
                 <template lwc:if={hasDrawerRows}>
                   <div class="overview-grid">
                     <template for:each={drawerRows} for:item="r">
@@ -142,6 +156,11 @@
                     No drawer fields configured or readable.
                   </p>
                 </template>
+                <div class="aw-drawer-foot">
+                  <button class="btn-cancel" onclick={handleToggleDrawer}>
+                    Close
+                  </button>
+                </div>
               </div>
             </template>
           </template>
@@ -228,10 +247,13 @@
                 </template>
               </div>
               <div class="ic-tree">
-                <button class="ic-root" onclick={handleIcicleRoot}>
+                <button
+                  class={icicleRootClass}
+                  onclick={handleIcicleRoot}
+                  title={icicleRootLabel}
+                >
                   <span class="zone-dot status-grey"></span>
                   <span class="chip-label">{icicleRootLabel}</span>
-                  <span class="ic-root-hint">Show all</span>
                   <template lwc:if={mapWoCount}>
                     <span class="wo-badge">{mapWoCount}</span>
                   </template>
@@ -860,7 +882,12 @@
                         <div key={g.key} class="mz-group">
                           <div class="mz-group-h">{g.label}</div>
                           <template for:each={g.points} for:item="pt">
-                            <div key={pt.id} class={pt.rowCls}>
+                            <div
+                              key={pt.id}
+                              class={pt.rowCls}
+                              data-point-id={pt.id}
+                              onclick={handleSelectPoint}
+                            >
                               <div class="point-card-header">
                                 <span class="point-component"
                                   >{pt.componentName}</span
@@ -883,11 +910,7 @@
                                   </span>
                                 </template>
                               </div>
-                              <div
-                                class="point-meta-line"
-                                data-point-id={pt.id}
-                                onclick={handleSelectPoint}
-                              >
+                              <div class="point-meta-line">
                                 <template lwc:if={pt.hasDoc}>
                                   <button
                                     class="mz-doc-chip"

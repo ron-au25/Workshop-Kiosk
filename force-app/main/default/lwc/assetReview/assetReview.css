@@ -2721,3 +2721,125 @@ span.ok .type-badge {
   border-width: 0;
   flex: none;
 }
+
+/* ─── v3.7: root selectable, unbold map names, mock drawer, fixed doc pane ─── */
+.ic-root,
+.ic-node,
+.ic-root .chip-label,
+.ic-node .chip-label {
+  font-weight: 400;
+}
+.ic-root.tapped {
+  border: 2px solid var(--rt-accent, #e25822);
+  border-left-width: 4px;
+  background: rgba(226, 88, 34, 0.14);
+}
+.ic-root.st-red {
+  border-left-color: #e5484d;
+}
+.ic-root.st-green {
+  border-left-color: #21c07a;
+}
+.ic-root.st-amber {
+  border-left-color: #f2b441;
+}
+.point-card {
+  cursor: pointer;
+}
+.mz-picked {
+  outline: 2px solid var(--rt-accent, #e25822);
+  outline-offset: -1px;
+}
+.mz-side c-kiosk-pdf-pane {
+  display: block;
+  height: 72vh;
+}
+.aw-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9000;
+}
+.aw-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 500px;
+  max-width: 92vw;
+  z-index: 9001;
+  background: var(--rt-surface, #131a22);
+  border: 0;
+  border-left: 1px solid var(--rt-border, #2a3744);
+  border-radius: 0;
+  padding: 22px;
+  overflow: auto;
+  box-sizing: border-box;
+}
+.aw-drawer-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.aw-drawer-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--rt-text, #f2f5f7);
+}
+.aw-drawer-x {
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+  color: var(--rt-text-muted, #a6b2bd);
+  cursor: pointer;
+}
+.aw-drawer-sub {
+  color: var(--rt-text-muted, #a6b2bd);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.aw-drawer .overview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.aw-drawer .ov-key {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--rt-text-muted, #a6b2bd);
+}
+.aw-drawer .ov-val {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--rt-surface-2, #1b2530);
+  color: var(--rt-text-muted, #a6b2bd);
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.aw-drawer .form-input,
+.aw-drawer .form-select {
+  min-height: 44px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.aw-drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* v3.7: long WO list must scroll, not squash cards */
+.wl-body > * {
+  flex-shrink: 0;
+}

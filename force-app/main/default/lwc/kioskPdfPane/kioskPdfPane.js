@@ -29,6 +29,10 @@ export default class KioskPdfPane extends LightningElement {
   _boundMessage = null;
   _stageW = 0;
   _stageH = 0;
+  _hostDocKey = null; // doc the host iframe has already parsed
+  _renderedKey = null; // docId|page|width of the bitmap on screen
+  _scrollPending = false;
+  _postedKey = null;
 
   connectedCallback() {
     this._boundMessage = this.handleMessage.bind(this);
@@ -133,7 +137,21 @@ export default class KioskPdfPane extends LightningElement {
       return;
     }
     const page = Number(req.pageNumber) > 0 ? Number(req.pageNumber) : 1;
+    this._scrollPending = true;
+    // Same page already on screen: just move the highlight, no re-render.
+    if (
+      this.pageRect &&
+      this.pageNumber === page &&
+      this._renderedKey === this._renderKey(page, this._measureWidth())
+    ) {
+      this.computeHighlight();
+      return;
+    }
     this.renderPage(page);
+  }
+
+  _renderKey(page, width) {
+    return this._docId + "|" + page + "|" + width;
   }
 
   @api
@@ -188,13 +206,20 @@ export default class KioskPdfPane extends LightningElement {
     this.postRender();
   }
 
-  measureStage() {
+  // Fit width: the page is as wide as the pane (times zoom); its height follows the page.
+  _measureWidth() {
     const wrap = this.template.querySelector(".pane-scroll");
-    const rect = wrap ? wrap.getBoundingClientRect() : null;
-    const baseW = rect && rect.width > 50 ? rect.width : 600;
-    const baseH = rect && rect.height > 50 ? rect.height : 700;
-    this._stageW = Math.floor(baseW * this.zoom);
-    this._stageH = Math.floor(baseH * this.zoom);
+    const w = wrap ? wrap.clientWidth : 0;
+    return Math.floor((w > 50 ? w : 600) * this.zoom);
+  }
+
+  measureStage() {
+    const w = this._measureWidth();
+    if (w !== this._stageW || !this._stageH) {
+      // Until the host reports the real height, assume an A4 portrait page.
+      this._stageH = Math.floor(w * 1.414);
+    }
+    this._stageW = w;
   }
 
   postRender() {
@@ -209,16 +234,20 @@ export default class KioskPdfPane extends LightningElement {
       return;
     }
     const origin = new URL(iframe.src, window.location.href).origin;
+    const payload = {
+      docKey: this._docId,
+      fitWidth: true,
+      pageNumber: this._pendingRender,
+      availableWidth: this._stageW,
+      availableHeight: this._stageH
+    };
+    // Send the bytes only once per document; the host keeps the parsed PDF.
+    if (this._hostDocKey !== this._docId) {
+      payload.base64 = this._b64[this._docId];
+    }
+    this._postedKey = this._renderKey(this._pendingRender, this._stageW);
     iframe.contentWindow.postMessage(
-      {
-        type: "pdfjsHost:render",
-        payload: {
-          base64: this._b64[this._docId],
-          pageNumber: this._pendingRender,
-          availableWidth: this._stageW,
-          availableHeight: this._stageH
-        }
-      },
+      { type: "pdfjsHost:render", payload },
       origin
     );
   }
@@ -250,8 +279,13 @@ export default class KioskPdfPane extends LightningElement {
         break;
       case "pdfjsHost:rendered":
         this.loading = false;
+        this._hostDocKey = this._docId;
+        this._renderedKey = this._postedKey;
         this.pageCount = p.pageCount || this.pageCount;
         this.pageNumber = p.pageNumber || this.pageNumber;
+        if (p.bitmapCssHeight > 0) {
+          this._stageH = Math.ceil(p.bitmapCssHeight);
+        }
         this.pageRect = {
           left: p.bitmapCssLeft || 0,
           top: p.bitmapCssTop || 0,
@@ -270,11 +304,18 @@ export default class KioskPdfPane extends LightningElement {
         (p.pages || []).forEach((pg) => {
           byPage[pg.pageNumber] = pg.items || [];
         });
-        this._textPages[this._docId] = byPage;
+        this._textPages[p.docKey || this._docId] = byPage;
         this.computeHighlight();
         break;
       }
       case "pdfjsHost:error":
+        if (p.message === "NEED_DOC") {
+          // Host lost the parsed document (iframe reloaded): resend with the bytes.
+          this._hostDocKey = null;
+          this._pendingRender = this.pageNumber;
+          this.postRender();
+          break;
+        }
         this.fail(new Error(p.message || "PDF error"));
         break;
       default:
@@ -297,12 +338,34 @@ export default class KioskPdfPane extends LightningElement {
     if (!items) {
       // Text not read yet: show the rough band now, refine when text arrives.
       this.highlight = this.band(pct);
+      this._scrollToHighlight();
       return;
     }
     const label = req.tableName
       ? splitTableComponent(req.componentName).row
       : req.componentName;
     this.highlight = locateLabelLine(items, label, pct) || this.band(pct);
+    this._scrollToHighlight();
+  }
+
+  // Bring the boxed line into view (a third of the way down the pane).
+  _scrollToHighlight() {
+    const h = this.highlight;
+    const r = this.pageRect;
+    if (!this._scrollPending || !h || !r) {
+      return;
+    }
+    const top = r.top + h.y * r.height;
+    const left = r.left + h.x * r.width;
+    // Wait for the stage to re-render at the page's real height before scrolling.
+    Promise.resolve().then(() => {
+      const wrap = this.template.querySelector(".pane-scroll");
+      if (!wrap) {
+        return;
+      }
+      wrap.scrollTop = Math.max(0, top - wrap.clientHeight / 3);
+      wrap.scrollLeft = this.zoomIndex > 0 ? Math.max(0, left - 24) : 0;
+    });
   }
 
   band(pct) {

@@ -31,6 +31,11 @@
         html.all-pages {
             height: auto;
         }
+        /* Kiosk fit-width: page pinned top-left so the parent can size and scroll it. */
+        body.fit-width {
+            display: block;
+            overflow: hidden;
+        }
         #status { display: none; }
         canvas {
             display: block;
@@ -61,7 +66,10 @@
      * Loaded in an iframe by the parent LWC (prtAnnotator / offline viewer)
      * and driven via postMessage:
      *
-     *   parent -> host  { type: 'pdfjsHost:render',   payload: { base64, pageNumber, availableWidth, availableHeight, allPages } }
+     *   parent -> host  { type: 'pdfjsHost:render',   payload: { base64, pageNumber, availableWidth, availableHeight, allPages, docKey, fitWidth } }
+     *   docKey (kiosk): the parsed PDF is kept per docKey, so later renders of the same doc
+     *   can omit base64. A render without base64 for an unknown docKey fails with 'NEED_DOC'.
+     *   fitWidth (kiosk): scale to availableWidth only and pin the page top-left.
      *   host -> parent  { type: 'pdfjsHost:ready',    payload: {} }
      *                   { type: 'pdfjsHost:status',   payload: { text } }
      *                   { type: 'pdfjsHost:rendered', payload: { pageCount, pageNumber, bitmapCss* rect, pageHeights?, totalCssHeight? } }
@@ -82,6 +90,7 @@
         var canvas = document.getElementById('cv');
         var pdfjsLoaded = false;
         var renderGen = 0;
+        var activeTask = null;
 
         // Kiosk hardening: the parent passes its own origin as ?origin=. Outgoing messages go only
         // to that origin and incoming render commands from any other origin are ignored.
@@ -187,7 +196,15 @@
             if (payload && payload.annotationMode === 0) {
                 renderOpts.annotationMode = 0;
             }
-            return page.render(renderOpts).promise
+            // One render at a time on the shared canvas: cancel the previous page paint.
+            if (targetCanvas === canvas && activeTask) {
+                try { activeTask.cancel(); } catch (e) { /* ignore */ }
+            }
+            var task = page.render(renderOpts);
+            if (targetCanvas === canvas) {
+                activeTask = task;
+            }
+            return task.promise
                 .then(function () {
                     var rect = targetCanvas.getBoundingClientRect();
                     return {
@@ -286,6 +303,8 @@
         }
 
         var textKey = '';
+        var cachedKey = null;
+        var cachedPdf = null;
 
         function boxFromViewport(view, x0, y0, x1, y1) {
             var p0 = view.convertToViewportPoint(x0, y0);
@@ -472,11 +491,13 @@
             });
         }
 
-        function extractAllText(pdf, gen) {
+        // Text belongs to the document, not to one render, so a newer render of the
+        // same document must not cancel it.
+        function extractAllText(pdf, key) {
             var jobs = [];
             for (var n = 1; n <= pdf.numPages; n += 1) {
                 jobs.push(pdf.getPage(n).then(function (page) {
-                    if (gen !== renderGen) {
+                    if (cachedKey !== key) {
                         return null;
                     }
                     return textItemsFromPage(page).then(function (items) {
@@ -485,48 +506,68 @@
                 }));
             }
             return Promise.all(jobs).then(function (pages) {
-                if (gen !== renderGen) {
+                if (cachedKey !== key) {
+                    textKey = '';
                     return;
                 }
-                post('text', { pages: pages.filter(Boolean) });
+                post('text', { pages: pages.filter(Boolean), docKey: key.indexOf('k:') === 0 ? key.slice(2) : null });
             });
         }
 
-        function scheduleText(pdf, gen, base64) {
-            var key = String(base64.length) + ':' + base64.charCodeAt(0) + ':' + base64.charCodeAt(base64.length - 1);
+        function scheduleText(pdf, gen, key) {
             if (textKey === key) {
                 return;
             }
             textKey = key;
-            extractAllText(pdf, gen).catch(function () {
+            extractAllText(pdf, key).catch(function () {
                 textKey = '';
             });
+        }
+
+        function fingerprint(base64) {
+            return String(base64.length) + ':' + base64.charCodeAt(0) + ':' + base64.charCodeAt(base64.length - 1);
+        }
+
+        function loadPdf(base64, key) {
+            if (cachedPdf && cachedKey === key) {
+                return Promise.resolve(cachedPdf);
+            }
+            setStatus('decoding base64...');
+            var binary = atob(base64);
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            setStatus('parsing PDF (real-worker mode)...');
+            // Keep image bytes in the worker. An ImageBitmap can be painted
+            // only once on iPad, and reading it for the table blanks the form.
+            // eslint-disable-next-line no-undef
+            return pdfjsLib.getDocument({ data: bytes, isOffscreenCanvasSupported: false }).promise
+                .then(function (pdf) {
+                    if (cachedPdf && cachedPdf !== pdf && typeof cachedPdf.destroy === 'function') {
+                        try { cachedPdf.destroy(); } catch (e) { /* ignore */ }
+                    }
+                    cachedPdf = pdf;
+                    cachedKey = key;
+                    return pdf;
+                });
         }
 
         function renderPdf(payload) {
             var base64 = payload.base64;
             var pageNumber = payload.pageNumber || 1;
             var allPages = payload.allPages === true;
-            if (!base64) {
-                fail('render payload missing base64');
+            var fitWidth = payload.fitWidth === true && !allPages;
+            var key = payload.docKey ? 'k:' + payload.docKey : (base64 ? fingerprint(base64) : null);
+            if (!base64 && !(cachedPdf && key && cachedKey === key)) {
+                fail(payload.docKey ? 'NEED_DOC' : 'render payload missing base64');
                 return;
             }
             var gen = ++renderGen;
 
             try {
-                setStatus('decoding base64...');
-                var binary = atob(base64);
-                var bytes = new Uint8Array(binary.length);
-                for (var i = 0; i < binary.length; i++) {
-                    bytes[i] = binary.charCodeAt(i);
-                }
-
-                setStatus('parsing PDF (real-worker mode)...');
                 var tParse = performance.now();
-                // eslint-disable-next-line no-undef
-                // Keep image bytes in the worker. An ImageBitmap can be painted
-                // only once on iPad, and reading it for the table blanks the form.
-                pdfjsLib.getDocument({ data: bytes, isOffscreenCanvasSupported: false }).promise
+                loadPdf(base64, key)
                     .then(function (pdf) {
                         if (gen !== renderGen) {
                             return;
@@ -537,11 +578,15 @@
                             painted = renderAllPages(pdf, payload, parseMs, gen);
                         } else {
                             setAllPagesMode(false);
+                            document.body.classList.toggle('fit-width', fitWidth);
                             var safePage = Math.min(Math.max(1, pageNumber), pdf.numPages);
                             setStatus('rendering page ' + safePage + ' of ' + pdf.numPages + '...');
                             var tRender = performance.now();
                             painted = pdf.getPage(safePage).then(function (page) {
-                                return paintPage(page, canvas, payload, false).then(function (metrics) {
+                                return paintPage(page, canvas, payload, fitWidth).then(function (metrics) {
+                                    if (gen !== renderGen) {
+                                        return;
+                                    }
                                     var renderMs = Math.round(performance.now() - tRender);
                                     setStatus('rendered page ' + safePage + ' / ' + pdf.numPages);
                                     post('rendered', {
@@ -558,13 +603,16 @@
                             });
                         }
                         return Promise.resolve(painted).then(function () {
-                            scheduleText(pdf, gen, base64);
+                            scheduleText(pdf, gen, key);
                         }, function (err) {
-                            scheduleText(pdf, gen, base64);
+                            scheduleText(pdf, gen, key);
                             return Promise.reject(err);
                         });
                     })
                     .catch(function (err) {
+                        if (err && err.name === 'RenderingCancelledException') {
+                            return;
+                        }
                         fail((err && err.message) ? err.message : String(err));
                     });
             } catch (e) {

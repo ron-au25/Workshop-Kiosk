@@ -210,6 +210,7 @@ export default class AssetReview extends LightningElement {
 
   @track selectedWheelsetId = null; // level-2 component anchor
   @track selectedChildId = null; // level-3 sub-asset (terminal selection)
+  @track rootSelected = false; // level-1 (root asset) picked in the map
   @track assetDetail = { workPlans: [], parts: [] }; // work plans + parts for active asset
   @track expandedPlanIds = {};
   @track planActionError = "";
@@ -430,6 +431,10 @@ export default class AssetReview extends LightningElement {
     if (this.initialWorkOrderId && !this.hasError) {
       await this._applyDeepLink(this.initialWorkOrderId);
     }
+    // Land on the root asset (L1) when nothing else is selected.
+    if (!this.hasError && this.wagon && !this.selectedWheelsetId) {
+      this.handleIcicleRoot();
+    }
   }
 
   // Select the asset a WO sits on (L2 component, then L3 sub-asset) and load its detail.
@@ -437,6 +442,7 @@ export default class AssetReview extends LightningElement {
     const l2Id = row.l2AssetId || row.assetId;
     const ws = this.wheelsets.find((w) => w.id === l2Id);
     if (!ws) return false;
+    this.rootSelected = false;
     this.selectedWheelsetId = ws.id;
     this.selectedChildId = null;
     this.chartsExpanded = false;
@@ -570,7 +576,7 @@ export default class AssetReview extends LightningElement {
   }
 
   async _loadDrawer() {
-    const assetId = this.activeAssetId;
+    const assetId = this.activeAsset ? this.activeAsset.id : null;
     this.drawerDraft = {};
     this.drawerFeedback = "";
     if (!assetId) {
@@ -732,7 +738,7 @@ export default class AssetReview extends LightningElement {
     if (level === "root") {
       this.zoomed = false;
       this.handleIcicleRoot();
-    } else if (level === "l2" && this.selectedChildId) {
+    } else if (level === "l2" && this.selectedWheelsetId) {
       this._autoExpand();
       this.selectedChildId = null;
       this._clearWoFilter();
@@ -746,10 +752,42 @@ export default class AssetReview extends LightningElement {
       ? this.wtSel.filter((x) => x !== name)
       : [...this.wtSel, name];
     this.listCollapsed = false;
+    this._followWtFilter();
   }
   handleClearWt() {
     this.wtSel = [];
     this.listCollapsed = false;
+  }
+  _wtName(r) {
+    return r.workTypeName || "—";
+  }
+  // Like the mock: when the selected work order (or the selected asset) has nothing in
+  // the focused work types, jump to the first matching work order and its asset.
+  async _followWtFilter() {
+    if (!this.wtSel.length) return;
+    const match = (r) => this.wtSel.includes(this._wtName(r));
+    const sel = this.woRows.find((r) => r.id === this.selectedFilterWoId);
+    if (sel && match(sel)) return;
+    const isWp = this.wpInfo && this.selectedFilterWoId === this.wpInfo.id;
+    if (isWp && this._scopeRows.length) return;
+    if (!sel && !isWp && this._scopeRows.length) {
+      if (this.selectedFilterWoId) this._clearWoFilter();
+      return;
+    }
+    const first =
+      this.woRows
+        .filter(match)
+        .sort((a, b) => String(a.number).localeCompare(String(b.number)))
+        .find((r) => this._scopeRows.includes(r)) ||
+      this.woRows.filter(match)[0];
+    if (!first) {
+      this._clearWoFilter();
+      return;
+    }
+    if (first.assetId && !this._scopeRows.includes(first)) {
+      if (!(await this._selectAssetForRow(first))) this.handleIcicleRoot();
+    }
+    await this._selectWo(first.id);
   }
   handleTab(evt) {
     this.activeTab = evt.currentTarget.dataset.tab;
@@ -910,6 +948,7 @@ export default class AssetReview extends LightningElement {
     const firstSelection = !this.selectedWheelsetId;
     this.zoomed = true;
     this._autoExpand();
+    this.rootSelected = false;
     this.selectedWheelsetId = id;
     this.selectedChildId = null; // reset the level-3 drill on a new component
     this._clearWoFilter(); // WO filter is per-asset — reset on a new component
@@ -933,6 +972,7 @@ export default class AssetReview extends LightningElement {
     const id = evt.currentTarget.dataset.id;
     if (!id) return;
     this._autoExpand();
+    this.rootSelected = false;
     this.selectedChildId = id;
     this._clearWoFilter(); // WO filter is per-asset — reset on a new sub-asset
     this.overviewExpanded = true;
@@ -1333,9 +1373,26 @@ export default class AssetReview extends LightningElement {
     this._autoCollapse();
   }
 
+  // Tap anywhere on a measure card (not its buttons/inputs) to pick it for the side pane.
   handleSelectPoint(evt) {
-    this.sidePointId = evt.currentTarget.dataset.pointId;
-    if (this.sideMode === "doc") this._pendingShow = true;
+    const path = evt.composedPath ? evt.composedPath() : [];
+    const card = evt.currentTarget;
+    for (const el of path) {
+      if (el === card) break;
+      if (
+        el.tagName &&
+        /^(BUTTON|INPUT|SELECT|TEXTAREA|A|IMG)$/.test(el.tagName)
+      )
+        return;
+    }
+    const id = card.dataset.pointId;
+    if (!id || id === this.sidePointId) return;
+    this.sidePointId = id;
+    if (this.sideMode === "doc") {
+      // Pane already rendered: update it now instead of waiting for the next render.
+      if (this.template.querySelector("c-kiosk-pdf-pane")) this._showInPane();
+      else this._pendingShow = true;
+    }
   }
 
   // Uses sidePoint (falls back to the first measure) so Document mode shows a page
@@ -1827,13 +1884,68 @@ export default class AssetReview extends LightningElement {
   }
 
   // ─── Icicle asset map ────────────────────────────────────────────────────
+  // Select the level-1 root asset: whole-asset scope (all WOs, all measures).
   handleIcicleRoot() {
     this._autoExpand();
-    this.wtSel = [];
-    if (this.selectedChildId) {
-      this.selectedChildId = null;
+    if (!this.wagon) return;
+    const wasRoot = this.rootSelected && !this.selectedWheelsetId;
+    this.rootSelected = true;
+    this.zoomed = false;
+    this.selectedWheelsetId = null;
+    this.selectedChildId = null;
+    this.serialDraft = this.wagon.serialNumber || "";
+    if (!wasRoot) {
       this._clearWoFilter();
-      this.loadDetail(this.selectedWheelsetId);
+      this.loadRootDetail();
+    }
+  }
+
+  // Apex tasks/detail roll up one level below the given asset, so the root merges
+  // the results of each level-2 component.
+  async loadRootDetail() {
+    if (this.drawerOpen) this._loadDrawer();
+    this.loadingDetail = true;
+    this.expandedPlanIds = {};
+    const ids = this.wheelsets.map((w) => w.id);
+    try {
+      const results = await Promise.all(
+        ids.map((assetId) =>
+          Promise.all([
+            getAssetTasks({
+              token: this.sessionToken,
+              assetId,
+              workOrderId: this.workOrderId
+            }),
+            getAssetReviewDetail({
+              token: this.sessionToken,
+              workOrderId: this.workOrderId,
+              assetId
+            })
+          ])
+        )
+      );
+      if (!this.rootSelected || this.selectedWheelsetId) return;
+      const uniq = (list) => {
+        const seen = {};
+        return list.filter((x) => {
+          const k = x && (x.id || JSON.stringify(x));
+          if (seen[k]) return false;
+          seen[k] = true;
+          return true;
+        });
+      };
+      this.wheelsetPoints = [];
+      this.tasks = uniq(results.flatMap(([t]) => t || []));
+      this.assetDetail = {
+        workPlans: uniq(results.flatMap(([, d]) => (d && d.workPlans) || [])),
+        parts: uniq(results.flatMap(([, d]) => (d && d.parts) || []))
+      };
+      this._loadMeasureImages();
+    } catch {
+      this.tasks = [];
+      this.assetDetail = { workPlans: [], parts: [] };
+    } finally {
+      this.loadingDetail = false;
     }
   }
 
@@ -1848,7 +1960,7 @@ export default class AssetReview extends LightningElement {
     });
     const dim =
       this.wtSel.length > 0 &&
-      !rows.some((r) => this.wtSel.includes(r.workTypeName));
+      !rows.some((r) => this.wtSel.includes(this._wtName(r)));
     return {
       id: a.id,
       name: this._shortName(a.name || a.label),
@@ -1937,7 +2049,21 @@ export default class AssetReview extends LightningElement {
 
   get activeAsset() {
     if (this.selectedChildId) return this._findChild(this.selectedChildId);
-    return this.wheelsets.find((w) => w.id === this.selectedWheelsetId) || null;
+    if (this.selectedWheelsetId)
+      return (
+        this.wheelsets.find((w) => w.id === this.selectedWheelsetId) || null
+      );
+    return this.rootSelected ? this.wagon : null;
+  }
+  get isRootSelected() {
+    return this.rootSelected && !this.selectedWheelsetId;
+  }
+  get icicleRootClass() {
+    return (
+      "ic-root st-" +
+      ((this.wagon && this.wagon.iconStatus) || "grey") +
+      (this.isRootSelected ? " tapped" : "")
+    );
   }
 
   // Level-3 sub-assets under the selected component, enriched for the chip row.
@@ -2344,7 +2470,7 @@ export default class AssetReview extends LightningElement {
     return this.activeAsset;
   }
   get hasSelection() {
-    return !!this.selectedWheelsetId;
+    return !!this.selectedWheelsetId || this.isRootSelected;
   }
   get hasPoints() {
     return this.enrichedPoints.length > 0;
@@ -2467,7 +2593,7 @@ export default class AssetReview extends LightningElement {
       rows = rows.filter((r) => this._rowInScope(r));
     }
     if (this.wtSel.length) {
-      rows = rows.filter((r) => this.wtSel.includes(r.workTypeName));
+      rows = rows.filter((r) => this.wtSel.includes(this._wtName(r)));
     }
     return rows;
   }

@@ -214,6 +214,9 @@ export default class AssetReview extends LightningElement {
   @track plansExpanded = true;
   @track partsExpanded = true;
   @track wheelsetPoints = []; // measure points for the selected wheelset
+  @track sideMode = "off"; // measure side panel: off | doc | trend
+  @track sidePointId = null;
+  _pendingShow = false;
   @track measureImages = {}; // measurePointId -> base64 data URI (lazy-loaded)
   @track pendingImagePreview = null; // data URI preview of an image staged in the form
   _pendingImageBase64 = null; // raw base64 to upload on save
@@ -1060,22 +1063,47 @@ export default class AssetReview extends LightningElement {
     if (input) input.value = "";
   }
 
-  async handleMarkOk(evt) {
-    const id = evt.currentTarget.dataset.pointId;
+  handleMarkOk(evt) {
+    this._setOutcome(evt.currentTarget.dataset.pointId, "OK");
+  }
+
+  handleOutcome(evt) {
+    this._setOutcome(
+      evt.currentTarget.dataset.pointId,
+      evt.currentTarget.dataset.outcome
+    );
+  }
+
+  handleInlineValue(evt) {
+    const raw = evt.target.value;
+    const num = raw === "" ? null : Number(raw);
+    if (num !== null && Number.isNaN(num)) {
+      return;
+    }
+    this._setOutcome(evt.target.dataset.pointId, "Measure", num);
+  }
+
+  async _setOutcome(id, measureType, valueOverride) {
     const p = this.wheelsetPoints.find((x) => x.id === id);
     if (!p) return;
+    const keepValue = measureType !== "OK";
     try {
       const req = {
         id: p.id,
         componentName: p.componentName,
-        measureType: "OK",
+        measureType,
         comments: p.comments,
         reviewNotes: p.reviewNotes,
-        measureValue: null,
-        measureValueType: null,
+        measureValue:
+          valueOverride !== undefined
+            ? valueOverride
+            : keepValue
+              ? p.measureValue
+              : null,
+        measureValueType: keepValue ? p.measureValueType : null,
         defectLocation: p.defectLocation || null,
-        workOrderId: this.workOrderId,
-        assetId: this.activeAssetId
+        workOrderId: p.workOrderId || this.workOrderId,
+        assetId: p.assetId || this.activeAssetId
       };
       const saved = await saveMeasurePoint({
         token: this.sessionToken,
@@ -1090,8 +1118,107 @@ export default class AssetReview extends LightningElement {
       });
       this._recomputeWheelsetStatus();
     } catch {
-      this._measureFb("Could not mark OK. Try again.", true);
+      this._measureFb("Could not save outcome. Try again.", true);
     }
+  }
+
+  // ─── Measure side panel (Document / Trend) ──────────────────────────────
+  handleSideMode(evt) {
+    this.sideMode = evt.currentTarget.dataset.mode;
+    if (this.sideMode === "doc") this._pendingShow = true;
+  }
+
+  handleDocChip(evt) {
+    this.sidePointId = evt.currentTarget.dataset.pointId;
+    this.sideMode = "doc";
+    this._pendingShow = true;
+    this.listCollapsed = true;
+  }
+
+  handleSelectPoint(evt) {
+    this.sidePointId = evt.currentTarget.dataset.pointId;
+    if (this.sideMode === "doc") this._pendingShow = true;
+  }
+
+  _showInPane() {
+    const pane = this.template.querySelector("c-kiosk-pdf-pane");
+    const p = this.wheelsetPoints.find((x) => x.id === this.sidePointId);
+    if (!pane || !p || !p.sourceDocumentId) return;
+    pane.showMeasure({
+      documentId: p.sourceDocumentId,
+      pageNumber: p.pageNumber,
+      componentName: p.componentName,
+      pagePositionEstimate: p.pagePositionEstimate,
+      tableName: p.tableName
+    });
+  }
+
+  get isSideOff() {
+    return this.sideMode === "off";
+  }
+  get isSideDoc() {
+    return this.sideMode === "doc";
+  }
+  get isSideTrend() {
+    return this.sideMode === "trend";
+  }
+  get measureWrapClass() {
+    return "mz-wrap" + (this.sideMode === "off" ? "" : " with-side");
+  }
+  get sideModes() {
+    return [
+      ["off", "Off"],
+      ["doc", "Document"],
+      ["trend", "Trend"]
+    ].map(([value, label]) => {
+      return {
+        value,
+        label,
+        cls: "mz-seg" + (this.sideMode === value ? " on" : "")
+      };
+    });
+  }
+  get sidePoint() {
+    return (
+      this.wheelsetPoints.find((x) => x.id === this.sidePointId) ||
+      this.wheelsetPoints[0] ||
+      null
+    );
+  }
+  get sidePointLabel() {
+    const p = this.sidePoint;
+    return p ? p.componentName : "Select a measure";
+  }
+  get sidePointHasDoc() {
+    return !!(this.sidePoint && this.sidePoint.sourceDocumentId);
+  }
+  get trendRows() {
+    const p = this.sidePoint;
+    if (!p) return [];
+    return this.allPoints
+      .filter((x) => {
+        return x.assetId === p.assetId && x.componentName === p.componentName;
+      })
+      .sort((a, b) => {
+        return String(a.updateDate || "").localeCompare(
+          String(b.updateDate || "")
+        );
+      })
+      .map((x) => {
+        return {
+          id: x.id,
+          woNumber: x.workOrderNumber || "—",
+          date: this._formatDate(x.updateDate || x.createdDate),
+          outcome: x.measureType,
+          value:
+            x.measureValue != null
+              ? this._fmtNum(x.measureValue) + " " + (x.measureValueType || "")
+              : "—"
+        };
+      });
+  }
+  get hasTrend() {
+    return this.trendRows.length > 0;
   }
 
   handleComponentNameChange(evt) {
@@ -1319,6 +1446,10 @@ export default class AssetReview extends LightningElement {
   }
 
   renderedCallback() {
+    if (this._pendingShow) {
+      this._pendingShow = false;
+      this._showInPane();
+    }
     if (this._syncNotesTa) {
       this._syncNotesTa = false;
       const ta = this.template.querySelector('[data-id="newNote"]');
@@ -1732,10 +1863,35 @@ export default class AssetReview extends LightningElement {
         showMeasure: p.measureValue != null,
         showDefect: !!p.defectLocation,
         showOkBtn: p.measureType !== "OK",
+        hasDoc: !!p.sourceDocumentId,
+        docLabel: p.pageNumber ? "📄 p." + p.pageNumber : "📄",
+        isNumeric: p.measureType === "Measure" || p.measureValue != null,
+        okCls: "mz-out ok" + (p.measureType === "OK" ? " on" : ""),
+        attCls:
+          "mz-out att" + (p.measureType === "Attention Required" ? " on" : ""),
+        scrapCls: "mz-out scrap" + (p.measureType === "Scrap" ? " on" : ""),
+        rowCls: "point-card" + (p.id === this.sidePointId ? " mz-picked" : ""),
         imageUri,
         hasImage: !!imageUri
       };
     });
+  }
+
+  get pointGroups() {
+    const groups = [];
+    const byKey = {};
+    this.enrichedPoints.forEach((p) => {
+      const parts = [];
+      if (p.pageNumber) parts.push("Page " + p.pageNumber);
+      if (p.tableName) parts.push(p.tableName);
+      const label = parts.length ? parts.join(" · ") : "Other measures";
+      if (!byKey[label]) {
+        byKey[label] = { key: label, label, points: [] };
+        groups.push(byKey[label]);
+      }
+      byKey[label].points.push(p);
+    });
+    return groups;
   }
 
   get enrichedTasks() {

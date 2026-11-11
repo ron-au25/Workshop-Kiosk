@@ -1748,3 +1748,127 @@ span.ok .type-badge {
     width: auto;
   }
 }
+
+.mz-side-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+.mz-side-lbl {
+  font-size: 12px;
+  color: var(--rt-text-muted, #8a97a6);
+  margin-right: 4px;
+}
+.mz-seg {
+  background: transparent;
+  border: 1px solid var(--rt-border, #2c3a4a);
+  color: var(--rt-text, #e6edf3);
+  border-radius: 14px;
+  padding: 6px 12px;
+  font-size: 13px;
+  min-height: 36px;
+}
+.mz-seg.on {
+  background: #f2b441;
+  color: #1a1a1a;
+  border-color: #f2b441;
+}
+.mz-wrap {
+  display: block;
+}
+.mz-wrap.with-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.mz-side {
+  border: 1px solid var(--rt-border, #2c3a4a);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 300px;
+  position: sticky;
+  top: 0;
+}
+.mz-side-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.mz-side-empty {
+  color: var(--rt-text-muted, #8a97a6);
+  font-size: 13px;
+}
+.mz-group-h {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rt-text-muted, #8a97a6);
+  margin: 10px 0 4px;
+}
+.mz-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 6px 0;
+}
+.mz-out {
+  border: 1px solid var(--rt-border, #2c3a4a);
+  background: transparent;
+  color: var(--rt-text, #e6edf3);
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 14px;
+}
+.mz-out.ok.on {
+  background: #21c07a;
+  border-color: #21c07a;
+  color: #06210f;
+}
+.mz-out.att.on {
+  background: #f2b441;
+  border-color: #f2b441;
+  color: #1a1a1a;
+}
+.mz-out.scrap.on {
+  background: #e5484d;
+  border-color: #e5484d;
+  color: #fff;
+}
+.mz-val {
+  width: 90px;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--rt-border, #2c3a4a);
+  background: var(--rt-surface, #101820);
+  color: var(--rt-text, #e6edf3);
+  padding: 0 8px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.mz-doc-chip {
+  background: transparent;
+  border: 1px solid #4aa3ff;
+  color: #4aa3ff;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 32px;
+}
+.mz-picked {
+  outline: 2px solid #f2b441;
+}
+.mz-trend-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr 1fr;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rt-border, #2c3a4a);
+  font-size: 13px;
+}
+.mz-trend-val {
+  text-align: right;
+  font-weight: 600;
+}

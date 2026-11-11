@@ -638,82 +638,178 @@
                     </div>
                   </div>
                 </template>
-                <div class="points-list">
-                  <template lwc:if={hasPoints}>
-                    <template for:each={enrichedPoints} for:item="pt">
-                      <div key={pt.id} class="point-card">
-                        <div class="point-card-header">
-                          <span class={pt.typeClass}>
-                            <span class="type-badge">{pt.measureType}</span>
-                          </span>
-                          <div class="point-actions">
-                            <template lwc:if={pt.showOkBtn}>
-                              <button
-                                class="icon-btn ok-btn"
-                                data-point-id={pt.id}
-                                onclick={handleMarkOk}
-                                title="Mark as OK"
-                              >
-                                ✓
-                              </button>
-                            </template>
-                            <button
-                              class="icon-btn edit-btn"
-                              data-point-id={pt.id}
-                              onclick={handleEditMeasure}
-                              title="Edit"
-                            >
-                              ✏️
-                            </button>
-                          </div>
-                        </div>
-                        <div class="point-meta-line">
-                          <span class="point-component"
-                            >{pt.componentName}</span
-                          >
-                          <template lwc:if={pt.workOrderNumber}>
-                            <span class="point-wo" title="Related work order"
-                              >🔧 WO {pt.workOrderNumber}</span
-                            >
-                          </template>
-                          <span class="point-date">{pt.formattedDate}</span>
-                        </div>
-                        <template lwc:if={pt.showMeasure}>
-                          <div class="point-measure">
-                            <span class="measure-value">{pt.measureValue}</span>
-                            <span class="measure-unit"
-                              >{pt.measureValueType}</span
-                            >
-                          </div>
-                        </template>
-                        <template lwc:if={pt.showDefect}>
-                          <span class="point-defect"
-                            >📍 {pt.defectLocation}</span
-                          >
-                        </template>
-                        <template lwc:if={pt.hasImage}>
-                          <div class="point-image">
-                            <img
-                              src={pt.imageUri}
-                              alt={pt.componentName}
-                              loading="lazy"
-                            />
-                          </div>
-                        </template>
-                        <template lwc:if={pt.comments}>
-                          <p class="point-comments">{pt.comments}</p>
-                        </template>
-                      </div>
-                    </template>
+                <div class="mz-side-bar">
+                  <span class="mz-side-lbl">Side panel</span>
+                  <template for:each={sideModes} for:item="m">
+                    <button
+                      key={m.value}
+                      class={m.cls}
+                      data-mode={m.value}
+                      onclick={handleSideMode}
+                    >
+                      {m.label}
+                    </button>
                   </template>
-                  <template lwc:else>
-                    <template lwc:if={showMeasureForm}></template>
-                    <template lwc:else>
-                      <div class="ar-empty">
-                        <span class="ar-empty-icon">🔍</span>
-                        <p>No measure points yet.<br />Tap "+ New Measure".</p>
-                      </div>
+                </div>
+                <div class={measureWrapClass}>
+                  <div class="points-list">
+                    <template lwc:if={hasPoints}>
+                      <template for:each={pointGroups} for:item="g">
+                        <div key={g.key} class="mz-group">
+                          <div class="mz-group-h">{g.label}</div>
+                          <template for:each={g.points} for:item="pt">
+                            <div key={pt.id} class={pt.rowCls}>
+                              <div class="point-card-header">
+                                <span class="point-component"
+                                  >{pt.componentName}</span
+                                >
+                                <div class="point-actions">
+                                  <template lwc:if={pt.hasDoc}>
+                                    <button
+                                      class="mz-doc-chip"
+                                      data-point-id={pt.id}
+                                      onclick={handleDocChip}
+                                      title="Show in document"
+                                    >
+                                      {pt.docLabel}
+                                    </button>
+                                  </template>
+                                  <button
+                                    class="icon-btn edit-btn"
+                                    data-point-id={pt.id}
+                                    onclick={handleEditMeasure}
+                                    title="Edit"
+                                  >
+                                    ✏️
+                                  </button>
+                                </div>
+                              </div>
+                              <div class="mz-outcomes">
+                                <button
+                                  class={pt.okCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="OK"
+                                  onclick={handleOutcome}
+                                >
+                                  OK
+                                </button>
+                                <button
+                                  class={pt.attCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="Attention Required"
+                                  onclick={handleOutcome}
+                                >
+                                  Attention
+                                </button>
+                                <button
+                                  class={pt.scrapCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="Scrap"
+                                  onclick={handleOutcome}
+                                >
+                                  Scrap
+                                </button>
+                                <template lwc:if={pt.isNumeric}>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    class="mz-val"
+                                    data-point-id={pt.id}
+                                    value={pt.measureValue}
+                                    onchange={handleInlineValue}
+                                    onkeydown={handleInputKeydown}
+                                    placeholder="value"
+                                  />
+                                  <span class="measure-unit"
+                                    >{pt.measureValueType}</span
+                                  >
+                                </template>
+                              </div>
+                              <div
+                                class="point-meta-line"
+                                data-point-id={pt.id}
+                                onclick={handleSelectPoint}
+                              >
+                                <template lwc:if={pt.workOrderNumber}>
+                                  <span
+                                    class="point-wo"
+                                    title="Related work order"
+                                    >🔧 WO {pt.workOrderNumber}</span
+                                  >
+                                </template>
+                                <span class="point-date"
+                                  >{pt.formattedDate}</span
+                                >
+                                <template lwc:if={pt.showDefect}>
+                                  <span class="point-defect"
+                                    >📍 {pt.defectLocation}</span
+                                  >
+                                </template>
+                              </div>
+                              <template lwc:if={pt.hasImage}>
+                                <div class="point-image">
+                                  <img
+                                    src={pt.imageUri}
+                                    alt={pt.componentName}
+                                    loading="lazy"
+                                  />
+                                </div>
+                              </template>
+                              <template lwc:if={pt.comments}>
+                                <p class="point-comments">{pt.comments}</p>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
                     </template>
+                    <template lwc:else>
+                      <template lwc:if={showMeasureForm}></template>
+                      <template lwc:else>
+                        <div class="ar-empty">
+                          <span class="ar-empty-icon">🔍</span>
+                          <p>
+                            No measure points yet.<br />Tap "+ New Measure".
+                          </p>
+                        </div>
+                      </template>
+                    </template>
+                  </div>
+                  <template lwc:if={isSideDoc}>
+                    <div class="mz-side">
+                      <div class="mz-side-title">{sidePointLabel}</div>
+                      <template lwc:if={sidePointHasDoc}>
+                        <c-kiosk-pdf-pane
+                          session-token={sessionToken}
+                          workpack-id={workOrderId}
+                        ></c-kiosk-pdf-pane>
+                      </template>
+                      <template lwc:else>
+                        <p class="mz-side-empty">
+                          No source document for this measure. Tap a 📄 chip.
+                        </p>
+                      </template>
+                    </div>
+                  </template>
+                  <template lwc:if={isSideTrend}>
+                    <div class="mz-side">
+                      <div class="mz-side-title">{sidePointLabel}</div>
+                      <template lwc:if={hasTrend}>
+                        <template for:each={trendRows} for:item="tr">
+                          <div key={tr.id} class="mz-trend-row">
+                            <span>WO {tr.woNumber}</span>
+                            <span>{tr.date}</span>
+                            <span>{tr.outcome}</span>
+                            <span class="mz-trend-val">{tr.value}</span>
+                          </div>
+                        </template>
+                      </template>
+                      <template lwc:else>
+                        <p class="mz-side-empty">
+                          No history for this component.
+                        </p>
+                      </template>
+                    </div>
                   </template>
                 </div>
               </template>

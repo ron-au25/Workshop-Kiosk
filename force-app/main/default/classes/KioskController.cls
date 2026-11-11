@@ -2428,7 +2428,10 @@ public with sharing class KioskController {
         Page_Position_Estimate__c,
         Table_Name__c
       FROM Measure_Point__c
-      WHERE Work_Order__c = :workOrderId
+      WHERE
+        Work_Order__c = :workOrderId
+        OR Work_Order__r.ParentWorkOrderId = :workOrderId
+        OR Work_Order__r.RootWorkOrderId = :workOrderId
       WITH SECURITY_ENFORCED
       ORDER BY CreatedDate DESC
     ];

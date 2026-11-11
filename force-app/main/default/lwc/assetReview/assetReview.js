@@ -530,7 +530,7 @@ export default class AssetReview extends LightningElement {
       return;
     }
     const row = this.woRows.find((r) => r.id === woId);
-    if (row && !this._rowInScope(row)) {
+    if (row && row.assetId && row.assetId !== this.activeAssetId) {
       await this._selectAssetForRow(row);
     }
     await this._selectWo(woId);
@@ -1167,7 +1167,7 @@ export default class AssetReview extends LightningElement {
 
   handleEditMeasure(evt) {
     const id = evt.currentTarget.dataset.pointId;
-    const p = this.wheelsetPoints.find((x) => x.id === id);
+    const p = this.measureSource.find((x) => x.id === id);
     if (!p) return;
     this.editId = p.id;
     this.editComponentName = p.componentName || "";
@@ -1268,7 +1268,7 @@ export default class AssetReview extends LightningElement {
   }
 
   async _setOutcome(id, measureType, valueOverride) {
-    const p = this.wheelsetPoints.find((x) => x.id === id);
+    const p = this.measureSource.find((x) => x.id === id);
     if (!p) return;
     const keepValue = measureType !== "OK";
     try {
@@ -1287,7 +1287,7 @@ export default class AssetReview extends LightningElement {
         measureValueType: keepValue ? p.measureValueType : null,
         defectLocation: p.defectLocation || null,
         workOrderId: p.workOrderId || this.workOrderId,
-        assetId: p.assetId || this.activeAssetId
+        assetId: p.assetId || null
       };
       const saved = await saveMeasurePoint({
         token: this.sessionToken,
@@ -1327,7 +1327,7 @@ export default class AssetReview extends LightningElement {
 
   _showInPane() {
     const pane = this.template.querySelector("c-kiosk-pdf-pane");
-    const p = this.wheelsetPoints.find((x) => x.id === this.sidePointId);
+    const p = this.measureSource.find((x) => x.id === this.sidePointId);
     if (!pane || !p || !p.sourceDocumentId) return;
     pane.showMeasure({
       documentId: p.sourceDocumentId,
@@ -1365,8 +1365,8 @@ export default class AssetReview extends LightningElement {
   }
   get sidePoint() {
     return (
-      this.wheelsetPoints.find((x) => x.id === this.sidePointId) ||
-      this.wheelsetPoints[0] ||
+      this.measureSource.find((x) => x.id === this.sidePointId) ||
+      this.measureSource[0] ||
       null
     );
   }
@@ -1382,7 +1382,10 @@ export default class AssetReview extends LightningElement {
     if (!p) return [];
     return this.allPoints
       .filter((x) => {
-        return x.assetId === p.assetId && x.componentName === p.componentName;
+        return (
+          (x.assetId || null) === (p.assetId || null) &&
+          x.componentName === p.componentName
+        );
       })
       .sort((a, b) => {
         return String(a.updateDate || "").localeCompare(
@@ -2114,12 +2117,36 @@ export default class AssetReview extends LightningElement {
     return Math.round(v * 100) / 100;
   }
 
+  // Measures shown on the Measure tab. Many PDF-extracted points have no Asset__c,
+  // so they are matched through their work order instead of the asset.
+  get measureSource() {
+    const wo = this.selectedFilterWoId;
+    if (wo && wo !== this.workOrderId) {
+      return this.allPoints.filter((p) => p.workOrderId === wo);
+    }
+    if (wo || !this.activeAssetId) return this.allPoints;
+    const inScope = {};
+    this.woRows.forEach((r) => {
+      if (this._rowInScope(r)) inScope[r.id] = true;
+    });
+    const seen = {};
+    const out = [];
+    this.wheelsetPoints
+      .concat(
+        this.allPoints.filter((p) => !p.assetId && inScope[p.workOrderId])
+      )
+      .forEach((p) => {
+        if (!seen[p.id]) {
+          seen[p.id] = true;
+          out.push(p);
+        }
+      });
+    return out;
+  }
+
   // ─── Derived: enriched measure point cards ───────────────────────────────
   get enrichedPoints() {
-    let points = this.wheelsetPoints;
-    if (this.selectedFilterWoId) {
-      points = points.filter((p) => p.workOrderId === this.selectedFilterWoId);
-    }
+    const points = this.measureSource;
     return points.map((p) => {
       let typeClass = "ok";
       if (p.measureType === "Attention Required") typeClass = "attention";
@@ -2154,7 +2181,12 @@ export default class AssetReview extends LightningElement {
       const parts = [];
       if (p.pageNumber) parts.push("Page " + p.pageNumber);
       if (p.tableName) parts.push(p.tableName);
-      const label = parts.length ? parts.join(" · ") : "Other measures";
+      let label = parts.join(" · ");
+      if (!label) {
+        label = p.workOrderNumber
+          ? "WO " + p.workOrderNumber
+          : "Other measures";
+      }
       if (!byKey[label]) {
         byKey[label] = { key: label, label, points: [] };
         groups.push(byKey[label]);

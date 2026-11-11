@@ -1992,3 +1992,70 @@ span.ok .type-badge {
 .ov-field.dirty .ov-key {
   color: #f2b441;
 }
+
+/* ─── Layout v3.2: WO list full-width between asset map and work area ─── */
+.ar-split,
+.ar-split:has(.ar-wolist.rail) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ar-wolist,
+.ar-wolist.rail {
+  width: 100%;
+  max-height: none;
+}
+.wl-rail {
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+}
+.wl-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  max-height: 340px;
+  align-content: start;
+}
+.wl-body > .wl-row.wp {
+  grid-column: 1 / -1;
+}
+.wl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.wl-chips {
+  padding: 10px 12px;
+}
+.wl-chip {
+  min-height: 40px;
+  font-size: 14px;
+}
+/* ─── Icicle: show more of the asset name ─── */
+.ic-cols {
+  flex-wrap: wrap;
+}
+.ic-col {
+  min-width: 220px;
+}
+.ic-kids {
+  flex-wrap: wrap;
+}
+.ic-kids .ic-node {
+  flex: 1 1 140px;
+}
+.ic-node {
+  min-height: 56px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.ic-node .chip-label {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}

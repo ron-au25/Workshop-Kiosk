@@ -149,7 +149,7 @@ The `agentforceChat` LWC talks to the **`Rio_Tinto_Shutdown_Agent`** ("Superviso
 
 **Rich responses (`agent-blocks`)**: agent replies can carry a fenced ` ```agent-blocks {"blocks":[...]} ``` `. `RenderBlocks.cls` extracts it (or heuristically parses markdown tables / activity lists), `KioskAgentforceController` returns it as `AgentReply.blocksJson`, and `agentRichBlocks` renders KPI/table/timeline/chart(bar/line/pie/donut, inline SVG)/calendar/carousel. Schema: `Workshop Files/Agentforce Rich Blocks - Schema.md`.
 
-**Carousel drill-down**: carousel cards can carry a `workOrderId` field. Tapping the card image opens a fullscreen lightbox; the "Go to work order" button in the lightbox closes the chat panel and fires a `drilldown` composed CustomEvent (`{ detail: { workOrderId } }`) up to `workshopPortal.handleChatDrilldown`, which navigates straight into that work order's detail screen. Event chain: `agentRichBlocks` → `handleGoToRecord` → `agentforceChat.handleDrilldown` (closes panel, re-dispatches) → `workshopPortal`.
+**Carousel drill-down**: carousel cards can carry a `workOrderId` field. Tapping the card image opens a fullscreen lightbox; the "Go to work order" button in the lightbox closes the chat panel (unless pinned) and fires a `drilldown` composed CustomEvent (`{ detail: { workOrderId } }`) up to `workshopPortal.handleChatDrilldown`, which navigates straight into that work order's detail screen. Event chain: `agentRichBlocks` → `handleGoToRecord` → `agentforceChat.handleDrilldown` (closes panel, re-dispatches) → `workshopPortal`.
 
 **Agent chart actions**: `KioskBlocks.cls` holds the logic for 10 visualizations; 10 thin `AgentAction*` classes expose them as `@InvocableMethod`s (one invocable per class — a Salesforce limit). They're wired into the **Asset Insights** topic in `genAiPlannerBundles/Rio_Tinto_Shutdown_Agent/...`, each `invocationTargetType=apex` with `localActions/Asset_Insights/<Action>/{input,output}/schema.json`. The actions build blocks deterministically (numbers computed in Apex) and return them in the displayable `message` output.
 
@@ -176,6 +176,10 @@ Called from the **"Generate Demo Workpack"** button in `kioskDashboard`. On succ
 - Workpack scoping uses `ParentWorkOrderId = :id OR RootWorkOrderId = :id` (grandchildren exist).
 - `kioskPdfPane` is a read-only PDF viewer (`showMeasure({documentId,pageNumber,componentName,pagePositionEstimate,tableName})`, `goToPage(n)`). It uses kiosk-owned static resources `kioskPdfjs`, `kioskPdfLib`, `kioskPdfjsHost` — never deploy the org's Digital Checklist `pdfjs`/`pdflib` zips. Extraction is manual only (`processWorkpackButton` → `processLatestPdf`); `WorkpackPdfTrigger` and `WorkOrderWorkpackTrigger` are Inactive. Reprocessing replaces measures.
 - Revert: tag `v2.58-baseline` / branch `release/v2.58`.
+- **assetReview selection**: `selectedWheelsetId` = L2, `selectedChildId` = L3, `rootSelected` = L1 (`activeAssetId` is null at the root, so measures/WOs are unscoped). Apex `getAssetTasks` / `getAssetReviewDetail` roll up one level only, so `loadRootDetail()` calls them per L2 and dedupes. `_followWtFilter()` re-picks the WO/asset when a work-type chip is toggled.
+- **Forms as drawers**: measure + task forms are `.entry-form.aw-form-drawer` (fixed right, with `.aw-scrim`); Asset details uses `.aw-drawer`. Headless Chrome freezes CSS keyframe animations, so don't animate drawers if you screenshot them in the harness (`.sfdx/arh`).
+- **kioskPdfjsHost protocol**: `render` takes `docKey` (host caches the parsed PDF; resend base64 only when the host replies `NEED_DOC`) and `fitWidth`.
+- **Agentforce panel**: `workshopPortal` owns `chatOpen` / `chatPinned`; `kioskHeader` fires `togglechat`; `agentforceChat` takes `open` / `pinned` and fires `close` / `pinchange`. Pinned adds `.chat-docked` (padding-right) to `.kiosk-app`. Opening chat or a work order sets `sidebarCollapsed = true`.
 
 ### Measure point image attachments
 

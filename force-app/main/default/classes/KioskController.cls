@@ -55,6 +55,8 @@ public with sharing class KioskController {
     @AuraEnabled
     public String crewName; // the crew the worker belongs to (null if none)
     @AuraEnabled
+    public String workerRole; // ServiceResource.Role__c; Supervisor/Admin unlock Time Tracking and Config
+    @AuraEnabled
     public String errorCode;
     @AuraEnabled
     public Integer remainingAttempts;
@@ -442,6 +444,16 @@ public with sharing class KioskController {
     public String defectLocation; // Defect_Location__c
     @AuraEnabled
     public String updateDate; // Update_Date__c
+    @AuraEnabled
+    public String sourceDocumentId; // Source_Document__c (ContentDocument Id of the PDF)
+    @AuraEnabled
+    public String sourceDocumentTitle; // ContentDocument.Title
+    @AuraEnabled
+    public Integer pageNumber; // Page_Number__c
+    @AuraEnabled
+    public String pagePositionEstimate; // Page_Position_Estimate__c, e.g. 20%
+    @AuraEnabled
+    public String tableName; // Table_Name__c
   }
 
   // ─── Asset Review DTOs ─────────────────────────────────────────────────────
@@ -596,6 +608,10 @@ public with sharing class KioskController {
     public String status;
     @AuraEnabled
     public String comments; // Comment__c
+    @AuraEnabled
+    public String workTypeId; // optional override for raised tasks
+    @AuraEnabled
+    public Boolean raised; // true = Raised_Task__c
   }
 
   public class WorkOrderAttachment {
@@ -620,6 +636,9 @@ public with sharing class KioskController {
     // True when the file is over the ceiling; the UI opens it view-only instead.
     @AuraEnabled
     public Boolean tooLarge;
+    // ContentDocument Id the content belongs to (set by getMeasurePdf).
+    @AuraEnabled
+    public String documentId;
   }
 
   // Max file size we inline as a base64 data URI. Apex caps a single String at
@@ -801,7 +820,8 @@ public with sharing class KioskController {
         PIN_Salt__c,
         PIN_Failed_Count__c,
         PIN_Locked_Until__c,
-        Employee_Id__c
+        Employee_Id__c,
+        Role__c
       FROM ServiceResource
       WHERE Employee_Id__c = :employeeId AND IsActive = TRUE
       WITH SECURITY_ENFORCED
@@ -859,6 +879,7 @@ public with sharing class KioskController {
     result.success = true;
     result.workerId = sr.Id;
     result.workerName = sr.Name;
+    result.workerRole = sr.Role__c;
     result.crewName = resolveCrewName(sr.Id);
     result.token = issueToken(sr.Id, territoryId, now);
     return result;
@@ -1307,7 +1328,7 @@ public with sharing class KioskController {
         External_ID__c,
         DurationInMinutes
       FROM WorkOrder
-      WHERE ParentWorkOrderId = :workOrderId
+      WHERE ParentWorkOrderId = :workOrderId OR RootWorkOrderId = :workOrderId
       WITH SECURITY_ENFORCED
       ORDER BY CreatedDate ASC
     ]) {
@@ -2329,7 +2350,52 @@ public with sharing class KioskController {
     dto.updateDate = mp.Update_Date__c == null
       ? null
       : String.valueOf(mp.Update_Date__c);
+    dto.sourceDocumentId = mp.Source_Document__c;
+    dto.pageNumber = mp.Page_Number__c == null
+      ? null
+      : mp.Page_Number__c.intValue();
+    dto.pagePositionEstimate = mp.Page_Position_Estimate__c;
+    dto.tableName = mp.Table_Name__c;
     return dto;
+  }
+
+  // One ContentDocument query per call (not per row) to label the PDF source.
+  private static void fillSourceTitles(List<MeasurePointDTO> dtos) {
+    Set<Id> docIds = new Set<Id>();
+    for (MeasurePointDTO d : dtos) {
+      if (
+        String.isNotBlank(d.sourceDocumentId) &&
+        d.sourceDocumentId.length() >= 15
+      ) {
+        try {
+          docIds.add((Id) d.sourceDocumentId);
+        } catch (Exception e) {
+          // malformed Source_Document__c text: leave the title empty
+        }
+      }
+    }
+    if (docIds.isEmpty())
+      return;
+    Map<Id, String> titles = new Map<Id, String>();
+    for (ContentDocument cd : [
+      SELECT Id, Title
+      FROM ContentDocument
+      WHERE Id IN :docIds
+    ]) {
+      titles.put(cd.Id, cd.Title);
+    }
+    for (MeasurePointDTO d : dtos) {
+      if (
+        String.isNotBlank(d.sourceDocumentId) &&
+        d.sourceDocumentId.length() >= 15
+      ) {
+        try {
+          d.sourceDocumentTitle = titles.get((Id) d.sourceDocumentId);
+        } catch (Exception e) {
+          // ignore
+        }
+      }
+    }
   }
 
   @AuraEnabled(cacheable=false)
@@ -2356,7 +2422,11 @@ public with sharing class KioskController {
         Work_Order__r.WorkOrderNumber,
         Asset__c,
         Defect_Location__c,
-        Update_Date__c
+        Update_Date__c,
+        Source_Document__c,
+        Page_Number__c,
+        Page_Position_Estimate__c,
+        Table_Name__c
       FROM Measure_Point__c
       WHERE Work_Order__c = :workOrderId
       WITH SECURITY_ENFORCED
@@ -2367,6 +2437,7 @@ public with sharing class KioskController {
     for (Measure_Point__c mp : records) {
       result.add(mapMeasurePoint(mp));
     }
+    fillSourceTitles(result);
     return result;
   }
 
@@ -2394,7 +2465,11 @@ public with sharing class KioskController {
         Work_Order__r.WorkOrderNumber,
         Asset__c,
         Defect_Location__c,
-        Update_Date__c
+        Update_Date__c,
+        Source_Document__c,
+        Page_Number__c,
+        Page_Position_Estimate__c,
+        Table_Name__c
       FROM Measure_Point__c
       WHERE Asset__c = :assetId
       WITH SECURITY_ENFORCED
@@ -2405,6 +2480,7 @@ public with sharing class KioskController {
     for (Measure_Point__c mp : records) {
       result.add(mapMeasurePoint(mp));
     }
+    fillSourceTitles(result);
     return result;
   }
 
@@ -2582,10 +2658,24 @@ public with sharing class KioskController {
       : req.measureValueType;
     mp.Defect_Location__c = req.defectLocation;
     // Always anchor the point to its work order / asset so kiosk-created points are not orphaned.
-    if (String.isNotBlank(req.workOrderId))
+    // The WO's own asset wins over any client-supplied assetId (new points hang off the right component).
+    // The four PDF fields (source/page/position/table) are never read from the request.
+    if (String.isNotBlank(req.workOrderId)) {
       mp.Work_Order__c = req.workOrderId;
-    if (String.isNotBlank(req.assetId))
+      List<WorkOrder> woAsset = [
+        SELECT AssetId
+        FROM WorkOrder
+        WHERE Id = :req.workOrderId
+        LIMIT 1
+      ];
+      if (!woAsset.isEmpty() && woAsset[0].AssetId != null) {
+        mp.Asset__c = woAsset[0].AssetId;
+      } else if (String.isNotBlank(req.assetId)) {
+        mp.Asset__c = req.assetId;
+      }
+    } else if (String.isNotBlank(req.assetId)) {
       mp.Asset__c = req.assetId;
+    }
     // Stamp the update date on every save (defaults to now for new and edited points).
     mp.Update_Date__c = DateTime.now();
 
@@ -2607,7 +2697,11 @@ public with sharing class KioskController {
         Work_Order__r.WorkOrderNumber,
         Asset__c,
         Defect_Location__c,
-        Update_Date__c
+        Update_Date__c,
+        Source_Document__c,
+        Page_Number__c,
+        Page_Position_Estimate__c,
+        Table_Name__c
       FROM Measure_Point__c
       WHERE Id = :mp.Id
       WITH SECURITY_ENFORCED
@@ -2616,7 +2710,9 @@ public with sharing class KioskController {
     if (saved.isEmpty())
       throw new AuraHandledException('SAVE_FAILED');
 
-    return mapMeasurePoint(saved[0]);
+    MeasurePointDTO savedDto = mapMeasurePoint(saved[0]);
+    fillSourceTitles(new List<MeasurePointDTO>{ savedDto });
+    return savedDto;
   }
 
   @AuraEnabled
@@ -2759,7 +2855,8 @@ public with sharing class KioskController {
       FROM WorkOrder
       WHERE
         (Id = :workOrderId
-        OR ParentWorkOrderId = :workOrderId)
+        OR ParentWorkOrderId = :workOrderId
+        OR RootWorkOrderId = :workOrderId)
         AND AssetId != NULL
       WITH SECURITY_ENFORCED
       GROUP BY AssetId
@@ -2930,7 +3027,7 @@ public with sharing class KioskController {
       'SELECT ' +
         TASK_FIELDS +
         ' FROM WorkOrder ' +
-        'WHERE (Id = :woId OR ParentWorkOrderId = :woId) AND AssetId IN :assetIds ' +
+        'WHERE (Id = :woId OR ParentWorkOrderId = :woId OR RootWorkOrderId = :woId) AND AssetId IN :assetIds ' +
         'WITH SECURITY_ENFORCED ORDER BY CreatedDate DESC'
     );
 
@@ -3004,7 +3101,11 @@ public with sharing class KioskController {
     for (WorkOrder wo : [
       SELECT Id, WorkOrderNumber, WorkTypeId
       FROM WorkOrder
-      WHERE (Id = :woId OR ParentWorkOrderId = :woId) AND AssetId IN :assetIds
+      WHERE
+        (Id = :woId
+        OR ParentWorkOrderId = :woId
+        OR RootWorkOrderId = :woId)
+        AND AssetId IN :assetIds
       WITH SECURITY_ENFORCED
     ]) {
       assocWos.put(wo.Id, wo);
@@ -3307,14 +3408,17 @@ public with sharing class KioskController {
     for (WorkOrder wo : [
       SELECT Id, Status, DurationInMinutes, ParentWorkOrderId
       FROM WorkOrder
-      WHERE Id = :workOrderId OR ParentWorkOrderId = :workOrderId
+      WHERE
+        Id = :workOrderId
+        OR ParentWorkOrderId = :workOrderId
+        OR RootWorkOrderId = :workOrderId
       WITH SECURITY_ENFORCED
     ]) {
       woIds.add(wo.Id);
       if (wo.DurationInMinutes != null)
         plannedMins += wo.DurationInMinutes.intValue();
-      if (wo.ParentWorkOrderId != null) {
-        // a child of the workpack
+      if (wo.Id != workOrderId) {
+        // a descendant of the workpack (child or grandchild)
         childTotal++;
         if (wo.Status != 'New')
           childInProgress++;
@@ -3490,6 +3594,212 @@ public with sharing class KioskController {
     return dto;
   }
 
+  /**
+   * Per-work-order progress for every WO under a workpack (RootWorkOrderId), as a
+   * JSON array of rows. Rules mirror getWorkpackProgress; colour logic is UI-side.
+   * Query count is constant (about 8) regardless of how many children exist.
+   */
+  @AuraEnabled(cacheable=false)
+  public static String getWorkpackChildProgress(
+    String token,
+    String workpackId
+  ) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<Map<String, Object>> rows = new List<Map<String, Object>>();
+    if (String.isBlank(workpackId))
+      return JSON.serialize(rows);
+    Id wpId = (Id) workpackId;
+
+    // 1. Child work orders (all depths) + the root's asset.
+    List<WorkOrder> wos = [
+      SELECT
+        Id,
+        WorkOrderNumber,
+        Subject,
+        Status,
+        WorkType.Name,
+        AssetId,
+        Asset.Name
+      FROM WorkOrder
+      WHERE RootWorkOrderId = :wpId AND Id != :wpId
+      WITH SECURITY_ENFORCED
+      ORDER BY WorkOrderNumber ASC
+    ];
+    Set<Id> woIds = new Set<Id>();
+    for (WorkOrder w : wos)
+      woIds.add(w.Id);
+    if (woIds.isEmpty())
+      return JSON.serialize(rows);
+    List<WorkOrder> rootRows = [
+      SELECT AssetId
+      FROM WorkOrder
+      WHERE Id = :wpId
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    Id rootAssetId = rootRows.isEmpty() ? null : rootRows[0].AssetId;
+
+    // 2. Steps per WO, via WorkOrderId or through the WorkPlan (SYSTEM_MODE: WorkPlan OWD is Private).
+    Map<Id, Integer> stepsDone = new Map<Id, Integer>();
+    Map<Id, Integer> stepsTotal = new Map<Id, Integer>();
+    for (
+      AggregateResult ar : (List<AggregateResult>) Database.query(
+        'SELECT WorkOrderId wo, WorkPlan.WorkOrderId pwo, Status st, COUNT(Id) cnt FROM WorkStep ' +
+          'WHERE WorkOrderId IN :woIds OR WorkPlan.WorkOrderId IN :woIds ' +
+          'GROUP BY WorkOrderId, WorkPlan.WorkOrderId, Status',
+        AccessLevel.SYSTEM_MODE
+      )
+    ) {
+      Id owner = (Id) (ar.get('wo') != null ? ar.get('wo') : ar.get('pwo'));
+      if (owner == null || !woIds.contains(owner))
+        continue;
+      Integer cnt = (Integer) ar.get('cnt');
+      stepsTotal.put(
+        owner,
+        (stepsTotal.containsKey(owner) ? stepsTotal.get(owner) : 0) + cnt
+      );
+      if ((String) ar.get('st') == 'Completed')
+        stepsDone.put(
+          owner,
+          (stepsDone.containsKey(owner) ? stepsDone.get(owner) : 0) + cnt
+        );
+    }
+
+    // 3. Measures per WO: total, taken (value recorded OR type other than 'Measure'), findings.
+    Map<Id, Integer> mTotal = new Map<Id, Integer>();
+    Map<Id, Integer> mTaken = new Map<Id, Integer>();
+    Map<Id, Integer> findings = new Map<Id, Integer>();
+    for (AggregateResult ar : [
+      SELECT
+        Work_Order__c wo,
+        Measure_Type__c t,
+        COUNT(Id) cnt,
+        COUNT(Measure_Value__c) withVal
+      FROM Measure_Point__c
+      WHERE Work_Order__c IN :woIds
+      WITH SECURITY_ENFORCED
+      GROUP BY Work_Order__c, Measure_Type__c
+    ]) {
+      Id w = (Id) ar.get('wo');
+      String t = (String) ar.get('t');
+      Integer cnt = (Integer) ar.get('cnt');
+      Integer withVal = (Integer) ar.get('withVal');
+      mTotal.put(w, (mTotal.containsKey(w) ? mTotal.get(w) : 0) + cnt);
+      Integer taken = (t != null && t != 'Measure') ? cnt : withVal;
+      mTaken.put(w, (mTaken.containsKey(w) ? mTaken.get(w) : 0) + taken);
+      if (t == 'Attention Required' || t == 'Scrap')
+        findings.put(w, (findings.containsKey(w) ? findings.get(w) : 0) + cnt);
+    }
+    // Comments__c is long text (not filterable/aggregatable): read finding rows only.
+    Map<Id, Integer> bare = new Map<Id, Integer>();
+    for (Measure_Point__c mp : [
+      SELECT Work_Order__c, Comments__c
+      FROM Measure_Point__c
+      WHERE
+        Work_Order__c IN :woIds
+        AND Measure_Type__c IN ('Attention Required', 'Scrap')
+      WITH SECURITY_ENFORCED
+    ]) {
+      if (String.isBlank(mp.Comments__c))
+        bare.put(
+          mp.Work_Order__c,
+          (bare.containsKey(mp.Work_Order__c)
+            ? bare.get(mp.Work_Order__c)
+            : 0) + 1
+        );
+    }
+
+    // 4. Parts per WO: required vs consumed quantity.
+    Map<Id, Decimal> partsReq = new Map<Id, Decimal>();
+    for (AggregateResult ar : [
+      SELECT ParentRecordId pid, SUM(QuantityRequired) q
+      FROM ProductRequired
+      WHERE ParentRecordId IN :woIds
+      WITH SECURITY_ENFORCED
+      GROUP BY ParentRecordId
+    ]) {
+      if (ar.get('q') != null)
+        partsReq.put((Id) ar.get('pid'), (Decimal) ar.get('q'));
+    }
+    Map<Id, Decimal> partsUsed = new Map<Id, Decimal>();
+    if (Schema.sObjectType.ProductConsumed.isAccessible()) {
+      try {
+        for (AggregateResult ar : [
+          SELECT WorkOrderId wid, SUM(QuantityConsumed) q
+          FROM ProductConsumed
+          WHERE WorkOrderId IN :woIds
+          WITH SECURITY_ENFORCED
+          GROUP BY WorkOrderId
+        ]) {
+          if (ar.get('q') != null)
+            partsUsed.put((Id) ar.get('wid'), (Decimal) ar.get('q'));
+        }
+      } catch (Exception e) {
+        partsUsed.clear();
+      }
+    }
+
+    // 5. Level-2 asset: the ancestor whose parent is the workpack's asset.
+    Map<Id, Asset> assetById = new Map<Id, Asset>();
+    if (rootAssetId != null) {
+      for (Asset a : [
+        SELECT Id, Name, ParentId
+        FROM Asset
+        WHERE RootAssetId = :rootAssetId
+        WITH SECURITY_ENFORCED
+      ]) {
+        assetById.put(a.Id, a);
+      }
+    }
+
+    for (WorkOrder w : wos) {
+      Map<String, Object> r = new Map<String, Object>();
+      r.put('id', w.Id);
+      r.put('number', w.WorkOrderNumber);
+      r.put('subject', w.Subject);
+      r.put('status', w.Status);
+      r.put('workTypeName', w.WorkType == null ? null : w.WorkType.Name);
+      r.put('assetId', w.AssetId);
+      r.put('assetName', w.Asset == null ? null : w.Asset.Name);
+      Id l2Id = null;
+      String l2Name = null;
+      Id cur = w.AssetId;
+      Integer guard = 0;
+      while (cur != null && guard < 10) {
+        Asset a = assetById.get(cur);
+        if (a == null)
+          break;
+        if (a.ParentId == rootAssetId) {
+          l2Id = a.Id;
+          l2Name = a.Name;
+          break;
+        }
+        cur = a.ParentId;
+        guard++;
+      }
+      r.put('l2AssetId', l2Id);
+      r.put('l2AssetName', l2Name);
+      r.put('stepsDone', stepsDone.containsKey(w.Id) ? stepsDone.get(w.Id) : 0);
+      r.put(
+        'stepsTotal',
+        stepsTotal.containsKey(w.Id) ? stepsTotal.get(w.Id) : 0
+      );
+      r.put('measuresTaken', mTaken.containsKey(w.Id) ? mTaken.get(w.Id) : 0);
+      r.put('measuresTotal', mTotal.containsKey(w.Id) ? mTotal.get(w.Id) : 0);
+      r.put('findings', findings.containsKey(w.Id) ? findings.get(w.Id) : 0);
+      r.put('bareFindings', bare.containsKey(w.Id) ? bare.get(w.Id) : 0);
+      r.put('partsUsed', partsUsed.containsKey(w.Id) ? partsUsed.get(w.Id) : 0);
+      r.put(
+        'partsRequired',
+        partsReq.containsKey(w.Id) ? partsReq.get(w.Id) : 0
+      );
+      rows.add(r);
+    }
+    return JSON.serialize(rows);
+  }
+
   private static KpiDTO newKpi() {
     KpiDTO k = new KpiDTO();
     k.done = 0;
@@ -3589,6 +3899,11 @@ public with sharing class KioskController {
 
     WorkOrder wo = new WorkOrder();
     wo.WorkTypeId = types[0].Id;
+    if (req.raised == true) {
+      wo.Raised_Task__c = true;
+      if (String.isNotBlank(req.workTypeId))
+        wo.WorkTypeId = (Id) req.workTypeId;
+    }
     wo.ParentWorkOrderId = req.workOrderId;
     wo.AssetId = String.isNotBlank(req.assetId)
       ? (Id) req.assetId
@@ -3632,6 +3947,179 @@ public with sharing class KioskController {
     update wo;
 
     return mapTask(queryTaskById(req.id));
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static String getWorkTypes(String token) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<Map<String, Object>> out = new List<Map<String, Object>>();
+    for (WorkType wt : [
+      SELECT Id, Name
+      FROM WorkType
+      WITH SECURITY_ENFORCED
+      ORDER BY Name ASC
+      LIMIT 500
+    ]) {
+      out.add(new Map<String, Object>{ 'id' => wt.Id, 'name' => wt.Name });
+    }
+    return JSON.serialize(out);
+  }
+
+  // Raised tasks (Raised_Task__c = true) on an asset and all its descendants.
+  @AuraEnabled(cacheable=false)
+  public static List<TaskWoDTO> getRaisedTasks(String token, String assetId) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<TaskWoDTO> out = new List<TaskWoDTO>();
+    if (String.isBlank(assetId))
+      return out;
+    Set<Id> assetIds = new Set<Id>{ (Id) assetId };
+    Set<Id> frontier = new Set<Id>{ (Id) assetId };
+    Integer depth = 0;
+    while (!frontier.isEmpty() && depth < 8) {
+      Set<Id> next = new Set<Id>();
+      for (Asset a : [
+        SELECT Id
+        FROM Asset
+        WHERE ParentId IN :frontier
+        WITH SECURITY_ENFORCED
+      ]) {
+        if (assetIds.add(a.Id))
+          next.add(a.Id);
+      }
+      frontier = next;
+      depth++;
+    }
+    List<WorkOrder> rows = (List<WorkOrder>) Database.query(
+      'SELECT ' +
+        TASK_FIELDS +
+        ' FROM WorkOrder WHERE Raised_Task__c = true AND AssetId IN :assetIds ' +
+        'WITH SECURITY_ENFORCED ORDER BY CreatedDate DESC LIMIT 200'
+    );
+    for (WorkOrder w : rows)
+      out.add(mapTask(w));
+    return out;
+  }
+
+  // ---- Kiosk config (supervisor/admin only to save) ----
+
+  private static final String CONFIG_NAME = 'Default';
+
+  @AuraEnabled(cacheable=false)
+  public static String getKioskConfig(String token) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<Kiosk_App_Config__c> rows = [
+      SELECT Settings_JSON__c
+      FROM Kiosk_App_Config__c
+      WHERE Name = :CONFIG_NAME
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (rows.isEmpty() || String.isBlank(rows[0].Settings_JSON__c))
+      return '{}';
+    return rows[0].Settings_JSON__c;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static void saveKioskConfig(String token, String settingsJson) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (!isAdminWorker(payload.workerId))
+      throw new AuraHandledException('NOT_ALLOWED');
+    Object parsed;
+    try {
+      parsed = JSON.deserializeUntyped(settingsJson);
+    } catch (Exception e) {
+      throw new AuraHandledException('INVALID_CONFIG_JSON');
+    }
+    if (!(parsed instanceof Map<String, Object>))
+      throw new AuraHandledException('INVALID_CONFIG_JSON');
+    List<Kiosk_App_Config__c> rows = [
+      SELECT Id
+      FROM Kiosk_App_Config__c
+      WHERE Name = :CONFIG_NAME
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    Kiosk_App_Config__c cfg = rows.isEmpty()
+      ? new Kiosk_App_Config__c(Name = CONFIG_NAME)
+      : rows[0];
+    cfg.Settings_JSON__c = settingsJson;
+    upsert cfg;
+  }
+
+  private static Boolean isAdminWorker(String workerId) {
+    if (String.isBlank(workerId))
+      return false;
+    List<ServiceResource> srs = [
+      SELECT Role__c
+      FROM ServiceResource
+      WHERE Id = :workerId
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (srs.isEmpty() || srs[0].Role__c == null)
+      return false;
+    String r = srs[0].Role__c.trim().toLowerCase();
+    return r == 'supervisor' || r == 'admin';
+  }
+
+  // ---- Workpack time records (workpack + all descendants) ----
+
+  @AuraEnabled(cacheable=false)
+  public static String getWorkpackTimeRecords(String token, String workpackId) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    List<TimeReportRow> out = new List<TimeReportRow>();
+    if (String.isBlank(workpackId))
+      return JSON.serialize(out);
+    Id wpId = (Id) workpackId;
+    for (Time_Report__c tr : [
+      SELECT
+        Id,
+        Work_Order__c,
+        Work_Order__r.WorkOrderNumber,
+        Resource_Name__c,
+        Start_Time__c,
+        End_Time__c,
+        Duration_in_Minutes__c,
+        Status__c,
+        Description__c
+      FROM Time_Report__c
+      WHERE Work_Order__c = :wpId OR Work_Order__r.RootWorkOrderId = :wpId
+      WITH SECURITY_ENFORCED
+      ORDER BY Start_Time__c DESC
+      LIMIT 200
+    ]) {
+      TimeReportRow r = new TimeReportRow();
+      r.id = tr.Id;
+      r.workOrderId = tr.Work_Order__c;
+      r.workOrderNumber = tr.Work_Order__r == null
+        ? null
+        : tr.Work_Order__r.WorkOrderNumber;
+      r.resourceName = tr.Resource_Name__c;
+      r.startTime = tr.Start_Time__c == null
+        ? null
+        : tr.Start_Time__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'');
+      r.endTime = tr.End_Time__c == null
+        ? null
+        : tr.End_Time__c.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'');
+      r.durationMinutes = tr.Duration_in_Minutes__c == null
+        ? null
+        : Integer.valueOf(tr.Duration_in_Minutes__c);
+      r.isActive = tr.End_Time__c == null;
+      r.status = tr.Status__c;
+      r.description = tr.Description__c;
+      out.add(r);
+    }
+    return JSON.serialize(out);
   }
 
   // Query a single PM02 task work order with the full field projection, typed as WorkOrder.
@@ -3726,7 +4214,69 @@ public with sharing class KioskController {
       throw new AuraHandledException('SESSION_EXPIRED');
     if (String.isBlank(contentDocumentId))
       throw new AuraHandledException('INVALID_REQUEST');
+    return readAttachmentContent(contentDocumentId);
+  }
 
+  /**
+   * Returns a PDF linked to the workpack (or to any work order under it) for the
+   * side-by-side measure viewer. Blank contentDocumentId picks the newest PDF on
+   * the workpack. Same 4MB inline cap as getAttachmentContent.
+   */
+  @AuraEnabled(cacheable=false)
+  public static AttachmentContent getMeasurePdf(
+    String token,
+    String workpackId,
+    String contentDocumentId
+  ) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (String.isBlank(workpackId))
+      throw new AuraHandledException('INVALID_REQUEST');
+
+    Id wpId = (Id) workpackId;
+    Set<Id> scopeIds = new Set<Id>{ wpId };
+    for (WorkOrder w : [
+      SELECT Id
+      FROM WorkOrder
+      WHERE RootWorkOrderId = :wpId
+      WITH SECURITY_ENFORCED
+    ]) {
+      scopeIds.add(w.Id);
+    }
+
+    String docId = contentDocumentId;
+    if (String.isBlank(docId)) {
+      List<ContentDocumentLink> newest = [
+        SELECT ContentDocumentId
+        FROM ContentDocumentLink
+        WHERE LinkedEntityId = :wpId AND ContentDocument.FileType = 'PDF'
+        WITH SECURITY_ENFORCED
+        ORDER BY ContentDocument.CreatedDate DESC
+        LIMIT 1
+      ];
+      if (newest.isEmpty())
+        throw new AuraHandledException('NOT_FOUND');
+      docId = newest[0].ContentDocumentId;
+    } else {
+      List<ContentDocumentLink> linked = [
+        SELECT Id
+        FROM ContentDocumentLink
+        WHERE ContentDocumentId = :docId AND LinkedEntityId IN :scopeIds
+        WITH SECURITY_ENFORCED
+        LIMIT 1
+      ];
+      if (linked.isEmpty())
+        throw new AuraHandledException('NOT_ALLOWED');
+    }
+    AttachmentContent out = readAttachmentContent(docId);
+    out.documentId = docId;
+    return out;
+  }
+
+  private static AttachmentContent readAttachmentContent(
+    String contentDocumentId
+  ) {
     List<ContentVersion> versions = [
       SELECT FileExtension, VersionData, ContentSize
       FROM ContentVersion

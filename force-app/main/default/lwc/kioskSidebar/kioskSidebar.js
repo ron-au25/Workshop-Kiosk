@@ -1,6 +1,6 @@
 import { LightningElement, api } from "lwc";
 
-const VERSION = "v2.59";
+const VERSION = "v2.60";
 
 export default class KioskSidebar extends LightningElement {
   version = VERSION;
@@ -10,6 +10,7 @@ export default class KioskSidebar extends LightningElement {
   @api isPortrait = false;
   @api sidebarCollapsed = false;
   @api showSwitchUser = false;
+  @api showAdminNav = false; // Supervisor/Admin only: Time Tracking and Config
   @api theme = "dark";
 
   get isExpanded() {

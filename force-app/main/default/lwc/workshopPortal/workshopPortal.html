@@ -1,161 +1,174 @@
 <template>
-    <div class={appRootClass} onpointerdown={resetIdleTimer} onkeydown={handleGlobalKeydown}>
+  <div
+    class={appRootClass}
+    onpointerdown={resetIdleTimer}
+    onkeydown={handleGlobalKeydown}
+  >
+    <!-- Barcode hidden capture input -->
+    <input
+      class="barcode-capture"
+      type="text"
+      aria-hidden="true"
+      tabindex="-1"
+      data-id="barcode"
+      oninput={handleBarcodeInput}
+      onkeydown={handleBarcodeKeydown}
+    />
 
-        <!-- Barcode hidden capture input -->
-        <input
-            class="barcode-capture"
-            type="text"
-            aria-hidden="true"
-            tabindex="-1"
-            data-id="barcode"
-            oninput={handleBarcodeInput}
-            onkeydown={handleBarcodeKeydown}
-        />
+    <template lwc:if={isBooting}>
+      <div class="boot-screen">
+        <div class="boot-logo">
+          <span class="boot-icon">⚙</span>
+          <h1 class="boot-title">Rio Tinto Rail</h1>
+          <p class="boot-subtitle">Workshop Kiosk</p>
+        </div>
+        <div class="spinner"></div>
+      </div>
+    </template>
 
-        <template lwc:if={isBooting}>
-            <div class="boot-screen">
-                <div class="boot-logo">
-                    <span class="boot-icon">⚙</span>
-                    <h1 class="boot-title">Rio Tinto Rail</h1>
-                    <p class="boot-subtitle">Workshop Kiosk</p>
-                </div>
-                <div class="spinner"></div>
-            </div>
+    <template lwc:elseif={isSupervisorRequired}>
+      <div class="error-screen">
+        <template lwc:if={isAuthError}>
+          <span class="error-icon">🔒</span>
+          <h2>Supervisor Login Required</h2>
+          <p class="error-hint">
+            Please log in with your Salesforce supervisor account to start the
+            kiosk.
+          </p>
+          <button class="btn-supervisor-login" onclick={handleSupervisorLogin}>
+            Log In as Supervisor
+          </button>
+          <button class="btn-retry" onclick={handleRetry}>Retry</button>
         </template>
-
-        <template lwc:elseif={isSupervisorRequired}>
-            <div class="error-screen">
-                <template lwc:if={isAuthError}>
-                    <span class="error-icon">🔒</span>
-                    <h2>Supervisor Login Required</h2>
-                    <p class="error-hint">Please log in with your Salesforce supervisor account to start the kiosk.</p>
-                    <button class="btn-supervisor-login" onclick={handleSupervisorLogin}>Log In as Supervisor</button>
-                    <button class="btn-retry" onclick={handleRetry}>Retry</button>
-                </template>
-                <template lwc:else>
-                    <span class="error-icon">⚠</span>
-                    <h2>Kiosk Setup Required</h2>
-                    <p>{setupError}</p>
-                    <p class="error-hint">Contact your Salesforce administrator to assign a Service Territory.</p>
-                    <button class="btn-retry" onclick={handleRetry}>Retry</button>
-                </template>
-            </div>
-        </template>
-
         <template lwc:else>
-            <div class={appLayoutClass}>
-
-                <c-kiosk-sidebar
-                    territory-name={territoryName}
-                    supervisor-name={supervisorName}
-                    active-nav={activeNav}
-                    is-portrait={isPortrait}
-                    sidebar-collapsed={sidebarCollapsed}
-                    show-switch-user={isInApp}
-                    theme={theme}
-                    onnavigate={handleNavigation}
-                    ontoggle={handleSidebarToggle}
-                    onswitchuser={handleSwitchUser}
-                    onendsession={handleEndSession}
-                    ontheme={handleThemeToggle}
-                ></c-kiosk-sidebar>
-
-                <main class="kiosk-main">
-
-                    <c-kiosk-header
-                        territory-name={territoryName}
-                        supervisor-name={supervisorName}
-                        worker-name={currentWorkerName}
-                        crew-name={currentCrewName}
-                        clock-start-ms={clockStartMs}
-                        is-portrait={isPortrait}
-                        onhamburger={handleSidebarToggle}
-                    ></c-kiosk-header>
-
-                    <div class="kiosk-content">
-
-                        <template lwc:if={isWorkOrderDetailState}>
-                            <!-- Detail + work execution need bounded height with internal scrolls -->
-                            <div class="kiosk-fill">
-                                <c-work-order-detail
-                                    session-token={sessionToken}
-                                    work-order-id={selectedWorkOrderId}
-                                    site-base-url={siteBaseUrl}
-                                    worker-name={currentWorkerName}
-                                    onback={handleDetailBack}
-                                    onopendetail={handleOpenDetail}
-                                    ondataupdate={handleDataUpdate}
-                                    onclockstopped={handleClockStopped}
-                                ></c-work-order-detail>
-                            </div>
-                        </template>
-
-                        <template lwc:else>
-                            <!-- All other views scroll as a page -->
-                            <div class="kiosk-scroll">
-                                <template lwc:if={isRosterState}>
-                                    <c-kiosk-roster
-                                        territory-id={territoryId}
-                                        onworkerselected={handleWorkerSelected}
-                                    ></c-kiosk-roster>
-                                </template>
-
-                                <template lwc:elseif={isLoginState}>
-                                    <c-kiosk-login
-                                        worker={selectedWorker}
-                                        territory-id={territoryId}
-                                        prefilled-employee-id={barcodeEmployeeId}
-                                        onauthenticated={handleEmployeeAuthenticated}
-                                        oncancel={handleLoginCancel}
-                                    ></c-kiosk-login>
-                                </template>
-
-                                <template lwc:elseif={isDashboardState}>
-                                    <c-kiosk-dashboard
-                                        session-token={sessionToken}
-                                        is-supervisor={isSupervisor}
-                                        onrefresh={handleDashboardRefresh}
-                                        onopendetail={handleOpenDetail}
-                                    ></c-kiosk-dashboard>
-                                </template>
-
-                                <template lwc:elseif={isWorkOrdersState}>
-                                    <c-work-order-cards
-                                        session-token={sessionToken}
-                                        onopendetail={handleOpenDetail}
-                                    ></c-work-order-cards>
-                                </template>
-
-                                <template lwc:elseif={isTimeTrackingState}>
-                                    <c-time-tracking-dashboard
-                                        session-token={sessionToken}
-                                    ></c-time-tracking-dashboard>
-                                </template>
-                            </div>
-                        </template>
-
-                    </div>
-                </main>
-            </div>
-
-            <!-- Agentforce assistant (runs as the supervisor); floats over all in-app screens -->
-            <c-agentforce-chat
-                supervisor-name={supervisorName}
-                work-order-id={selectedWorkOrderId}
-                theme={theme}
-                ondrilldown={handleChatDrilldown}
-            ></c-agentforce-chat>
-
-            <template lwc:if={showIdleWarning}>
-                <div class="idle-overlay" role="alertdialog" aria-label="Session timeout warning">
-                    <div class="idle-card">
-                        <span class="idle-icon">⏱</span>
-                        <h2>Still there?</h2>
-                        <p>Session ends in <strong>{idleCountdown}</strong> seconds</p>
-                        <button class="btn-primary btn-large" onclick={resetIdleTimer}>Stay Signed In</button>
-                    </div>
-                </div>
-            </template>
+          <span class="error-icon">⚠</span>
+          <h2>Kiosk Setup Required</h2>
+          <p>{setupError}</p>
+          <p class="error-hint">
+            Contact your Salesforce administrator to assign a Service Territory.
+          </p>
+          <button class="btn-retry" onclick={handleRetry}>Retry</button>
         </template>
-    </div>
+      </div>
+    </template>
+
+    <template lwc:else>
+      <div class={appLayoutClass}>
+        <c-kiosk-sidebar
+          territory-name={territoryName}
+          supervisor-name={supervisorName}
+          active-nav={activeNav}
+          is-portrait={isPortrait}
+          sidebar-collapsed={sidebarCollapsed}
+          show-switch-user={isInApp}
+          show-admin-nav={showAdminNav}
+          theme={theme}
+          onnavigate={handleNavigation}
+          ontoggle={handleSidebarToggle}
+          onswitchuser={handleSwitchUser}
+          onendsession={handleEndSession}
+          ontheme={handleThemeToggle}
+        ></c-kiosk-sidebar>
+
+        <main class="kiosk-main">
+          <c-kiosk-header
+            territory-name={territoryName}
+            supervisor-name={supervisorName}
+            worker-name={currentWorkerName}
+            crew-name={currentCrewName}
+            clock-start-ms={clockStartMs}
+            is-portrait={isPortrait}
+            onhamburger={handleSidebarToggle}
+          ></c-kiosk-header>
+
+          <div class="kiosk-content">
+            <template lwc:if={isWorkOrderDetailState}>
+              <!-- Detail + work execution need bounded height with internal scrolls -->
+              <div class="kiosk-fill">
+                <c-work-order-detail
+                  session-token={sessionToken}
+                  work-order-id={selectedWorkOrderId}
+                  site-base-url={siteBaseUrl}
+                  worker-name={currentWorkerName}
+                  onback={handleDetailBack}
+                  onopendetail={handleOpenDetail}
+                  ondataupdate={handleDataUpdate}
+                  onclockstopped={handleClockStopped}
+                ></c-work-order-detail>
+              </div>
+            </template>
+
+            <template lwc:else>
+              <!-- All other views scroll as a page -->
+              <div class="kiosk-scroll">
+                <template lwc:if={isRosterState}>
+                  <c-kiosk-roster
+                    territory-id={territoryId}
+                    onworkerselected={handleWorkerSelected}
+                  ></c-kiosk-roster>
+                </template>
+
+                <template lwc:elseif={isLoginState}>
+                  <c-kiosk-login
+                    worker={selectedWorker}
+                    territory-id={territoryId}
+                    prefilled-employee-id={barcodeEmployeeId}
+                    onauthenticated={handleEmployeeAuthenticated}
+                    oncancel={handleLoginCancel}
+                  ></c-kiosk-login>
+                </template>
+
+                <template lwc:elseif={isDashboardState}>
+                  <c-kiosk-dashboard
+                    session-token={sessionToken}
+                    is-supervisor={isSupervisor}
+                    onrefresh={handleDashboardRefresh}
+                    onopendetail={handleOpenDetail}
+                  ></c-kiosk-dashboard>
+                </template>
+
+                <template lwc:elseif={isWorkOrdersState}>
+                  <c-work-order-cards
+                    session-token={sessionToken}
+                    onopendetail={handleOpenDetail}
+                  ></c-work-order-cards>
+                </template>
+
+                <template lwc:elseif={isTimeTrackingState}>
+                  <c-time-tracking-dashboard
+                    session-token={sessionToken}
+                  ></c-time-tracking-dashboard>
+                </template>
+              </div>
+            </template>
+          </div>
+        </main>
+      </div>
+
+      <!-- Agentforce assistant (runs as the supervisor); floats over all in-app screens -->
+      <c-agentforce-chat
+        supervisor-name={supervisorName}
+        work-order-id={selectedWorkOrderId}
+        theme={theme}
+        ondrilldown={handleChatDrilldown}
+      ></c-agentforce-chat>
+
+      <template lwc:if={showIdleWarning}>
+        <div
+          class="idle-overlay"
+          role="alertdialog"
+          aria-label="Session timeout warning"
+        >
+          <div class="idle-card">
+            <span class="idle-icon">⏱</span>
+            <h2>Still there?</h2>
+            <p>Session ends in <strong>{idleCountdown}</strong> seconds</p>
+            <button class="btn-primary btn-large" onclick={resetIdleTimer}>
+              Stay Signed In
+            </button>
+          </div>
+        </div>
+      </template>
+    </template>
+  </div>
 </template>

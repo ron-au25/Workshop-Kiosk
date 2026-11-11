@@ -1,99 +1,109 @@
 <template>
-    <nav class={sidebarClass} aria-label="Kiosk navigation">
-
-        <!-- Logo / station header -->
-        <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <span class="logo-icon">⚙</span>
-                <template lwc:if={isExpanded}>
-                    <div class="logo-text">
-                        <span class="logo-title">Workshop</span>
-                        <span class="logo-sub">{territoryName}</span>
-                    </div>
-                </template>
-            </div>
-            <button class="sidebar-toggle" onclick={handleToggle} aria-label="Toggle sidebar">
-                <span class="toggle-icon">{toggleIcon}</span>
-            </button>
-        </div>
-
-        <!-- Supervisor chip -->
+  <nav class={sidebarClass} aria-label="Kiosk navigation">
+    <!-- Logo / station header -->
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="logo-icon">⚙</span>
         <template lwc:if={isExpanded}>
-            <div class="supervisor-chip">
-                <span class="chip-avatar">👷</span>
-                <div class="chip-info">
-                    <span class="chip-label">Supervisor</span>
-                    <span class="chip-name">{supervisorName}</span>
-                </div>
-            </div>
+          <div class="logo-text">
+            <span class="logo-title">Workshop</span>
+            <span class="logo-sub">{territoryName}</span>
+          </div>
         </template>
+      </div>
+      <button
+        class="sidebar-toggle"
+        onclick={handleToggle}
+        aria-label="Toggle sidebar"
+      >
+        <span class="toggle-icon">{toggleIcon}</span>
+      </button>
+    </div>
 
-        <!-- Nav items -->
-        <ul class="nav-list" role="list">
-            <li>
-                <button
-                    class={dashboardNavClass}
-                    data-nav="dashboard"
-                    onclick={handleNav}
-                    aria-current={isDashboardActive}
-                >
-                    <span class="nav-icon" aria-hidden="true">📊</span>
-                    <template lwc:if={isExpanded}>
-                        <span class="nav-label">Dashboard</span>
-                    </template>
-                </button>
-            </li>
-            <li>
-                <button
-                    class={workordersNavClass}
-                    data-nav="workorders"
-                    onclick={handleNav}
-                    aria-current={isWorkordersActive}
-                >
-                    <span class="nav-icon" aria-hidden="true">🔧</span>
-                    <template lwc:if={isExpanded}>
-                        <span class="nav-label">Work Orders</span>
-                    </template>
-                </button>
-            </li>
-            <li>
-                <button
-                    class={timeNavClass}
-                    data-nav="timetracking"
-                    onclick={handleNav}
-                    aria-current={isTimeActive}
-                >
-                    <span class="nav-icon" aria-hidden="true">⏱</span>
-                    <template lwc:if={isExpanded}>
-                        <span class="nav-label">Time Tracking</span>
-                    </template>
-                </button>
-            </li>
-        </ul>
-
-        <!-- Footer actions -->
-        <div class="sidebar-footer">
-            <div class="sidebar-version">{version}</div>
-            <button class="nav-item nav-theme" onclick={handleThemeToggle} title={themeLabel} aria-label={themeLabel}>
-                <span class="nav-icon" aria-hidden="true">{themeIcon}</span>
-                <template lwc:if={isExpanded}>
-                    <span class="nav-label">{themeLabel}</span>
-                </template>
-            </button>
-            <template lwc:if={showSwitchUser}>
-                <button class="nav-item nav-action" onclick={handleSwitchUser}>
-                    <span class="nav-icon" aria-hidden="true">🔄</span>
-                    <template lwc:if={isExpanded}>
-                        <span class="nav-label">Switch Worker</span>
-                    </template>
-                </button>
-            </template>
-            <button class="nav-item nav-danger" onclick={handleEndSession}>
-                <span class="nav-icon" aria-hidden="true">⏻</span>
-                <template lwc:if={isExpanded}>
-                    <span class="nav-label">End Shift</span>
-                </template>
-            </button>
+    <!-- Supervisor chip -->
+    <template lwc:if={isExpanded}>
+      <div class="supervisor-chip">
+        <span class="chip-avatar">👷</span>
+        <div class="chip-info">
+          <span class="chip-label">Supervisor</span>
+          <span class="chip-name">{supervisorName}</span>
         </div>
-    </nav>
+      </div>
+    </template>
+
+    <!-- Nav items -->
+    <ul class="nav-list" role="list">
+      <li>
+        <button
+          class={dashboardNavClass}
+          data-nav="dashboard"
+          onclick={handleNav}
+          aria-current={isDashboardActive}
+        >
+          <span class="nav-icon" aria-hidden="true">📊</span>
+          <template lwc:if={isExpanded}>
+            <span class="nav-label">Dashboard</span>
+          </template>
+        </button>
+      </li>
+      <li>
+        <button
+          class={workordersNavClass}
+          data-nav="workorders"
+          onclick={handleNav}
+          aria-current={isWorkordersActive}
+        >
+          <span class="nav-icon" aria-hidden="true">🔧</span>
+          <template lwc:if={isExpanded}>
+            <span class="nav-label">Work Orders</span>
+          </template>
+        </button>
+      </li>
+      <template lwc:if={showAdminNav}>
+        <li>
+          <button
+            class={timeNavClass}
+            data-nav="timetracking"
+            onclick={handleNav}
+            aria-current={isTimeActive}
+          >
+            <span class="nav-icon" aria-hidden="true">⏱</span>
+            <template lwc:if={isExpanded}>
+              <span class="nav-label">Time Tracking</span>
+            </template>
+          </button>
+        </li>
+      </template>
+    </ul>
+
+    <!-- Footer actions -->
+    <div class="sidebar-footer">
+      <div class="sidebar-version">{version}</div>
+      <button
+        class="nav-item nav-theme"
+        onclick={handleThemeToggle}
+        title={themeLabel}
+        aria-label={themeLabel}
+      >
+        <span class="nav-icon" aria-hidden="true">{themeIcon}</span>
+        <template lwc:if={isExpanded}>
+          <span class="nav-label">{themeLabel}</span>
+        </template>
+      </button>
+      <template lwc:if={showSwitchUser}>
+        <button class="nav-item nav-action" onclick={handleSwitchUser}>
+          <span class="nav-icon" aria-hidden="true">🔄</span>
+          <template lwc:if={isExpanded}>
+            <span class="nav-label">Switch Worker</span>
+          </template>
+        </button>
+      </template>
+      <button class="nav-item nav-danger" onclick={handleEndSession}>
+        <span class="nav-icon" aria-hidden="true">⏻</span>
+        <template lwc:if={isExpanded}>
+          <span class="nav-label">End Shift</span>
+        </template>
+      </button>
+    </div>
+  </nav>
 </template>

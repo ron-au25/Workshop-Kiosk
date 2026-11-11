@@ -1,11 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
-    <description>Extracts maintenance work orders, operations, and inspection checklists from Rail Workpack PDF text</description>
+    <activeVersionIdentifier
+  >s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_12</activeVersionIdentifier>
+    <description
+  >Extracts maintenance work orders, operations, and inspection checklists from Rail Workpack PDF text</description>
     <developerName>WorkpackExtraction</developerName>
     <masterLabel>Workpack Extraction</masterLabel>
     <overridable>false</overridable>
     <templateVersions>
-        <content>You are an expert data extraction assistant specializing in heavy industry asset management documents. Your task is to extract maintenance work orders along with their operational tasks and associated inspection checklists from the provided text representation of a PDF document.
+        <content
+    >You are an expert data extraction assistant specializing in heavy industry asset management documents. Your task is to extract maintenance work orders along with their operational tasks and associated inspection checklists from the provided text representation of a PDF document.
 
 ### Visual Context &amp; Extraction Patterns
 
@@ -55,7 +59,8 @@ The `maintenance_orders` array must contain one entry for EVERY order found in t
 ### Input Document to Parse
 
 {!$Input:pdfFile}</content>
-        <fileDroppingStrategy>{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <fileDroppingStrategy
+    >{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
         <inputs>
             <apiName>pdfFile</apiName>
             <definition>SOBJECT://ContentDocument</definition>
@@ -66,6 +71,153 @@ The `maintenance_orders` array must contain one entry for EVERY order found in t
         <isCitationEnabled>false</isCitationEnabled>
         <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
         <status>Published</status>
+        <versionIdentifier
+    >s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_10</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content
+    >You are an expert data extraction assistant specializing in heavy industry asset management documents. Your task is to extract maintenance work orders along with their operational tasks and associated inspection checklists from the provided text representation of a PDF document.
+
+### Visual Context &amp; Extraction Patterns
+
+1. **Maintenance Order Metadata:** Look for header patterns identifying a specific order, such as:
+   - &quot;MAINTENANCE ORDER [Order Number]&quot; (e.g., 115407468)
+   - Fields like Order Description, Functional Location (FunctLocation), Order Type, Planner Group, and Order Start Date.
+
+2. **Operations Table:** Below the metadata, extract the discrete tasks listed in the rows of the operations table containing columns like OpNo, WorkCtr, Task Description, Duration, and Notification.
+
+3. **Inspection Checklists:** Further down in the document section, capture the tabular visual checklist items belonging to that work scope. Group nested sub-bullets (like lists of defects or component parts) into a single, cohesive checklist string for that checkbox entry.
+
+### Extraction Rules
+1. **Extract ALL orders:** The document contains multiple maintenance orders. You MUST extract every single one — do not stop after the first. Scan the entire document from start to finish before producing output.
+2. **Maintain Hierarchy:** Checklist items and operations must strictly belong to the specific order_number under which they appear in the document.
+3. **Recombine Fragmented Text:** Reassemble segmented checkbox text and bulleted defect lists into single continuous action statements.
+4. **Format Integrity:** Output the final result strictly as a clean JSON object following the provided schema. Do not include markdown code block wrappers in your response - return only the raw JSON.
+5. **start_date format:** Always use DD.MM.YYYY exactly as it appears in the document.
+
+### JSON Schema Requirement
+The `maintenance_orders` array must contain one entry for EVERY order found in the document.
+{
+  &quot;maintenance_orders&quot;: [
+    {
+      &quot;order_number&quot;: &quot;115407468&quot;,
+      &quot;order_description&quot;: &quot;Wagon Supply Reservoir STAT Insp&quot;,
+      &quot;functional_location&quot;: &quot;3076WAG20020 .ABRK.ARSR Air Receiver: Supply Reservoir&quot;,
+      &quot;order_type&quot;: &quot;PM01&quot;,
+      &quot;planner_group&quot;: &quot;RW1&quot;,
+      &quot;start_date&quot;: &quot;20.04.2026&quot;,
+      &quot;operations&quot;: [
+        {
+          &quot;operation_number&quot;: &quot;0010&quot;,
+          &quot;work_center&quot;: &quot;RMW&quot;,
+          &quot;task_description&quot;: &quot;6Y Wagon Supply Reservoir Ext STAT Insp&quot;,
+          &quot;duration&quot;: &quot;0,0 H&quot;,
+          &quot;notification_number&quot;: &quot;72170093&quot;
+        }
+      ],
+      &quot;checklist_items&quot;: [
+        &quot;Record the serial number of Supply Reservoir (SR) pressure vessel.&quot;,
+        &quot;Conduct a close visual inspection of the external surface coating/paintwork for degradation.&quot;
+      ]
+    }
+  ]
+}
+
+### Input Document to Parse
+
+{!$Input:pdfFile}</content>
+        <fileDroppingStrategy
+    >{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>pdfFile</apiName>
+            <definition>SOBJECT://ContentDocument</definition>
+            <masterLabel>pdfFile</masterLabel>
+            <referenceName>Input:pdfFile</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultVertexAIGemini25Flash001</primaryModel>
+        <status>Published</status>
+        <templateFormat>FormulaExpression</templateFormat>
+        <versionIdentifier
+    >s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_11</versionIdentifier>
+    </templateVersions>
+    <templateVersions>
+        <content
+    >You are an expert data extraction assistant specializing in heavy industry asset management documents. Your task is to extract maintenance work orders along with their operational tasks and associated inspection checklists from the provided text representation of a PDF document.
+
+### Visual Context &amp; Extraction Patterns
+
+1. **Maintenance Order Metadata:** Look for header patterns identifying a specific order, such as:
+   - &quot;MAINTENANCE ORDER [Order Number]&quot; (e.g., 115407468)
+   - Fields like Order Description, Functional Location (FunctLocation), Order Type, Planner Group, and Order Start Date.
+
+2. **Operations Table:** Below the metadata, extract the discrete tasks listed in the rows of the operations table containing columns like OpNo, WorkCtr, Task Description, Duration, and Notification.
+
+3. **Inspection Checklists:** Further down in the document section, capture the checklist items belonging to that work scope (see the Checklist Item Rules below). Each item is an object with its component text, page number and vertical page position.
+
+### Extraction Rules
+1. **Extract ALL orders:** The document contains multiple maintenance orders. You MUST extract every single one — do not stop after the first. Scan the entire document from start to finish before producing output.
+2. **Maintain Hierarchy:** Checklist items and operations must strictly belong to the specific order_number under which they appear in the document.
+3. **Recombine Fragmented Text:** Reassemble text that wraps onto a second line into one continuous string (see rule C5).
+4. **Format Integrity:** Output the final result strictly as a clean JSON object following the provided schema. Do not include markdown code block wrappers in your response - return only the raw JSON.
+5. **start_date format:** Always use DD.MM.YYYY exactly as it appears in the document.
+
+### Checklist Item Rules (apply to checklist_items)
+C1. An item is a component only if a trailing marker such as &quot;OK&quot; or &quot;Att. Req&quot; follows it. If no marker follows, do not include it as a checklist item.
+C2. Keep the item text verbatim as printed. Never add, remove, expand or correct characters, words, spaces or hyphens. Remove the trailing marker and never end an item with &quot;:&quot;.
+C3. Every item gets the page number (integer, 1-based) and an estimate of its vertical position on that page as a percentage string from top to bottom (0% = top, 100% = bottom), e.g. &quot;20%&quot;.
+C4. Duplicates on the same page are kept. Do not combine them. Do not include safety instructions or page footers.
+C5. If an item wraps onto a second line, read both lines and output one string. If the first line ends with a hyphen, join with NO space (SK0501-CV15- then PU01 gives SK0501-CV15-PU01). Otherwise join with a single space. Never drop or repeat a hyphen-separated segment.
+C6. Measurement tables (only tables where measurements are needed): output one checklist item for every row and column combination. The component is &quot;[row name] - [column name]&quot;, and the item has an extra string table_name holding the table title. If a table has several header levels or sub-headers, keep all of them in the row or column text so no header is dropped.
+C7. Replace any backslash in item text with &quot;|&quot;. Never output a backslash, \n, \r or other newline characters inside JSON strings. Output the whole JSON on one line without code fences.
+
+### JSON Schema Requirement
+The `maintenance_orders` array must contain one entry for EVERY order found in the document.
+{
+  &quot;maintenance_orders&quot;: [
+    {
+      &quot;order_number&quot;: &quot;115407468&quot;,
+      &quot;order_description&quot;: &quot;Wagon Supply Reservoir STAT Insp&quot;,
+      &quot;functional_location&quot;: &quot;3076WAG20020 .ABRK.ARSR Air Receiver: Supply Reservoir&quot;,
+      &quot;order_type&quot;: &quot;PM01&quot;,
+      &quot;planner_group&quot;: &quot;RW1&quot;,
+      &quot;start_date&quot;: &quot;20.04.2026&quot;,
+      &quot;operations&quot;: [
+        {
+          &quot;operation_number&quot;: &quot;0010&quot;,
+          &quot;work_center&quot;: &quot;RMW&quot;,
+          &quot;task_description&quot;: &quot;6Y Wagon Supply Reservoir Ext STAT Insp&quot;,
+          &quot;duration&quot;: &quot;0,0 H&quot;,
+          &quot;notification_number&quot;: &quot;72170093&quot;
+        }
+      ],
+      &quot;checklist_items&quot;: [
+        {&quot;component&quot;: &quot;Conduct a close visual inspection of the external surface coating/paintwork for degradation.&quot;, &quot;page_number&quot;: 2, &quot;page_position_estimate&quot;: &quot;20%&quot;},
+        {&quot;component&quot;: &quot;Flank Wear - Measurement (mm)&quot;, &quot;page_number&quot;: 3, &quot;page_position_estimate&quot;: &quot;65%&quot;, &quot;table_name&quot;: &quot;Wheel Flange Measurements&quot;}
+      ]
+    }
+  ]
+}
+
+### Input Document to Parse
+
+{!$Input:pdfFile}</content>
+        <fileDroppingStrategy
+    >{&quot;dropFilesBy&quot;:&quot;LAST_MODIFIED_DATE&quot;,&quot;dropFileStartingWith&quot;:&quot;OLDEST&quot;}</fileDroppingStrategy>
+        <inputs>
+            <apiName>pdfFile</apiName>
+            <definition>SOBJECT://ContentDocument</definition>
+            <masterLabel>pdfFile</masterLabel>
+            <referenceName>Input:pdfFile</referenceName>
+            <required>true</required>
+        </inputs>
+        <isCitationEnabled>false</isCitationEnabled>
+        <primaryModel>sfdc_ai__DefaultVertexAIGemini37Flash</primaryModel>
+        <status>Published</status>
+        <templateFormat>FormulaExpression</templateFormat>
+        <versionIdentifier
+    >s0dZNAQxQ7ZPPYj2gCUwl1xKVjSG1GS3DzPDJreb2kM=_12</versionIdentifier>
     </templateVersions>
     <type>einstein_gpt__flex</type>
     <visibility>Global</visibility>

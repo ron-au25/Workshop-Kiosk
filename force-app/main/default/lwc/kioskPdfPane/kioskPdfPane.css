@@ -64,9 +64,9 @@
 }
 .hl {
   position: absolute;
-  border: 3px solid #e5484d;
-  background: rgba(229, 72, 77, 0.18);
-  border-radius: 4px;
+  background: rgba(255, 221, 0, 0.4);
+  mix-blend-mode: multiply;
+  border-radius: 3px;
   pointer-events: none;
   box-sizing: border-box;
 }

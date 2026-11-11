@@ -92,18 +92,23 @@ export default class KioskPdfPane extends LightningElement {
     if (!h || !r) {
       return "display:none;";
     }
+    // Marker runs across the text column (not just the label) with a little
+    // vertical padding, like a highlighter stroke.
+    const padY = 3;
+    const x0 = Math.min(h.x, 0.05);
+    const x1 = Math.max(h.x + h.w, 0.95);
     return (
       "left:" +
-      (r.left + h.x * r.width) +
+      (r.left + x0 * r.width) +
       "px;" +
       "top:" +
-      (r.top + h.y * r.height) +
+      (r.top + h.y * r.height - padY) +
       "px;" +
       "width:" +
-      h.w * r.width +
+      (x1 - x0) * r.width +
       "px;" +
       "height:" +
-      h.h * r.height +
+      (h.h * r.height + padY * 2) +
       "px;"
     );
   }

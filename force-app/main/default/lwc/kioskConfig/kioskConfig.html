@@ -1,0 +1,167 @@
+<template>
+  <div class="cfg-wrap">
+    <div class="cfg-head">
+      <div>
+        <h1>🛠 Kiosk Config</h1>
+        <div class="sub">
+          Org-wide: applies to every kiosk. Supervisor / Admin only.
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick={handleReset}>Reset to defaults</button>
+        <button
+          class="btn primary"
+          onclick={handleSave}
+          disabled={saveDisabled}
+        >
+          {saveLabel}
+        </button>
+      </div>
+    </div>
+    <div if:true={message} class={messageCls} role="status">{message}</div>
+
+    <div class="cfg2">
+      <nav class="cfg-nav" aria-label="Config sections">
+        <template for:each={categories} for:item="cat">
+          <div key={cat.name}>
+            <div class="cn-h">{cat.name}</div>
+            <template for:each={cat.items} for:item="it">
+              <button
+                key={it.key}
+                class={it.cls}
+                data-key={it.key}
+                onclick={handleSection}
+              >
+                {it.label}
+              </button>
+            </template>
+          </div>
+        </template>
+      </nav>
+
+      <div class="cfg-main">
+        <div class="crumb">{crumb}</div>
+        <template for:each={blocks} for:item="blk">
+          <section key={blk.id} class="sec">
+            <h4>{blk.title}</h4>
+            <div if:true={blk.sub} class="sec-sub">{blk.sub}</div>
+
+            <template lwc:if={blk.isList}>
+              <template for:each={blk.rows} for:item="r">
+                <div key={r.f} class="row">
+                  <button
+                    class={r.cbCls}
+                    data-key={blk.listKey}
+                    data-f={r.f}
+                    onclick={handleListToggle}
+                    aria-label={r.label}
+                  >
+                    {r.mark}
+                  </button>
+                  <span>{r.label}<code>{r.f}</code></span>
+                  <span if:true={r.on}>
+                    <template lwc:if={blk.noOrder}></template>
+                    <template lwc:else>
+                      <button
+                        class="mv"
+                        data-key={blk.listKey}
+                        data-f={r.f}
+                        data-dir="-1"
+                        onclick={handleMove}
+                        aria-label="Move up"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        class="mv"
+                        data-key={blk.listKey}
+                        data-f={r.f}
+                        data-dir="1"
+                        onclick={handleMove}
+                        aria-label="Move down"
+                      >
+                        ▼
+                      </button>
+                      <span class="ord">#{r.order}</span>
+                    </template>
+                  </span>
+                </div>
+              </template>
+            </template>
+
+            <template lwc:if={blk.isDrawer}>
+              <template for:each={blk.rows} for:item="r">
+                <div key={r.f} class="row">
+                  <button
+                    class={r.cbCls}
+                    data-f={r.f}
+                    onclick={handleDrawerToggle}
+                    aria-label={r.label}
+                  >
+                    {r.mark}
+                  </button>
+                  <span>{r.label}<code>{r.f}</code></span>
+                  <span if:true={r.on} class="mini">
+                    <button
+                      class={r.readCls}
+                      data-f={r.f}
+                      data-m="R"
+                      onclick={handleDrawerMode}
+                    >
+                      Read
+                    </button>
+                    <button
+                      class={r.editCls}
+                      data-f={r.f}
+                      data-m="E"
+                      onclick={handleDrawerMode}
+                    >
+                      Edit
+                    </button>
+                  </span>
+                </div>
+              </template>
+            </template>
+
+            <template lwc:if={blk.isBools}>
+              <template for:each={blk.bools} for:item="r">
+                <div key={r.key} class="row">
+                  <button
+                    class={r.cbCls}
+                    data-key={r.key}
+                    onclick={handleBool}
+                    aria-label={r.label}
+                  >
+                    {r.mark}
+                  </button>
+                  <span>{r.label}<code>{r.code}</code></span>
+                  <span></span>
+                </div>
+              </template>
+            </template>
+
+            <template lwc:if={blk.isSeg}>
+              <div class="row seg-row">
+                <span></span>
+                <span>{blk.seg.label}</span>
+                <span class="mini">
+                  <template for:each={blk.seg.options} for:item="o">
+                    <button
+                      key={o.v}
+                      class={o.cls}
+                      data-key={blk.seg.key}
+                      data-v={o.v}
+                      onclick={handleSeg}
+                    >
+                      {o.l}
+                    </button>
+                  </template>
+                </span>
+              </div>
+            </template>
+          </section>
+        </template>
+      </div>
+    </div>
+  </div>
+</template>

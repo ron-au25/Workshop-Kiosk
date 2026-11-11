@@ -77,6 +77,11 @@
             worker-name={currentWorkerName}
             crew-name={currentCrewName}
             clock-start-ms={clockStartMs}
+            clocked-work-order-id={clockedWorkOrderId}
+            current-work-order-id={currentWorkpackId}
+            onclockin={handleHeaderClockIn}
+            onclockout={handleHeaderClockOut}
+            onclockswitch={handleHeaderClockSwitch}
             is-portrait={isPortrait}
             onhamburger={handleSidebarToggle}
           ></c-kiosk-header>
@@ -88,6 +93,7 @@
                 <c-work-order-detail
                   session-token={sessionToken}
                   work-order-id={selectedWorkOrderId}
+                  config={kioskConfig}
                   site-base-url={siteBaseUrl}
                   worker-name={currentWorkerName}
                   onback={handleDetailBack}
@@ -138,6 +144,14 @@
                   <c-time-tracking-dashboard
                     session-token={sessionToken}
                   ></c-time-tracking-dashboard>
+                </template>
+
+                <template lwc:elseif={isKioskConfigState}>
+                  <c-kiosk-config
+                    session-token={sessionToken}
+                    config={kioskConfig}
+                    onconfigsaved={handleConfigSaved}
+                  ></c-kiosk-config>
                 </template>
               </div>
             </template>

@@ -73,6 +73,19 @@
             </template>
           </button>
         </li>
+        <li>
+          <button
+            class={configNavClass}
+            data-nav="kioskconfig"
+            onclick={handleNav}
+            aria-current={isConfigActive}
+          >
+            <span class="nav-icon" aria-hidden="true">🛠</span>
+            <template lwc:if={isExpanded}>
+              <span class="nav-label">Kiosk Config</span>
+            </template>
+          </button>
+        </li>
       </template>
     </ul>
 

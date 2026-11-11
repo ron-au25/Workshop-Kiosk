@@ -4,6 +4,8 @@ import getSupervisorContext from "@salesforce/apex/KioskController.getSupervisor
 import ensureClockedIn from "@salesforce/apex/KioskController.ensureClockedIn";
 import autoClockOut from "@salesforce/apex/KioskController.autoClockOut";
 import getActiveClock from "@salesforce/apex/KioskController.getActiveClock";
+import getKioskConfig from "@salesforce/apex/KioskController.getKioskConfig";
+import { mergeConfig } from "c/kioskConfigDefaults";
 
 const STATE = {
   BOOTING: "BOOTING",
@@ -13,7 +15,8 @@ const STATE = {
   DASHBOARD: "DASHBOARD",
   WORK_ORDERS: "WORK_ORDERS",
   WORK_ORDER_DETAIL: "WORK_ORDER_DETAIL",
-  TIME_TRACKING: "TIME_TRACKING"
+  TIME_TRACKING: "TIME_TRACKING",
+  KIOSK_CONFIG: "KIOSK_CONFIG"
 };
 
 const IDLE_WARN_SECONDS = 30;
@@ -35,6 +38,7 @@ export default class WorkshopPortal extends LightningElement {
   @track currentWorkerName;
   @track currentWorkerRole = "";
   @track currentCrewName = "";
+  @track kioskConfig = mergeConfig(null);
   @track setupError;
   @track isAuthError = false;
   @track siteBaseUrl = "";
@@ -49,7 +53,7 @@ export default class WorkshopPortal extends LightningElement {
   @track selectedWorkOrderId = null;
   @track theme = "dark";
   @track clockStartMs = null; // epoch ms of the active clock's Start_Time__c (drives header timer)
-  clockedWorkOrderId = null; // WO opened when the worker was clocked in
+  @track clockedWorkOrderId = null; // WO opened when the worker was clocked in
 
   _idleTimer;
   _idleWarnTimer;
@@ -139,6 +143,20 @@ export default class WorkshopPortal extends LightningElement {
     this.activeNav = "dashboard";
     this.state = STATE.DASHBOARD;
     this._startIdleTimer();
+    this._loadKioskConfig();
+  }
+
+  async _loadKioskConfig() {
+    try {
+      const raw = await getKioskConfig({ token: this.sessionToken });
+      this.kioskConfig = mergeConfig(raw);
+    } catch {
+      this.kioskConfig = mergeConfig(null); // defaults: config must never block the kiosk
+    }
+  }
+
+  handleConfigSaved(evt) {
+    this.kioskConfig = evt.detail.config;
   }
 
   handleLoginCancel() {
@@ -156,6 +174,8 @@ export default class WorkshopPortal extends LightningElement {
       this.state = STATE.WORK_ORDERS;
     } else if (nav === "timetracking" && this.showAdminNav)
       this.state = STATE.TIME_TRACKING;
+    else if (nav === "kioskconfig" && this.showAdminNav)
+      this.state = STATE.KIOSK_CONFIG;
   }
 
   /** Time Tracking and Config sidebar tabs: Supervisor or Admin role only. */
@@ -202,6 +222,29 @@ export default class WorkshopPortal extends LightningElement {
     } catch {
       /* clock is best-effort; never block the user's action */
     }
+  }
+
+  get currentWorkpackId() {
+    return this.state === STATE.WORK_ORDER_DETAIL
+      ? this.selectedWorkOrderId
+      : null;
+  }
+
+  // Header chip actions (any page). Clock in/switch only applies to the open workpack.
+  async handleHeaderClockIn() {
+    await this.handleDataUpdate();
+    this._reloadWorkOrderDetail();
+  }
+
+  async handleHeaderClockOut() {
+    await this._doAutoClockOut();
+    this._reloadWorkOrderDetail();
+  }
+
+  async handleHeaderClockSwitch() {
+    await this._doAutoClockOut();
+    await this.handleDataUpdate();
+    this._reloadWorkOrderDetail();
   }
 
   // Manual Clock Out button in workOrderDetail closed the report → stop the header timer.
@@ -315,7 +358,8 @@ export default class WorkshopPortal extends LightningElement {
       this.state !== STATE.DASHBOARD &&
       this.state !== STATE.WORK_ORDERS &&
       this.state !== STATE.WORK_ORDER_DETAIL &&
-      this.state !== STATE.TIME_TRACKING
+      this.state !== STATE.TIME_TRACKING &&
+      this.state !== STATE.KIOSK_CONFIG
     )
       return;
     this._clearTimers();
@@ -409,8 +453,12 @@ export default class WorkshopPortal extends LightningElement {
   get isTimeTrackingState() {
     return this.state === STATE.TIME_TRACKING;
   }
+  get isKioskConfigState() {
+    return this.state === STATE.KIOSK_CONFIG;
+  }
   get isInApp() {
     return (
+      this.state === STATE.KIOSK_CONFIG ||
       this.state === STATE.DASHBOARD ||
       this.state === STATE.WORK_ORDERS ||
       this.state === STATE.WORK_ORDER_DETAIL ||

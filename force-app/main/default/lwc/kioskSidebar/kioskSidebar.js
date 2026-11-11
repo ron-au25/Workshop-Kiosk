@@ -1,6 +1,6 @@
 import { LightningElement, api } from "lwc";
 
-const VERSION = "v2.60";
+const VERSION = "v2.61";
 
 export default class KioskSidebar extends LightningElement {
   version = VERSION;
@@ -32,6 +32,12 @@ export default class KioskSidebar extends LightningElement {
   }
   get workordersNavClass() {
     return "nav-item" + (this.activeNav === "workorders" ? " active" : "");
+  }
+  get configNavClass() {
+    return "nav-item" + (this.activeNav === "kioskconfig" ? " active" : "");
+  }
+  get isConfigActive() {
+    return this.activeNav === "kioskconfig" ? "page" : "false";
   }
   get timeNavClass() {
     return "nav-item" + (this.activeNav === "timetracking" ? " active" : "");

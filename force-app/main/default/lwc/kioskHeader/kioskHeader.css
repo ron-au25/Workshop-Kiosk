@@ -1,99 +1,176 @@
 .kiosk-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-    padding: 0 24px;
-    background: var(--rt-surface, #0D1319);
-    border-bottom: 1px solid var(--rt-border, #2A3744);
-    flex-shrink: 0;
-    box-sizing: border-box;
-    overflow: visible;
-    min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 24px;
+  background: var(--rt-surface, #0d1319);
+  border-bottom: 1px solid var(--rt-border, #2a3744);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: visible;
+  min-width: 0;
 }
 
-.header-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex-shrink: 1; }
-.header-centre { display: flex; align-items: center; flex-shrink: 0; }
-.header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding-right: 4px; }
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+.header-centre {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
 
 .hamburger {
-    background: none;
-    border: 1px solid var(--rt-border, #2A3744);
-    border-radius: 8px;
-    color: var(--rt-text-muted, #A6B2BD);
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 20px;
-    transition: background 0.15s;
+  background: none;
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 8px;
+  color: var(--rt-text-muted, #a6b2bd);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  transition: background 0.15s;
 }
-.hamburger:hover { background: var(--rt-surface-2, #1B2530); }
+.hamburger:hover {
+  background: var(--rt-surface-2, #1b2530);
+}
 
 .header-territory {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 .territory-label {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--rt-text, #F2F5F7);
-    white-space: nowrap;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--rt-text, #f2f5f7);
+  white-space: nowrap;
 }
 .crew-label {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--rt-text-muted, #A6B2BD);
-    background: var(--rt-surface-2, #1B2530);
-    border: 1px solid var(--rt-border, #2A3744);
-    border-radius: 999px;
-    padding: 4px 12px;
-    white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--rt-text-muted, #a6b2bd);
+  background: var(--rt-surface-2, #1b2530);
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
 }
 
 .header-clock {
-    font-size: 22px;
-    font-weight: 600;
-    color: var(--rt-text-muted, #A6B2BD);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--rt-text-muted, #a6b2bd);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .worker-chip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(33,192,122,0.12);
-    border: 1px solid var(--rt-success, #21C07A);
-    border-radius: 20px;
-    padding: 6px 16px;
-    max-width: 340px;
-    overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(33, 192, 122, 0.12);
+  border: 1px solid var(--rt-success, #21c07a);
+  border-radius: 20px;
+  padding: 6px 16px;
+  max-width: 340px;
+  overflow: hidden;
 }
 .worker-timer {
-    flex-shrink: 0;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--rt-success, #21C07A);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-    padding-left: 8px;
-    border-left: 1px solid rgba(33,192,122,0.4);
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--rt-success, #21c07a);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  padding-left: 8px;
+  border-left: 1px solid rgba(33, 192, 122, 0.4);
 }
 .worker-chip.idle {
-    background: var(--rt-surface-2, #1B2530);
-    border-color: var(--rt-border, #2A3744);
+  background: var(--rt-surface-2, #1b2530);
+  border-color: var(--rt-border, #2a3744);
 }
 .chip-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--rt-success, #21C07A);
-    flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rt-success, #21c07a);
+  flex-shrink: 0;
 }
-.chip-dot.idle { background: var(--rt-text-dim, #6B7A89); }
-.chip-name { font-size: 16px; font-weight: 500; color: var(--rt-text, #F2F5F7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-dot.idle {
+  background: var(--rt-text-dim, #6b7a89);
+}
+.chip-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--rt-text, #f2f5f7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.worker-wrap {
+  position: relative;
+}
+.chip-btn {
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 44px;
+}
+.chip-caret {
+  font-size: 12px;
+  color: var(--rt-text-muted, #a6b2bd);
+}
+.clock-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 260px;
+  z-index: 50;
+  background: var(--rt-surface-2, #1b2530);
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.clock-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--rt-text, #f2f5f7);
+  font-size: 15px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.clock-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.clock-item.out {
+  color: #e5484d;
+}
+.clock-hint {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--rt-text-muted, #a6b2bd);
+}

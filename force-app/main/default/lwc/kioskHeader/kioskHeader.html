@@ -1,37 +1,90 @@
 <template>
-    <header class="kiosk-header">
-        <div class="header-left">
-            <template lwc:if={isPortrait}>
-                <button class="hamburger" onclick={handleHamburger} aria-label="Open navigation">
-                    <span>☰</span>
+  <header class="kiosk-header">
+    <div class="header-left">
+      <template lwc:if={isPortrait}>
+        <button
+          class="hamburger"
+          onclick={handleHamburger}
+          aria-label="Open navigation"
+        >
+          <span>☰</span>
+        </button>
+      </template>
+      <div class="header-territory">
+        <span class="territory-label">⚙ {territoryName}</span>
+        <template lwc:if={hasCrew}>
+          <span class="crew-label">👥 {crewName}</span>
+        </template>
+      </div>
+    </div>
+    <div class="header-centre">
+      <span class="header-clock">{currentTime}</span>
+    </div>
+    <div class="header-right">
+      <template lwc:if={workerName}>
+        <div class="worker-wrap">
+          <button
+            type="button"
+            class="worker-chip chip-btn"
+            onclick={handleChipClick}
+            onkeydown={handleMenuKeydown}
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span class="chip-dot"></span>
+            <span class="chip-name">{workerName}</span>
+            <template lwc:if={isClocked}>
+              <span class="worker-timer" title="Clocked time"
+                >⏱ {clockElapsed}</span
+              >
+            </template>
+            <span class="chip-caret">▾</span>
+          </button>
+          <template lwc:if={menuOpen}>
+            <div class="clock-menu" role="menu">
+              <template lwc:if={showClockIn}>
+                <button
+                  type="button"
+                  class="clock-item"
+                  role="menuitem"
+                  onclick={handleClockIn}
+                >
+                  ⏱ Clock in to this workpack
                 </button>
-            </template>
-            <div class="header-territory">
-                <span class="territory-label">⚙ {territoryName}</span>
-                <template lwc:if={hasCrew}>
-                    <span class="crew-label">👥 {crewName}</span>
-                </template>
+              </template>
+              <template lwc:if={showSwitch}>
+                <button
+                  type="button"
+                  class="clock-item"
+                  role="menuitem"
+                  onclick={handleSwitch}
+                >
+                  ⇄ Switch clock to this workpack
+                </button>
+              </template>
+              <template lwc:if={isClocked}>
+                <button
+                  type="button"
+                  class="clock-item out"
+                  role="menuitem"
+                  onclick={handleClockOut}
+                >
+                  ⏹ Clock out
+                </button>
+              </template>
+              <template lwc:if={noActionHint}>
+                <div class="clock-hint">Open a workpack to clock in.</div>
+              </template>
             </div>
+          </template>
         </div>
-        <div class="header-centre">
-            <span class="header-clock">{currentTime}</span>
+      </template>
+      <template lwc:else>
+        <div class="worker-chip idle">
+          <span class="chip-dot idle"></span>
+          <span class="chip-name">No worker signed in</span>
         </div>
-        <div class="header-right">
-            <template lwc:if={workerName}>
-                <div class="worker-chip">
-                    <span class="chip-dot"></span>
-                    <span class="chip-name">{workerName}</span>
-                    <template lwc:if={isClocked}>
-                        <span class="worker-timer" title="Clocked time">⏱ {clockElapsed}</span>
-                    </template>
-                </div>
-            </template>
-            <template lwc:else>
-                <div class="worker-chip idle">
-                    <span class="chip-dot idle"></span>
-                    <span class="chip-name">No worker signed in</span>
-                </div>
-            </template>
-        </div>
-    </header>
+      </template>
+    </div>
+  </header>
 </template>

@@ -95,6 +95,8 @@ const DAMAGE_OPTIONS = [
 
 export default class WorkOrderDetail extends LightningElement {
   @api sessionToken;
+  // Merged Kiosk Config (kioskConfigDefaults.mergeConfig); consumed by the workpack page and Asset Review.
+  @api config;
   @api workerName;
   @api
   get workOrderId() {

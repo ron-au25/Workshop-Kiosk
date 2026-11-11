@@ -2674,6 +2674,7 @@ export default class AssetReview extends LightningElement {
       : "";
   }
   get nextStepText() {
+    if (!this._cfg.wpNext) return "";
     const r = this.selectedRow;
     return r ? woNextStep(r).text : "";
   }

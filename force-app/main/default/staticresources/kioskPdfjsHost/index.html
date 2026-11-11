@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF.js host</title>
+    <style>
+        :root { color-scheme: light; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #f4f6f9;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        body.all-pages {
+            display: block;
+            overflow: visible;
+            height: auto;
+            align-items: stretch;
+            justify-content: flex-start;
+            background: #5a6573;
+        }
+        html.all-pages {
+            height: auto;
+        }
+        #status { display: none; }
+        canvas {
+            display: block;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        #pages {
+            width: 100%;
+        }
+        #pages canvas {
+            margin: 0 0 8px 0;
+        }
+        #pages canvas:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">waiting for pdfjs URL parameters...</div>
+    <canvas id="cv" aria-label="Rendered PDF page"></canvas>
+
+    <script src="imagetext.js"></script>
+    <script>
+    /* eslint-env browser */
+    /**
+     * pdfjsHost - STORY-PR1070095-1 shared PDF viewer core.
+     *
+     * Loaded in an iframe by the parent LWC (prtAnnotator / offline viewer)
+     * and driven via postMessage:
+     *
+     *   parent -> host  { type: 'pdfjsHost:render',   payload: { base64, pageNumber, availableWidth, availableHeight, allPages } }
+     *   host -> parent  { type: 'pdfjsHost:ready',    payload: {} }
+     *                   { type: 'pdfjsHost:status',   payload: { text } }
+     *                   { type: 'pdfjsHost:rendered', payload: { pageCount, pageNumber, bitmapCss* rect, pageHeights?, totalCssHeight? } }
+     *                   { type: 'pdfjsHost:error',    payload: { message } }
+     *                   { type: 'pdfjsHost:text',     payload: { pages: [{ pageNumber, items }] } }
+     * Text items are PDF glyphs plus words read from a ruled table picture.
+     *
+     * allPages:true (digitalChecklist) stacks every page for continuous scroll.
+     * Annotator omits it and keeps the single-canvas path.
+     *
+     * The iframe JS context is NOT under LWS, so PDF.js real Web Worker mode
+     * works here even though it is blocked in the parent LWC. pdfjs + worker
+     * URLs are passed as ?pdfjs=...&worker=... query params (the parent
+     * resolves them from @salesforce/resourceUrl and forwards them).
+     */
+    (function () {
+        var statusEl = document.getElementById('status');
+        var canvas = document.getElementById('cv');
+        var pdfjsLoaded = false;
+        var renderGen = 0;
+
+        // Kiosk hardening: the parent passes its own origin as ?origin=. Outgoing messages go only
+        // to that origin and incoming render commands from any other origin are ignored.
+        // Without ?origin= the host falls back to '*' (previous behaviour).
+        var parentOrigin = new URLSearchParams(window.location.search).get('origin') || '*';
+
+        function post(type, payload) {
+            try {
+                window.parent.postMessage({ type: 'pdfjsHost:' + type, payload: payload || {} }, parentOrigin);
+            } catch (e) {
+                // postMessage shouldn't throw same-origin, but be defensive
+            }
+        }
+
+        function setStatus(s, isErr) {
+            statusEl.textContent = s;
+            statusEl.className = isErr ? 'err' : '';
+            post('status', { text: s, isErr: !!isErr });
+        }
+
+        function fail(msg) {
+            setStatus(msg, true);
+            post('error', { message: msg });
+        }
+
+        var params = new URLSearchParams(window.location.search);
+        var pdfjsUrl = params.get('pdfjs');
+        var workerUrl = params.get('worker');
+        if (!pdfjsUrl || !workerUrl) {
+            fail('missing ?pdfjs= and/or ?worker= URL parameters');
+            return;
+        }
+
+        setStatus('loading PDF.js library...');
+        var script = document.createElement('script');
+        script.src = pdfjsUrl;
+        script.onload = function () {
+            try {
+                // eslint-disable-next-line no-undef
+                pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+                pdfjsLoaded = true;
+                setStatus('PDF.js ready; awaiting render command from parent');
+                post('ready', {});
+            } catch (e) {
+                fail('post-load setup failed: ' + (e.message || e));
+            }
+        };
+        script.onerror = function () {
+            fail('failed to load PDF.js script from ' + pdfjsUrl);
+        };
+        document.head.appendChild(script);
+
+        window.addEventListener('message', function (event) {
+            if (parentOrigin !== '*' && event.origin !== parentOrigin) return;
+            var data = event.data;
+            if (!data || typeof data.type !== 'string' || data.type !== 'pdfjsHost:render') return;
+            if (!pdfjsLoaded) {
+                fail('render command received before PDF.js was ready');
+                return;
+            }
+            renderPdf(data.payload || {});
+        });
+
+        function availWidth(payload) {
+            if (typeof payload.availableWidth === 'number' && payload.availableWidth > 0) {
+                return payload.availableWidth;
+            }
+            return window.innerWidth || document.documentElement.clientWidth || 600;
+        }
+
+        function availHeight(payload) {
+            if (typeof payload.availableHeight === 'number' && payload.availableHeight > 0) {
+                return payload.availableHeight;
+            }
+            return window.innerHeight || document.documentElement.clientHeight || 750;
+        }
+
+        function paintPage(page, targetCanvas, payload, widthFitOnly) {
+            var nativeViewport = page.getViewport({ scale: 1 });
+            var availW = availWidth(payload);
+            var availH = availHeight(payload);
+            var scaleX = availW / nativeViewport.width;
+            var scaleY = availH / nativeViewport.height;
+            var fitScale = widthFitOnly
+                ? Math.max(0.1, scaleX)
+                : Math.max(0.1, Math.min(scaleX, scaleY));
+            var dpr = window.devicePixelRatio || 1;
+            var oversample = widthFitOnly
+                ? Math.min(3, Math.max(2, dpr))
+                : Math.min(4, Math.max(2, dpr * 2));
+            var renderScale = fitScale * oversample;
+            var viewport = page.getViewport({ scale: renderScale });
+            targetCanvas.width = Math.floor(viewport.width);
+            targetCanvas.height = Math.floor(viewport.height);
+            targetCanvas.style.width = Math.floor(viewport.width / oversample) + 'px';
+            targetCanvas.style.height = Math.floor(viewport.height / oversample) + 'px';
+            var cssW = Math.floor(viewport.width / oversample);
+            var cssH = Math.floor(viewport.height / oversample);
+            var renderOpts = {
+                canvasContext: targetCanvas.getContext('2d'),
+                viewport: viewport
+            };
+            if (payload && payload.annotationMode === 0) {
+                renderOpts.annotationMode = 0;
+            }
+            return page.render(renderOpts).promise
+                .then(function () {
+                    var rect = targetCanvas.getBoundingClientRect();
+                    return {
+                        bitmapCssWidth: cssW,
+                        bitmapCssHeight: cssH,
+                        bitmapCssLeft: Math.round(rect.left),
+                        bitmapCssTop: Math.round(rect.top)
+                    };
+                });
+        }
+
+        function setAllPagesMode(on) {
+            document.documentElement.classList.toggle('all-pages', on);
+            document.body.classList.toggle('all-pages', on);
+            var pagesEl = document.getElementById('pages');
+            if (on) {
+                canvas.style.display = 'none';
+                if (!pagesEl) {
+                    pagesEl = document.createElement('div');
+                    pagesEl.id = 'pages';
+                    document.body.appendChild(pagesEl);
+                }
+                pagesEl.innerHTML = '';
+                return pagesEl;
+            }
+            canvas.style.display = '';
+            if (pagesEl) {
+                pagesEl.parentNode.removeChild(pagesEl);
+            }
+            return null;
+        }
+
+        function sumHeights(heights) {
+            var total = 0;
+            for (var i = 0; i < heights.length; i++) {
+                total += heights[i];
+                if (i < heights.length - 1) {
+                    total += 8;
+                }
+            }
+            return total;
+        }
+
+        function renderAllPages(pdf, payload, parseMs, gen) {
+            var pagesEl = setAllPagesMode(true);
+            var tRender = performance.now();
+            var heights = [];
+            var pageCssW = 0;
+            var n = 1;
+
+            function postProgress(done) {
+                var first = heights[0] || 0;
+                post('rendered', {
+                    pageCount: pdf.numPages,
+                    pageNumber: done ? pdf.numPages : Math.max(1, heights.length),
+                    parseMs: parseMs,
+                    renderMs: Math.round(performance.now() - tRender),
+                    bitmapCssWidth: pageCssW,
+                    bitmapCssHeight: first,
+                    bitmapCssLeft: 0,
+                    bitmapCssTop: 0,
+                    pageHeights: heights.slice(),
+                    totalCssHeight: sumHeights(heights),
+                    partial: !done
+                });
+            }
+
+            function next() {
+                if (gen !== renderGen) {
+                    return;
+                }
+                if (n > pdf.numPages) {
+                    setStatus('rendered ' + pdf.numPages + ' pages');
+                    postProgress(true);
+                    return;
+                }
+                setStatus('rendering page ' + n + ' of ' + pdf.numPages + '...');
+                return pdf.getPage(n).then(function (page) {
+                    if (gen !== renderGen) {
+                        return;
+                    }
+                    var c = document.createElement('canvas');
+                    c.setAttribute('aria-label', 'PRT page ' + n);
+                    pagesEl.appendChild(c);
+                    return paintPage(page, c, payload, true).then(function (metrics) {
+                        heights.push(metrics.bitmapCssHeight);
+                        pageCssW = metrics.bitmapCssWidth || pageCssW;
+                        n += 1;
+                        postProgress(false);
+                        return next();
+                    });
+                });
+            }
+
+            return next();
+        }
+
+        var textKey = '';
+
+        function boxFromViewport(view, x0, y0, x1, y1) {
+            var p0 = view.convertToViewportPoint(x0, y0);
+            var p1 = view.convertToViewportPoint(x1, y1);
+            var left = Math.min(p0[0], p1[0]);
+            var right = Math.max(p0[0], p1[0]);
+            var top = Math.min(p0[1], p1[1]);
+            var bottom = Math.max(p0[1], p1[1]);
+            return {
+                x: left / view.width,
+                y: top / view.height,
+                w: Math.max(0.001, (right - left) / view.width),
+                h: Math.max(0.001, (bottom - top) / view.height)
+            };
+        }
+
+        function pdfObject(store, name) {
+            return new Promise(function (resolve) {
+                if (!store || !name || typeof store.get !== 'function') {
+                    resolve(null);
+                    return;
+                }
+                var settled = false;
+                function finish(obj) {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    resolve(obj && obj.width ? obj : null);
+                }
+                try {
+                    var maybe = store.get(name, finish);
+                    if (maybe && typeof maybe.then === 'function') {
+                        maybe.then(finish, function () { finish(null); });
+                    } else if (maybe && maybe.width) {
+                        finish(maybe);
+                    }
+                } catch (e) {
+                    finish(null);
+                }
+                setTimeout(function () { finish(null); }, 8000);
+            });
+        }
+
+        function pixelsFromBuffer(data, w, h) {
+            if (!data || !w || !h) {
+                return null;
+            }
+            if (data.length !== w * h && data.length !== w * h * 3 && data.length !== w * h * 4) {
+                return null;
+            }
+            return {
+                data: data,
+                width: w,
+                height: h,
+                kind: data.length === w * h * 4 ? 3 : (data.length === w * h ? 1 : 2)
+            };
+        }
+
+        // Never draw the bitmap pdf.js paints with. On iPad that bitmap can be
+        // used once, so a second draw leaves the form picture blank on reopen.
+        function imagePixels(img) {
+            var w = img && img.width;
+            var h = img && img.height;
+            var fromBuffer = pixelsFromBuffer(img && img.data, w, h);
+            var source;
+            if (!w || !h) {
+                return Promise.resolve(null);
+            }
+            if (fromBuffer) {
+                return Promise.resolve(fromBuffer);
+            }
+            source = img.bitmap || null;
+            if (!source || typeof createImageBitmap !== 'function') {
+                return Promise.resolve(null);
+            }
+            return createImageBitmap(source).then(function (clone) {
+                var canvas;
+                var ctx;
+                var pixels;
+                try {
+                    canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    ctx.drawImage(clone, 0, 0, w, h);
+                    pixels = ctx.getImageData(0, 0, w, h);
+                    return { data: pixels.data, width: w, height: h, kind: 3 };
+                } finally {
+                    if (clone && typeof clone.close === 'function') {
+                        clone.close();
+                    }
+                }
+            }).catch(function () {
+                return null;
+            });
+        }
+
+        function imageTextItems(page, view) {
+            var reader = window.imageText;
+            if (!reader || page.getOperatorList == null) {
+                return Promise.resolve([]);
+            }
+            return page.getOperatorList().then(function (op) {
+                var paints = reader.collectImagePaints(op.fnArray, op.argsArray, pdfjsLib.OPS);
+                var chain = Promise.resolve([]);
+                paints.slice(0, 8).forEach(function (paint) {
+                    chain = chain.then(function (all) {
+                        return pdfObject(page.objs, paint.name).then(function (img) {
+                            if (!img || (!img.data && !img.bitmap)) {
+                                return pdfObject(page.commonObjs, paint.name);
+                            }
+                            return img;
+                        }).then(function (img) {
+                            return imagePixels(img).then(function (pixels) {
+                                var words;
+                                if (!pixels) {
+                                    return all;
+                                }
+                                words = reader.readImageWords(pixels.data, pixels.width, pixels.height, pixels.kind);
+                                words.forEach(function (word) {
+                                    all.push(reader.mapImageBox(word, paint.ctm, view.width, view.height));
+                                });
+                                return all;
+                            });
+                        });
+                    });
+                });
+                return chain;
+            }).catch(function () {
+                return [];
+            });
+        }
+
+        function textItemsFromPage(page) {
+            var view = page.getViewport({ scale: 1 });
+            return page.getTextContent().then(function (tc) {
+                var items = [];
+                (tc.items || []).forEach(function (item) {
+                    if (!item.str || !String(item.str).trim()) {
+                        return;
+                    }
+                    var tx = item.transform;
+                    var height = item.height || Math.abs(tx[3]) || 0;
+                    var width = item.width || 0;
+                    var box = boxFromViewport(view, tx[4], tx[5], tx[4] + width, tx[5] + height);
+                    items.push({
+                        t: item.str,
+                        x: box.x,
+                        y: box.y,
+                        w: box.w,
+                        h: box.h
+                    });
+                });
+                return page.getAnnotations().then(function (annots) {
+                    (annots || []).forEach(function (ann) {
+                        if (!ann || !ann.rect) {
+                            return;
+                        }
+                        var label = String(ann.fieldName || ann.alternativeText || ann.contents || '').trim();
+                        if (!label) {
+                            return;
+                        }
+                        var box = boxFromViewport(view, ann.rect[0], ann.rect[1], ann.rect[2], ann.rect[3]);
+                        items.push({
+                            t: label,
+                            x: box.x,
+                            y: box.y,
+                            w: box.w,
+                            h: box.h,
+                            f: 1
+                        });
+                    });
+                    return imageTextItems(page, view).then(function (extra) {
+                        return items.concat(extra || []);
+                    });
+                }).catch(function () {
+                    return imageTextItems(page, view).then(function (extra) {
+                        return items.concat(extra || []);
+                    }, function () {
+                        return items;
+                    });
+                });
+            });
+        }
+
+        function extractAllText(pdf, gen) {
+            var jobs = [];
+            for (var n = 1; n <= pdf.numPages; n += 1) {
+                jobs.push(pdf.getPage(n).then(function (page) {
+                    if (gen !== renderGen) {
+                        return null;
+                    }
+                    return textItemsFromPage(page).then(function (items) {
+                        return { pageNumber: page.pageNumber, items: items };
+                    });
+                }));
+            }
+            return Promise.all(jobs).then(function (pages) {
+                if (gen !== renderGen) {
+                    return;
+                }
+                post('text', { pages: pages.filter(Boolean) });
+            });
+        }
+
+        function scheduleText(pdf, gen, base64) {
+            var key = String(base64.length) + ':' + base64.charCodeAt(0) + ':' + base64.charCodeAt(base64.length - 1);
+            if (textKey === key) {
+                return;
+            }
+            textKey = key;
+            extractAllText(pdf, gen).catch(function () {
+                textKey = '';
+            });
+        }
+
+        function renderPdf(payload) {
+            var base64 = payload.base64;
+            var pageNumber = payload.pageNumber || 1;
+            var allPages = payload.allPages === true;
+            if (!base64) {
+                fail('render payload missing base64');
+                return;
+            }
+            var gen = ++renderGen;
+
+            try {
+                setStatus('decoding base64...');
+                var binary = atob(base64);
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+
+                setStatus('parsing PDF (real-worker mode)...');
+                var tParse = performance.now();
+                // eslint-disable-next-line no-undef
+                // Keep image bytes in the worker. An ImageBitmap can be painted
+                // only once on iPad, and reading it for the table blanks the form.
+                pdfjsLib.getDocument({ data: bytes, isOffscreenCanvasSupported: false }).promise
+                    .then(function (pdf) {
+                        if (gen !== renderGen) {
+                            return;
+                        }
+                        var parseMs = Math.round(performance.now() - tParse);
+                        var painted;
+                        if (allPages) {
+                            painted = renderAllPages(pdf, payload, parseMs, gen);
+                        } else {
+                            setAllPagesMode(false);
+                            var safePage = Math.min(Math.max(1, pageNumber), pdf.numPages);
+                            setStatus('rendering page ' + safePage + ' of ' + pdf.numPages + '...');
+                            var tRender = performance.now();
+                            painted = pdf.getPage(safePage).then(function (page) {
+                                return paintPage(page, canvas, payload, false).then(function (metrics) {
+                                    var renderMs = Math.round(performance.now() - tRender);
+                                    setStatus('rendered page ' + safePage + ' / ' + pdf.numPages);
+                                    post('rendered', {
+                                        pageCount: pdf.numPages,
+                                        pageNumber: safePage,
+                                        parseMs: parseMs,
+                                        renderMs: renderMs,
+                                        bitmapCssWidth: metrics.bitmapCssWidth,
+                                        bitmapCssHeight: metrics.bitmapCssHeight,
+                                        bitmapCssLeft: metrics.bitmapCssLeft,
+                                        bitmapCssTop: metrics.bitmapCssTop
+                                    });
+                                });
+                            });
+                        }
+                        return Promise.resolve(painted).then(function () {
+                            scheduleText(pdf, gen, base64);
+                        }, function (err) {
+                            scheduleText(pdf, gen, base64);
+                            return Promise.reject(err);
+                        });
+                    })
+                    .catch(function (err) {
+                        fail((err && err.message) ? err.message : String(err));
+                    });
+            } catch (e) {
+                fail((e && e.message) || String(e));
+            }
+        }
+    })();
+    </script>
+</body>
+</html>

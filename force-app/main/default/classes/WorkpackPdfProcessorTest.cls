@@ -471,4 +471,50 @@ private class WorkpackPdfProcessorTest {
     System.assertEquals('Measure', mps[1].Measure_Type__c);
     System.assertEquals(docId, mps[1].Source_Document__c);
   }
+
+  @IsTest
+  static void testParseChecklistItem_readingAndValueType() {
+    Map<String, Object> m1 = new Map<String, Object>{
+      'component' => 'Alternator Output Voltage at DC Bus',
+      'reading_required' => true,
+      'unit' => 'V DC',
+      'value_type' => 'Level'
+    };
+    WorkpackPdfProcessor.ChecklistItem a = WorkpackPdfProcessor.parseChecklistItem(
+      m1
+    );
+    System.assert(a.isReading());
+    System.assertEquals('Level', WorkpackPdfProcessor.resolveValueType(a));
+
+    // Model omits value_type: infer from unit, then name
+    Map<String, Object> m2 = new Map<String, Object>{
+      'component' => 'Bearing housing temperature',
+      'unit' => '°C'
+    };
+    WorkpackPdfProcessor.ChecklistItem b = WorkpackPdfProcessor.parseChecklistItem(
+      m2
+    );
+    System.assert(b.isReading());
+    System.assertEquals(
+      'Temperature',
+      WorkpackPdfProcessor.resolveValueType(b)
+    );
+
+    // Invalid model value falls back to inference, then Level
+    Map<String, Object> m3 = new Map<String, Object>{
+      'component' => 'Insulation resistance',
+      'reading_required' => 'true',
+      'value_type' => 'Voltage'
+    };
+    WorkpackPdfProcessor.ChecklistItem c = WorkpackPdfProcessor.parseChecklistItem(
+      m3
+    );
+    System.assertEquals('Level', WorkpackPdfProcessor.resolveValueType(c));
+
+    // Plain tick item is not a reading
+    WorkpackPdfProcessor.ChecklistItem d = WorkpackPdfProcessor.parseChecklistItem(
+      'Check wheel flange'
+    );
+    System.assert(!d.isReading());
+  }
 }

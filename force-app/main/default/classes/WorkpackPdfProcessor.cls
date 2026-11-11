@@ -266,8 +266,9 @@ public with sharing class WorkpackPdfProcessor {
           mp.Page_Number__c = ci.pageNumber;
           mp.Page_Position_Estimate__c = ci.pagePosition;
           mp.Table_Name__c = ci.tableName;
-          if (String.isNotBlank(ci.tableName)) {
+          if (ci.isReading()) {
             mp.Measure_Type__c = 'Measure';
+            mp.MeasureValue_Type__c = resolveValueType(ci);
           }
           measurePoints.add(mp);
         }
@@ -338,6 +339,61 @@ public with sharing class WorkpackPdfProcessor {
     public Integer pageNumber;
     public String pagePosition;
     public String tableName;
+    public Boolean readingRequired = false;
+    public String unit;
+    public String valueType;
+
+    /** A reading is expected when flagged, in a measurement table, or a unit is given. */
+    public Boolean isReading() {
+      return readingRequired == true ||
+        String.isNotBlank(tableName) ||
+        String.isNotBlank(unit);
+    }
+  }
+
+  private static final Set<String> VALUE_TYPES = new Set<String>{
+    'Temperature',
+    'Pressure',
+    'Level',
+    'Width',
+    'Length',
+    'Depth'
+  };
+
+  /** Valid picklist value from the model, else inferred from unit/name, else Level. */
+  @TestVisible
+  private static String resolveValueType(ChecklistItem ci) {
+    if (String.isNotBlank(ci.valueType)) {
+      for (String v : VALUE_TYPES) {
+        if (v.equalsIgnoreCase(ci.valueType.trim()))
+          return v;
+      }
+    }
+    String hay = ((ci.unit == null ? '' : ci.unit) +
+      ' ' +
+      (ci.component == null ? '' : ci.component))
+      .toLowerCase();
+    if (
+      hay.contains('°c') ||
+      hay.contains('°f') ||
+      hay.contains('temperature') ||
+      hay.contains('temp ')
+    )
+      return 'Temperature';
+    if (
+      hay.contains('bar') ||
+      hay.contains('kpa') ||
+      hay.contains('psi') ||
+      hay.contains('pressure')
+    )
+      return 'Pressure';
+    if (hay.contains('width') || hay.contains('thickness'))
+      return 'Width';
+    if (hay.contains('depth'))
+      return 'Depth';
+    if (hay.contains('length'))
+      return 'Length';
+    return 'Level';
   }
 
   /** Accepts a String or a Map (component, page_number, page_position_estimate, table_name). */
@@ -352,6 +408,16 @@ public with sharing class WorkpackPdfProcessor {
       ci.component = c == null ? null : String.valueOf(c).trim();
       ci.pageNumber = toInteger(m.get('page_number'));
       ci.pagePosition = normalizePosition(m.get('page_position_estimate'));
+      Object rr = m.get('reading_required');
+      ci.readingRequired =
+        rr != null &&
+        String.valueOf(rr).trim().toLowerCase() == 'true';
+      Object u = m.get('unit');
+      if (u != null && String.isNotBlank(String.valueOf(u)))
+        ci.unit = String.valueOf(u).trim();
+      Object vt = m.get('value_type');
+      if (vt != null)
+        ci.valueType = String.valueOf(vt).trim();
       Object t = m.get('table_name');
       if (t != null && String.isNotBlank(String.valueOf(t))) {
         ci.tableName = String.valueOf(t).trim();

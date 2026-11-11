@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Raised_Task__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description
+  >True when this work order was raised as a task from the kiosk</description>
+    <externalId>false</externalId>
+    <label>Raised Task</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

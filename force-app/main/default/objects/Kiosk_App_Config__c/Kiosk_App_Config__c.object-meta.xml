@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description
+  >Org-wide Workshop Kiosk settings. Exactly one record, Name = Default.</description>
+    <label>Kiosk App Config</label>
+    <nameField>
+        <label>Config Name</label>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Kiosk App Configs</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

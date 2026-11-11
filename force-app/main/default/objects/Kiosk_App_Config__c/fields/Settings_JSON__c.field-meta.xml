@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Settings_JSON__c</fullName>
+    <description
+  >Kiosk settings as JSON. Convention: exactly one Kiosk_App_Config__c record with Name = Default.</description>
+    <externalId>false</externalId>
+    <label>Settings JSON</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

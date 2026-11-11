@@ -131,9 +131,37 @@ public with sharing class WorkpackPdfProcessor {
       LIMIT 1
     ];
 
-    // 5. Build and upsert child WorkOrders on External_ID__c
+    // 4b. Orders that already exist in this workpack (matched on WorkOrderNumber
+    //     or External_ID__c) are NOT modified: only their Measure Points are
+    //     replaced. Unmatched orders are created as before.
+    Set<String> requested = new Set<String>();
+    for (OrderDTO order : extraction.maintenance_orders) {
+      if (String.isNotBlank(order.order_number))
+        requested.add(order.order_number);
+    }
+    Map<String, Id> matchedByOrder = new Map<String, Id>();
+    for (WorkOrder ex : [
+      SELECT Id, WorkOrderNumber, External_ID__c
+      FROM WorkOrder
+      WHERE
+        (Id = :parentWoId
+        OR ParentWorkOrderId = :parentWoId
+        OR RootWorkOrderId = :parentWoId)
+        AND (WorkOrderNumber IN :requested
+        OR External_ID__c IN :requested)
+      WITH SECURITY_ENFORCED
+    ]) {
+      if (requested.contains(ex.WorkOrderNumber))
+        matchedByOrder.put(ex.WorkOrderNumber, ex.Id);
+      if (ex.External_ID__c != null && requested.contains(ex.External_ID__c))
+        matchedByOrder.put(ex.External_ID__c, ex.Id);
+    }
+
+    // 5. Build and upsert child WorkOrders on External_ID__c (unmatched only)
     List<WorkOrder> childWos = new List<WorkOrder>();
     for (OrderDTO order : extraction.maintenance_orders) {
+      if (matchedByOrder.containsKey(order.order_number))
+        continue;
       WorkOrder wo = new WorkOrder();
       wo.ParentWorkOrderId = parentWoId;
       wo.WorkTypeId = wagonPm01TypeId;
@@ -168,18 +196,25 @@ public with sharing class WorkpackPdfProcessor {
       woByExternalId.put(wo.External_ID__c, wo.Id);
     }
 
-    // 7. Delete existing WorkOrderLineItems and Measure Points for re-run safety
-    Set<Id> childWoIds = new Set<Id>(woByExternalId.values());
-    if (!childWoIds.isEmpty()) {
+    // 7. Delete existing WorkOrderLineItems (created WOs only) and Measure
+    //    Points (all targeted WOs) for re-run safety
+    Set<Id> createdWoIds = new Set<Id>(woByExternalId.values());
+    Set<Id> childWoIds = new Set<Id>(createdWoIds);
+    childWoIds.addAll(matchedByOrder.values());
+    for (String k : matchedByOrder.keySet()) {
+      woByExternalId.put(k, matchedByOrder.get(k));
+    }
+    if (!createdWoIds.isEmpty()) {
       List<WorkOrderLineItem> existingWoli = [
         SELECT Id
         FROM WorkOrderLineItem
-        WHERE WorkOrderId IN :childWoIds
+        WHERE WorkOrderId IN :createdWoIds
         WITH SECURITY_ENFORCED
       ];
       if (!existingWoli.isEmpty())
         delete existingWoli;
-
+    }
+    if (!childWoIds.isEmpty()) {
       List<Measure_Point__c> existingMp = [
         SELECT Id
         FROM Measure_Point__c
@@ -199,7 +234,10 @@ public with sharing class WorkpackPdfProcessor {
       if (childWoId == null)
         continue;
 
-      if (order.operations != null) {
+      if (
+        order.operations != null &&
+        !matchedByOrder.containsKey(order.order_number)
+      ) {
         for (OperationDTO op : order.operations) {
           WorkOrderLineItem woli = new WorkOrderLineItem();
           woli.WorkOrderId = childWoId;

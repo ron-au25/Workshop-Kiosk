@@ -209,6 +209,66 @@ private class WorkpackPdfProcessorTest {
     }
   }
 
+  @IsTest
+  static void testRunProcessing_existingWo_onlyMeasuresReplaced() {
+    Id workpackTypeId = getWorkPackWorkTypeId();
+    Id territoryId = getAnyServiceTerritoryId();
+    if (workpackTypeId == null || territoryId == null) {
+      return;
+    }
+    WorkOrder parentWo = insertParentWorkOrder(workpackTypeId, territoryId);
+    WorkOrder existing = new WorkOrder(
+      WorkTypeId = workpackTypeId,
+      ServiceTerritoryId = territoryId,
+      ParentWorkOrderId = parentWo.Id,
+      Subject = 'Keep this subject',
+      Status = 'New'
+    );
+    insert existing;
+    insert new Measure_Point__c(
+      Work_Order__c = existing.Id,
+      Component_Name__c = 'Old measure'
+    );
+    String num = [
+      SELECT WorkOrderNumber
+      FROM WorkOrder
+      WHERE Id = :existing.Id
+    ][0]
+    .WorkOrderNumber;
+    ContentDocumentLink cdl = attachTextToWorkOrder(parentWo.Id, 'dummy');
+    WorkpackPdfProcessor.mockLlmResponse =
+      '{"maintenance_orders":[{"order_number":"' +
+      num +
+      '","order_description":"Changed","operations":[{"operation_number":"0010","task_description":"x","duration":"1 H"}],"checklist_items":["New measure A","New measure B"]}]}';
+
+    Test.startTest();
+    WorkpackPdfProcessor.runProcessing(cdl.Id, parentWo.Id);
+    Test.stopTest();
+
+    WorkOrder after = [
+      SELECT Subject, WorkTypeId
+      FROM WorkOrder
+      WHERE Id = :existing.Id
+    ];
+    System.assertEquals('Keep this subject', after.Subject);
+    System.assertEquals(workpackTypeId, after.WorkTypeId);
+    System.assertEquals(
+      1,
+      [SELECT COUNT() FROM WorkOrder WHERE ParentWorkOrderId = :parentWo.Id],
+      'No new child WO'
+    );
+    System.assertEquals(
+      0,
+      [SELECT COUNT() FROM WorkOrderLineItem WHERE WorkOrderId = :existing.Id]
+    );
+    List<Measure_Point__c> mps = [
+      SELECT Component_Name__c
+      FROM Measure_Point__c
+      WHERE Work_Order__c = :existing.Id
+    ];
+    System.assertEquals(2, mps.size());
+  }
+
   // ─── Integration test: idempotency (no duplicate child WOs on re-run) ─────────
 
   @IsTest

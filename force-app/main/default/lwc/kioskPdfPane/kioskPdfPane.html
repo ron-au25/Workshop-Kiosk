@@ -1,0 +1,53 @@
+<template>
+  <div class="pane">
+    <div class="pane-toolbar">
+      <button
+        class="tb"
+        onclick={handlePrev}
+        disabled={cannotPrev}
+        aria-label="Previous page"
+      >
+        ◀
+      </button>
+      <span class="tb-label">{pageLabel}</span>
+      <button
+        class="tb"
+        onclick={handleNext}
+        disabled={cannotNext}
+        aria-label="Next page"
+      >
+        ▶
+      </button>
+      <span class="tb-gap"></span>
+      <button
+        class="tb"
+        onclick={handleZoomOut}
+        disabled={cannotZoomOut}
+        aria-label="Zoom out"
+      >
+        −
+      </button>
+      <button class="tb tb-wide" onclick={handleFit}>Fit width</button>
+      <span class="tb-label">{zoomLabel}</span>
+      <button
+        class="tb"
+        onclick={handleZoomIn}
+        disabled={cannotZoomIn}
+        aria-label="Zoom in"
+      >
+        +
+      </button>
+    </div>
+    <div class="pane-scroll">
+      <div class="stage" style={stageStyle}>
+        <iframe class="frame" src={iframeSrc} title="Workpack PDF"></iframe>
+        <div if:true={showBox} class="hl" style={boxStyle}></div>
+      </div>
+      <div if:true={loading} class="overlay">
+        <span class="spin"></span> Loading PDF…
+      </div>
+      <div if:true={tooLarge} class="overlay msg">PDF too large to preview</div>
+      <div if:true={hasError} class="overlay msg err">{errorText}</div>
+    </div>
+  </div>
+</template>

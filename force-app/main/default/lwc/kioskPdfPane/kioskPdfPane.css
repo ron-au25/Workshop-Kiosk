@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  height: 100%;
+}
+.pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 320px;
+  background: #0f1722;
+  color: #f2f5f7;
+}
+.pane-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #17212e;
+  border-bottom: 1px solid #243040;
+}
+.tb {
+  min-width: 48px;
+  min-height: 48px;
+  border: 1px solid #243040;
+  border-radius: 8px;
+  background: #1e2b3b;
+  color: #f2f5f7;
+  font-size: 18px;
+}
+.tb-wide {
+  padding: 0 14px;
+  font-size: 14px;
+}
+.tb:disabled {
+  opacity: 0.4;
+}
+.tb-label {
+  min-width: 64px;
+  text-align: center;
+  font-size: 14px;
+}
+.tb-gap {
+  flex: 1;
+}
+.pane-scroll {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.stage {
+  position: relative;
+}
+.frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #f4f6f9;
+}
+.hl {
+  position: absolute;
+  border: 3px solid #e5484d;
+  background: rgba(229, 72, 77, 0.18);
+  border-radius: 4px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 8px 12px;
+  background: rgba(15, 23, 34, 0.85);
+  font-size: 14px;
+}
+.overlay.msg {
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  padding: 24px;
+  font-size: 16px;
+}
+.overlay.err {
+  color: #e5484d;
+}
+.spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #5b6b7c;
+  border-top-color: #f2b441;
+  border-radius: 50%;
+  animation: kp-spin 0.8s linear infinite;
+  vertical-align: -2px;
+}
+@keyframes kp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

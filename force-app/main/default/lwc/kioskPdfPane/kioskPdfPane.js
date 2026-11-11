@@ -225,7 +225,13 @@ export default class KioskPdfPane extends LightningElement {
 
   handleMessage(event) {
     const iframe = this.template.querySelector("iframe");
-    if (!iframe || event.source !== iframe.contentWindow) {
+    if (!iframe) {
+      return;
+    }
+    // Under Lightning Web Security contentWindow can be a proxy that never equals
+    // event.source, so also accept messages from the host's own origin.
+    const hostOrigin = new URL(iframe.src, window.location.href).origin;
+    if (event.source !== iframe.contentWindow && event.origin !== hostOrigin) {
       return;
     }
     const msg = event.data;

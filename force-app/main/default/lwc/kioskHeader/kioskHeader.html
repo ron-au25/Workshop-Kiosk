@@ -33,12 +33,15 @@
           >
             <span class="chip-dot"></span>
             <span class="chip-name">{workerName}</span>
-            <template lwc:if={isClocked}>
-              <span class="worker-timer" title="Clocked time"
-                >⏱ {clockElapsed}</span
-              >
-            </template>
-            <span class="chip-caret">▾</span>
+            <span class={clockSegClass}>
+              <template lwc:if={isClocked}>
+                <span class="worker-timer" title="Clocked time"
+                  >⏱ {clockElapsed}</span
+                >
+              </template>
+              <span class="clock-seg-label">{clockSegLabel}</span>
+              <span class="chip-caret">▾</span>
+            </span>
           </button>
           <template lwc:if={menuOpen}>
             <div class="clock-menu" role="menu">

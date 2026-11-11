@@ -135,7 +135,33 @@
 }
 .chip-caret {
   font-size: 12px;
-  color: var(--rt-text-muted, #a6b2bd);
+  color: inherit;
+}
+.worker-chip.chip-btn {
+  max-width: 520px;
+  padding: 4px 4px 4px 16px;
+}
+.clock-seg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: var(--rt-accent, #e25822);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.clock-seg.on {
+  background: var(--rt-surface-3, #243040);
+  color: var(--rt-text, #f2f5f7);
+}
+.clock-seg .worker-timer {
+  border-left: 0;
+  padding-left: 0;
 }
 .clock-menu {
   position: absolute;

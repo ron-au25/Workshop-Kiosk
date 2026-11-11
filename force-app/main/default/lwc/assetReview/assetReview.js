@@ -36,6 +36,13 @@ import { WO_FIELDS, ASSET_FIELDS, mergeConfig } from "c/kioskConfigDefaults";
 // Per-plan progress ring geometry (small inline donut).
 const RING_R = 18;
 const RING_CIRC = 2 * Math.PI * RING_R;
+const TAB_ICONS = {
+  measure: "✎",
+  execute: "☰",
+  parts: "⚙",
+  notes: "✉",
+  raised: "⚑"
+};
 
 const MEASURE_TYPES = ["Attention Required", "Measure", "OK", "Scrap"];
 const VALUE_TYPES = [
@@ -432,7 +439,6 @@ export default class AssetReview extends LightningElement {
     if (!ws) return false;
     this.selectedWheelsetId = ws.id;
     this.selectedChildId = null;
-    this.diagramExpanded = false;
     this.chartsExpanded = false;
     this.serialDraft = ws.serialNumber || "";
     let loadId = ws.id;
@@ -690,7 +696,7 @@ export default class AssetReview extends LightningElement {
   // ─── Map view toggle + breadcrumb ────────────────────────────────────────
   handleMapView(evt) {
     this.mapView = evt.currentTarget.dataset.view;
-    this.diagramExpanded = this.mapView === "schematic";
+    this.diagramExpanded = true;
   }
   get canSchematic() {
     return !!(this.wagon && this.wagon.hasWagonNumber);
@@ -708,7 +714,17 @@ export default class AssetReview extends LightningElement {
     });
   }
   get showMap() {
-    return !this.showSchematic;
+    return this.diagramExpanded && !this.showSchematic;
+  }
+  get mapLevelsText() {
+    const deep = this.wheelsets.some((w) => (w.children || []).length);
+    return (deep ? 3 : this.wheelsets.length ? 2 : 1) + " levels";
+  }
+  get hasMapKids() {
+    return this.icicleCols.some((c) => c.kids.length);
+  }
+  get mapWoCount() {
+    return this.woRows.filter((r) => woStatus(r) !== "green").length;
   }
 
   async handleCrumb(evt) {
@@ -833,7 +849,7 @@ export default class AssetReview extends LightningElement {
     this.raiseWtQuery = evt.target.value;
   }
   handleRaiseWtPick(evt) {
-    this.raiseWtId = evt.target.value;
+    this.raiseWtId = evt.currentTarget.dataset.id || evt.target.value;
   }
   handleRaiseSubject(evt) {
     this.raiseSubject = evt.target.value;
@@ -901,8 +917,8 @@ export default class AssetReview extends LightningElement {
     this.detailExpanded = true;
     // On the first selection, collapse the big top panels down to the indicator strip
     // so the detail is front-and-centre. User can re-expand either panel anytime.
+    // The asset map stays open (it is the navigator); only the charts fold away.
     if (firstSelection) {
-      this.diagramExpanded = false;
       this.chartsExpanded = false;
     }
     this.showMeasureForm = false;
@@ -1264,27 +1280,24 @@ export default class AssetReview extends LightningElement {
     if (num !== null && Number.isNaN(num)) {
       return;
     }
-    this._setOutcome(evt.target.dataset.pointId, "Measure", num);
+    this._setOutcome(evt.target.dataset.pointId, null, num);
   }
 
   async _setOutcome(id, measureType, valueOverride) {
     const p = this.measureSource.find((x) => x.id === id);
     if (!p) return;
-    const keepValue = measureType !== "OK";
+    // Outcome and reading are independent: an outcome tap keeps the reading and
+    // its value type, and typing a reading keeps the outcome already chosen.
     try {
       const req = {
         id: p.id,
         componentName: p.componentName,
-        measureType,
+        measureType: measureType || p.measureType || "Measure",
         comments: p.comments,
         reviewNotes: p.reviewNotes,
         measureValue:
-          valueOverride !== undefined
-            ? valueOverride
-            : keepValue
-              ? p.measureValue
-              : null,
-        measureValueType: keepValue ? p.measureValueType : null,
+          valueOverride !== undefined ? valueOverride : p.measureValue,
+        measureValueType: p.measureValueType || null,
         defectLocation: p.defectLocation || null,
         workOrderId: p.workOrderId || this.workOrderId,
         assetId: p.assetId || null
@@ -1325,10 +1338,13 @@ export default class AssetReview extends LightningElement {
     if (this.sideMode === "doc") this._pendingShow = true;
   }
 
+  // Uses sidePoint (falls back to the first measure) so Document mode shows a page
+  // even before a measure is tapped.
   _showInPane() {
     const pane = this.template.querySelector("c-kiosk-pdf-pane");
-    const p = this.measureSource.find((x) => x.id === this.sidePointId);
+    const p = this.sidePoint;
     if (!pane || !p || !p.sourceDocumentId) return;
+    this._shownPointId = p.id;
     pane.showMeasure({
       documentId: p.sourceDocumentId,
       pageNumber: p.pageNumber,
@@ -1366,9 +1382,17 @@ export default class AssetReview extends LightningElement {
   get sidePoint() {
     return (
       this.measureSource.find((x) => x.id === this.sidePointId) ||
-      this.measureSource[0] ||
+      this._firstListedPoint() ||
       null
     );
+  }
+  // First measure as listed on screen (page order), so the pane matches the top card.
+  _firstListedPoint() {
+    const g = this.pointGroups[0];
+    const first = g && g.points[0];
+    return first
+      ? this.measureSource.find((x) => x.id === first.id)
+      : this.measureSource[0];
   }
   get sidePointLabel() {
     const p = this.sidePoint;
@@ -1634,7 +1658,8 @@ export default class AssetReview extends LightningElement {
   }
 
   renderedCallback() {
-    if (this._pendingShow) {
+    const sp = this.isSideDoc ? this.sidePoint : null;
+    if (this._pendingShow || (sp && sp.id !== this._shownPointId)) {
       this._pendingShow = false;
       this._showInPane();
     }
@@ -1826,17 +1851,40 @@ export default class AssetReview extends LightningElement {
       !rows.some((r) => this.wtSel.includes(r.workTypeName));
     return {
       id: a.id,
-      name: a.name || a.label,
+      name: this._shortName(a.name || a.label),
+      fullName: a.name || a.label,
       parentId,
       woCount: a.workOrderCount || 0,
       hasWos: (a.workOrderCount || 0) > 0,
       dotClass: "zone-dot status-" + (a.iconStatus || "grey"),
       cls:
-        "ic-node" +
+        "ic-node st-" +
+        (a.iconStatus || "grey") +
         (tapped ? " tapped" : "") +
         (woAsset.includes(a.id) ? " woasset" : "") +
         (dim ? " dim" : "")
     };
+  }
+
+  // Drop leading words the node shares with the root asset name
+  // ("MEL-SEED HT02 Alternator" under "MEL-SEED Haul Truck HT-02" -> "Alternator").
+  _shortName(name) {
+    const norm = (w) => w.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const rootWords = new Set(
+      String((this.wagon && this.wagon.name) || "")
+        .split(/\s+/)
+        .map(norm)
+        .filter(Boolean)
+    );
+    const words = String(name || "").split(/\s+/);
+    let i = 0;
+    while (
+      i < words.length - 1 &&
+      (!norm(words[i]) || rootWords.has(norm(words[i])))
+    ) {
+      i += 1;
+    }
+    return words.slice(i).join(" ") || name;
   }
 
   get icicleCols() {
@@ -2162,12 +2210,18 @@ export default class AssetReview extends LightningElement {
         showOkBtn: p.measureType !== "OK",
         hasDoc: !!p.sourceDocumentId,
         docLabel: p.pageNumber ? "📄 p." + p.pageNumber : "📄",
-        isNumeric: p.measureType === "Measure" || p.measureValue != null,
+        isNumeric:
+          p.measureType === "Measure" ||
+          p.measureValue != null ||
+          !!p.measureValueType,
         okCls: "mz-out ok" + (p.measureType === "OK" ? " on" : ""),
         attCls:
           "mz-out att" + (p.measureType === "Attention Required" ? " on" : ""),
         scrapCls: "mz-out scrap" + (p.measureType === "Scrap" ? " on" : ""),
-        rowCls: "point-card" + (p.id === this.sidePointId ? " mz-picked" : ""),
+        rowCls:
+          "point-card mz-card-" +
+          typeClass +
+          (p.id === this.sidePointId ? " mz-picked" : ""),
         imageUri,
         hasImage: !!imageUri
       };
@@ -2188,12 +2242,18 @@ export default class AssetReview extends LightningElement {
           : "Other measures";
       }
       if (!byKey[label]) {
-        byKey[label] = { key: label, label, points: [] };
+        byKey[label] = {
+          key: label,
+          label,
+          page: Number(p.pageNumber) || Infinity,
+          points: []
+        };
         groups.push(byKey[label]);
       }
       byKey[label].points.push(p);
     });
-    return groups;
+    // Document order: ascending page, groups without a page last.
+    return groups.sort((a, b) => a.page - b.page);
   }
 
   get enrichedTasks() {
@@ -2351,14 +2411,54 @@ export default class AssetReview extends LightningElement {
   get wpRow() {
     if (!this.wpInfo) return null;
     const sel = this.selectedFilterWoId === this.wpInfo.id;
+    const own = this.woRows.find((r) => r.id === this.wpInfo.id);
     return {
       ...this.wpInfo,
-      rowClass: "wl-row wp" + (sel ? " selected" : ""),
+      ...this._cardBits(own || { status: this.wpInfo.status }),
+      rowClass:
+        "wl-row wp st-" +
+        woStatus(own || { status: this.wpInfo.status }) +
+        (sel ? " selected" : ""),
       railClass: "wl-rail-btn wp" + (sel ? " selected" : "")
     };
   }
   _dotStyle(row) {
     return "background:" + COLORS[woStatus(row)];
+  }
+  // Card chips + progress ring for a WO row. Progress = done items / all items,
+  // counting work plan steps, measures and required parts (getWorkpackChildProgress).
+  _cardBits(r) {
+    const num = (v) => Number(v) || 0;
+    const mTot = num(r.measuresTotal);
+    const mDone = num(r.measuresTaken);
+    const sTot = num(r.stepsTotal);
+    const sDone = num(r.stepsDone);
+    const pReq = num(r.partsRequired);
+    const pUsed = Math.min(num(r.partsUsed), pReq);
+    const total = mTot + sTot + pReq;
+    const pct = total ? Math.round(((mDone + sDone + pUsed) / total) * 100) : 0;
+    const toMeasure = Math.max(0, mTot - mDone);
+    const findings = num(r.findings);
+    const status = r.status || "New";
+    return {
+      statusPill: status,
+      statusPillCls:
+        "wl-pill " +
+        (status === "In Progress"
+          ? "prog"
+          : status === "Completed" || status === "Closed"
+            ? "done"
+            : "new"),
+      toMeasureText: toMeasure ? toMeasure + " to measure" : "",
+      partsText: pReq ? pReq + " parts" : "",
+      findingsText: findings
+        ? findings + " finding" + (findings > 1 ? "s" : "")
+        : "",
+      pctText: pct + "%",
+      ringDash:
+        ((pct / 100) * RING_CIRC).toFixed(1) + " " + RING_CIRC.toFixed(1),
+      ringCls: "wl-ring-arc st-" + woStatus(r)
+    };
   }
   get _scopeRows() {
     const l2 = this.selectedWheelsetId;
@@ -2382,11 +2482,14 @@ export default class AssetReview extends LightningElement {
       const st = woStatus(r);
       groups[key].rows.push({
         ...r,
+        ...this._cardBits(r),
         rank: RANK[st],
         dotStyle: this._dotStyle(r),
         canEdit: editable.has(r.id),
         rowClass:
-          "wl-row" + (this.selectedFilterWoId === r.id ? " selected" : "")
+          "wl-row st-" +
+          st +
+          (this.selectedFilterWoId === r.id ? " selected" : "")
       });
     });
     return Object.values(groups).map((g) => {
@@ -2448,6 +2551,38 @@ export default class AssetReview extends LightningElement {
     const r = this.selectedRow;
     return r ? woNextStep(r).text : "";
   }
+  // Button on the Next step banner: jumps to the tab that does the step.
+  get nextStepBtn() {
+    const r = this.selectedRow;
+    const a = r ? woNextStep(r).action : null;
+    const map = {
+      measure: ["measure", "Record measures"],
+      comment: ["measure", "Add comment"],
+      execute: ["execute", "Open work plans"],
+      parts: ["parts", "Consume parts"],
+      notes: ["notes", "Add notes"]
+    };
+    return a && map[a] ? { tab: map[a][0], label: map[a][1] } : null;
+  }
+  handleNextStep() {
+    const b = this.nextStepBtn;
+    if (!b) return;
+    this.activeTab = b.tab;
+    if (b.tab === "notes") this._syncNotesTa = true;
+  }
+  get selectedAssetLevel() {
+    if (this.selectedChildId) return "L3";
+    return this.selectedWheelsetId ? "L2" : "L1";
+  }
+  get selectedAssetDotStyle() {
+    const a = this.activeAsset;
+    const map = { red: COLORS.red, green: COLORS.green, grey: COLORS.grey };
+    return "background:" + (map[a && a.iconStatus] || COLORS.grey);
+  }
+  get selectedAssetName() {
+    const a = this.activeAsset;
+    return a ? a.name || a.label : "";
+  }
   get tileFields() {
     return this._cfg.woTile
       .map((key) => {
@@ -2491,12 +2626,43 @@ export default class AssetReview extends LightningElement {
     ].map(([key, label]) => ({
       key,
       label,
-      sub:
-        key === "measure" && this.measureSource.length
-          ? `${this.measureSource.length} points`
-          : "",
+      icon: TAB_ICONS[key],
+      sub: this._tabSub(key),
       cls: "aw-tab" + (this.activeTab === key ? " on" : "")
     }));
+  }
+  _tabSub(key) {
+    const pts = this.measureSource;
+    const r = this.selectedRow;
+    if (key === "measure") {
+      if (!pts.length) return "No measures";
+      const done = pts.filter(
+        (p) => p.measureType !== "Measure" || p.measureValue != null
+      ).length;
+      const bad = pts.filter(
+        (p) =>
+          p.measureType === "Attention Required" || p.measureType === "Scrap"
+      ).length;
+      return (
+        done +
+        "/" +
+        pts.length +
+        " recorded" +
+        (bad ? " · " + bad + " finding" + (bad > 1 ? "s" : "") : "")
+      );
+    }
+    if (key === "execute") {
+      return r && r.stepsTotal
+        ? (r.stepsDone || 0) + "/" + r.stepsTotal + " steps"
+        : "Work plans";
+    }
+    if (key === "parts") {
+      return r && r.partsRequired
+        ? (r.partsUsed || 0) + "/" + r.partsRequired + " used"
+        : "Required & used";
+    }
+    if (key === "notes") return "Notes, cause & delay";
+    return this.raised.length ? this.raised.length + " raised" : "PM02 tasks";
   }
   get isMeasureTab() {
     return this.activeTab === "measure";
@@ -2566,7 +2732,18 @@ export default class AssetReview extends LightningElement {
     return this.workTypeList
       .filter((w) => !q || (w.name || "").toLowerCase().includes(q))
       .slice(0, 50)
-      .map((w) => ({ ...w, selected: w.id === this.raiseWtId }));
+      .map((w) => ({
+        ...w,
+        selected: w.id === this.raiseWtId,
+        cls: "rt-wt" + (w.id === this.raiseWtId ? " on" : "")
+      }));
+  }
+  get raiseWtEmpty() {
+    return this.raiseWtOptions.length === 0;
+  }
+  get raiseWtName() {
+    const w = this.workTypeList.find((x) => x.id === this.raiseWtId);
+    return w ? w.name : "";
   }
   get raiseSaveLabel() {
     return this.raiseSaving ? "Raising…" : "Raise Task";

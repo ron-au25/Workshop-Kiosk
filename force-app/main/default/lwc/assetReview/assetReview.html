@@ -45,13 +45,21 @@
         <template lwc:if={hasWorkspace}>
           <template lwc:if={hasSelection}>
             <div class="aw-asset">
-              <span class="aw-asset-lbl">Selected asset</span>
-              <span class="aw-asset-name">{detailHeading}</span>
-              <template for:each={assetTileFields} for:item="f">
-                <span key={f.key} class="aw-chip"
-                  ><b>{f.label}</b> {f.value}</span
+              <span class="aw-asset-dot" style={selectedAssetDotStyle}></span>
+              <div class="aw-asset-head">
+                <span class="aw-asset-lbl"
+                  >Selected asset · {selectedAssetLevel}</span
                 >
-              </template>
+                <span class="aw-asset-name">{selectedAssetName}</span>
+              </div>
+              <div class="aw-facts">
+                <template for:each={assetTileFields} for:item="f">
+                  <span key={f.key} class="aw-fact"
+                    ><span class="aw-fact-l">{f.label}</span
+                    ><span class="aw-fact-v">{f.value}</span></span
+                  >
+                </template>
+              </div>
               <button
                 class="aw-info"
                 onclick={handleToggleDrawer}
@@ -141,7 +149,9 @@
           <div class="wl-chipbar">
             <template lwc:if={showWtChips}>
               <div class="wl-chips">
-                <span class="wl-chips-lbl">Focus on work types</span>
+                <span class="wl-chips-lbl"
+                  ><span class="wl-funnel">⏷</span> Focus on work types</span
+                >
                 <template for:each={wtChips} for:item="c">
                   <button
                     key={c.name}
@@ -152,30 +162,23 @@
                     {c.name}<span class="wl-chip-n">{c.open}</span>
                   </button>
                 </template>
-                <template lwc:if={wtActive}>
-                  <button class="wl-chip clear" onclick={handleClearWt}>
-                    Show all
-                  </button>
-                </template>
+                <span class="wl-chips-hint">
+                  <template lwc:if={wtActive}>
+                    <button class="wl-chip clear" onclick={handleClearWt}>
+                      Show all
+                    </button>
+                  </template>
+                  <template lwc:else>None selected = all</template>
+                </span>
               </div>
             </template>
           </div>
         </template>
 
         <!-- ─── Wagon diagram with wheelset zones ─── -->
-        <div class="ar-section">
-          <button
-            class="collapse-header"
-            onclick={handleToggleDiagram}
-            aria-expanded={diagramExpanded}
-          >
-            <span class="section-title nomargin"
-              >Components — tap a section</span
-            >
-            <span class="collapse-icon">{diagramToggleIcon}</span>
-          </button>
-
+        <div class="ar-section ic-card">
           <div class="ic-toolbar">
+            <span class="ic-title">Asset map</span>
             <nav class="ic-crumbs" aria-label="Asset path">
               <template for:each={crumbs} for:item="c">
                 <button
@@ -203,50 +206,96 @@
                 </template>
               </span>
             </template>
+            <span class="ic-levels">{mapLevelsText}</span>
+            <button
+              class="ic-collapse"
+              onclick={handleToggleDiagram}
+              aria-expanded={diagramExpanded}
+              title="Show / hide the asset map"
+            >
+              {diagramToggleIcon}
+            </button>
           </div>
 
           <!-- Icicle asset map: wagon > component > sub-asset -->
           <template lwc:if={showMap}>
             <div class="ic-map">
-              <button class="ic-root" onclick={handleIcicleRoot}>
-                {icicleRootLabel}
-                <span class="ic-root-hint">Show all</span>
-              </button>
-              <div class="ic-cols">
-                <template for:each={icicleCols} for:item="col">
-                  <div key={col.id} class="ic-col" style={col.flexStyle}>
-                    <button
-                      class={col.cls}
-                      data-id={col.id}
-                      onclick={handleSelectWheelset}
-                      aria-label={col.name}
-                    >
-                      <span class={col.dotClass}></span>
-                      <span class="chip-label">{col.name}</span>
-                      <template lwc:if={col.hasWos}>
-                        <span class="wo-badge">{col.woCount}</span>
-                      </template>
-                    </button>
-                    <div class="ic-kids">
-                      <template for:each={col.kids} for:item="kid">
-                        <button
-                          key={kid.id}
-                          class={kid.cls}
-                          data-id={kid.id}
-                          onclick={handleSelectChild}
-                          aria-label={kid.name}
-                        >
-                          <span class={kid.dotClass}></span>
-                          <span class="chip-label">{kid.name}</span>
-                          <template lwc:if={kid.hasWos}>
-                            <span class="wo-badge">{kid.woCount}</span>
-                          </template>
-                        </button>
-                      </template>
-                    </div>
-                  </div>
+              <div class="ic-gutter">
+                <span class="ic-lv">L1</span>
+                <span class="ic-lv">L2</span>
+                <template lwc:if={hasMapKids}>
+                  <span class="ic-lv">L3</span>
                 </template>
               </div>
+              <div class="ic-tree">
+                <button class="ic-root" onclick={handleIcicleRoot}>
+                  <span class="zone-dot status-grey"></span>
+                  <span class="chip-label">{icicleRootLabel}</span>
+                  <span class="ic-root-hint">Show all</span>
+                  <template lwc:if={mapWoCount}>
+                    <span class="wo-badge">{mapWoCount}</span>
+                  </template>
+                </button>
+                <div class="ic-cols">
+                  <template for:each={icicleCols} for:item="col">
+                    <div key={col.id} class="ic-col" style={col.flexStyle}>
+                      <button
+                        class={col.cls}
+                        data-id={col.id}
+                        onclick={handleSelectWheelset}
+                        aria-label={col.fullName}
+                        title={col.fullName}
+                      >
+                        <span class={col.dotClass}></span>
+                        <span class="chip-label">{col.name}</span>
+                        <template lwc:if={col.hasWos}>
+                          <span class="wo-badge">{col.woCount}</span>
+                        </template>
+                      </button>
+                      <div class="ic-kids">
+                        <template for:each={col.kids} for:item="kid">
+                          <button
+                            key={kid.id}
+                            class={kid.cls}
+                            data-id={kid.id}
+                            onclick={handleSelectChild}
+                            aria-label={kid.fullName}
+                            title={kid.fullName}
+                          >
+                            <span class={kid.dotClass}></span>
+                            <span class="chip-label">{kid.name}</span>
+                            <template lwc:if={kid.hasWos}>
+                              <span class="wo-badge">{kid.woCount}</span>
+                            </template>
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <div class="ic-legend">
+              <span class="legend-item"
+                ><span class="zone-dot status-grey"></span> No findings</span
+              >
+              <span class="legend-item"
+                ><span class="zone-dot status-green"></span> In progress /
+                OK</span
+              >
+              <span class="legend-item"
+                ><span class="zone-dot status-red"></span> Attention /
+                Scrap</span
+              >
+              <span class="legend-item"
+                ><span class="wo-badge">n</span> open WOs</span
+              >
+              <span class="legend-item"
+                ><span class="lg-sq tapped"></span> Selected asset</span
+              >
+              <span class="legend-item"
+                ><span class="lg-sq woasset"></span> Asset of selected WO</span
+              >
             </div>
           </template>
 
@@ -422,37 +471,61 @@
               </template>
               <template lwc:else>
                 <div class="wl-head">
+                  <button
+                    class="wl-rail-btn"
+                    onclick={handleToggleList}
+                    title="Collapse list"
+                  >
+                    «
+                  </button>
                   <span class="wl-title">Work orders</span>
-                  <span class="wl-head-actions">
-                    <button class="wl-raise-top" onclick={handleOpenRaise}>
-                      ⚑ Raise Task
-                    </button>
-                    <button
-                      class={pinClass}
-                      onclick={handleTogglePin}
-                      title="Keep list open"
-                    >
-                      📌
-                    </button>
-                    <button
-                      class="wl-rail-btn"
-                      onclick={handleToggleList}
-                      title="Collapse list"
-                    >
-                      «
-                    </button>
-                  </span>
+                  <button
+                    class={pinClass}
+                    onclick={handleTogglePin}
+                    title="Keep list open"
+                  >
+                    📌
+                  </button>
+                  <button class="wl-raise-top" onclick={handleOpenRaise}>
+                    ⚑ Raise Task
+                  </button>
                 </div>
                 <div class="wl-body">
                   <template lwc:if={wpRow}>
+                    <div class="wl-group-name">Workpack</div>
                     <button
                       class={wpRow.rowClass}
                       data-wo-id={wpRow.id}
                       onclick={handlePickWo}
                     >
-                      <span class="wl-pin">WP</span>
-                      <span class="wl-num">{wpRow.number}</span>
-                      <span class="wl-sub">{wpRow.subject}</span>
+                      <span class="wl-card-main">
+                        <span class="wl-card-top">
+                          <span class="wl-pin">WP</span>
+                          <span class="wl-num">{wpRow.number}</span>
+                          <span class={wpRow.statusPillCls}
+                            >{wpRow.statusPill}</span
+                          >
+                        </span>
+                        <span class="wl-sub">{wpRow.subject}</span>
+                        <span class="wl-tags">
+                          <template lwc:if={wpRow.findingsText}>
+                            <span class="wl-tag bad">{wpRow.findingsText}</span>
+                          </template>
+                        </span>
+                      </span>
+                      <span class="wl-ring">
+                        <svg viewBox="0 0 44 44" class="wl-ring-svg">
+                          <circle cx="22" cy="22" r="18" class="wl-ring-bg" />
+                          <circle
+                            cx="22"
+                            cy="22"
+                            r="18"
+                            class={wpRow.ringCls}
+                            stroke-dasharray={wpRow.ringDash}
+                          />
+                        </svg>
+                        <span class="wl-ring-t">{wpRow.pctText}</span>
+                      </span>
                     </button>
                   </template>
                   <template for:each={woGroups} for:item="g">
@@ -465,10 +538,54 @@
                             data-wo-id={r.id}
                             onclick={handlePickWo}
                           >
-                            <span class="wl-dot" style={r.dotStyle}></span>
-                            <span class="wl-num">{r.number}</span>
-                            <span class="wl-type">{r.workTypeName}</span>
-                            <span class="wl-sub">{r.subject}</span>
+                            <span class="wl-card-main">
+                              <span class="wl-card-top">
+                                <span class="wl-dot" style={r.dotStyle}></span>
+                                <span class="wl-num">{r.number}</span>
+                                <span class={r.statusPillCls}
+                                  >{r.statusPill}</span
+                                >
+                              </span>
+                              <span class="wl-sub">{r.subject}</span>
+                              <span class="wl-tags">
+                                <template lwc:if={r.workTypeName}>
+                                  <span class="wl-tag wt"
+                                    >{r.workTypeName}</span
+                                  >
+                                </template>
+                                <template lwc:if={r.toMeasureText}>
+                                  <span class="wl-tag">{r.toMeasureText}</span>
+                                </template>
+                                <template lwc:if={r.partsText}>
+                                  <span class="wl-tag parts"
+                                    >{r.partsText}</span
+                                  >
+                                </template>
+                                <template lwc:if={r.findingsText}>
+                                  <span class="wl-tag bad"
+                                    >{r.findingsText}</span
+                                  >
+                                </template>
+                              </span>
+                            </span>
+                            <span class="wl-ring">
+                              <svg viewBox="0 0 44 44" class="wl-ring-svg">
+                                <circle
+                                  cx="22"
+                                  cy="22"
+                                  r="18"
+                                  class="wl-ring-bg"
+                                />
+                                <circle
+                                  cx="22"
+                                  cy="22"
+                                  r="18"
+                                  class={r.ringCls}
+                                  stroke-dasharray={r.ringDash}
+                                />
+                              </svg>
+                              <span class="wl-ring-t">{r.pctText}</span>
+                            </span>
                           </button>
                           <template lwc:if={r.canEdit}>
                             <button
@@ -506,18 +623,29 @@
                     </button>
                   </div>
                   <template lwc:if={hasTile}>
-                    <div class="aw-tile">
+                    <div class="aw-facts">
                       <template for:each={tileFields} for:item="f">
-                        <span key={f.key} class="aw-chip"
-                          ><b>{f.label}</b> {f.value}</span
+                        <span key={f.key} class="aw-fact"
+                          ><span class="aw-fact-l">{f.label}</span
+                          ><span class="aw-fact-v">{f.value}</span></span
                         >
                       </template>
                     </div>
                   </template>
-                  <template lwc:if={nextStepText}>
-                    <div class="aw-next">Next: {nextStepText}</div>
-                  </template>
                 </div>
+                <template lwc:if={nextStepText}>
+                  <div class="aw-next">
+                    <span class="aw-next-txt">
+                      <span class="aw-next-l">Next step</span>
+                      <span class="aw-next-v">{nextStepText}</span>
+                    </span>
+                    <template lwc:if={nextStepBtn}>
+                      <button class="aw-next-btn" onclick={handleNextStep}>
+                        {nextStepBtn.label} →
+                      </button>
+                    </template>
+                  </div>
+                </template>
               </template>
 
               <div class="aw-tabs">
@@ -528,10 +656,13 @@
                     data-tab={t.key}
                     onclick={handleTab}
                   >
-                    <span class="aw-tab-l">{t.label}</span>
-                    <template lwc:if={t.sub}
-                      ><span class="aw-tab-s">{t.sub}</span></template
-                    >
+                    <span class="aw-tab-i">{t.icon}</span>
+                    <span class="aw-tab-txt">
+                      <span class="aw-tab-l">{t.label}</span>
+                      <template lwc:if={t.sub}
+                        ><span class="aw-tab-s">{t.sub}</span></template
+                      >
+                    </span>
                   </button>
                 </template>
               </div>
@@ -734,66 +865,22 @@
                                 <span class="point-component"
                                   >{pt.componentName}</span
                                 >
-                                <div class="point-actions">
-                                  <template lwc:if={pt.hasDoc}>
-                                    <button
-                                      class="mz-doc-chip"
-                                      data-point-id={pt.id}
-                                      onclick={handleDocChip}
-                                      title="Show in document"
-                                    >
-                                      {pt.docLabel}
-                                    </button>
-                                  </template>
-                                  <button
-                                    class="icon-btn edit-btn"
-                                    data-point-id={pt.id}
-                                    onclick={handleEditMeasure}
-                                    title="Edit"
-                                  >
-                                    ✏️
-                                  </button>
-                                </div>
-                              </div>
-                              <div class="mz-outcomes">
-                                <button
-                                  class={pt.okCls}
-                                  data-point-id={pt.id}
-                                  data-outcome="OK"
-                                  onclick={handleOutcome}
-                                >
-                                  OK
-                                </button>
-                                <button
-                                  class={pt.attCls}
-                                  data-point-id={pt.id}
-                                  data-outcome="Attention Required"
-                                  onclick={handleOutcome}
-                                >
-                                  Attention
-                                </button>
-                                <button
-                                  class={pt.scrapCls}
-                                  data-point-id={pt.id}
-                                  data-outcome="Scrap"
-                                  onclick={handleOutcome}
-                                >
-                                  Scrap
-                                </button>
                                 <template lwc:if={pt.isNumeric}>
-                                  <input
-                                    type="number"
-                                    step="any"
-                                    class="mz-val"
-                                    data-point-id={pt.id}
-                                    value={pt.measureValue}
-                                    onchange={handleInlineValue}
-                                    onkeydown={handleInputKeydown}
-                                    placeholder="value"
-                                  />
-                                  <span class="measure-unit"
-                                    >{pt.measureValueType}</span
-                                  >
+                                  <span class="mz-val-wrap">
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      class="mz-val"
+                                      data-point-id={pt.id}
+                                      value={pt.measureValue}
+                                      onchange={handleInlineValue}
+                                      onkeydown={handleInputKeydown}
+                                      placeholder="value"
+                                    />
+                                    <span class="measure-unit"
+                                      >{pt.measureValueType}</span
+                                    >
+                                  </span>
                                 </template>
                               </div>
                               <div
@@ -801,6 +888,16 @@
                                 data-point-id={pt.id}
                                 onclick={handleSelectPoint}
                               >
+                                <template lwc:if={pt.hasDoc}>
+                                  <button
+                                    class="mz-doc-chip"
+                                    data-point-id={pt.id}
+                                    onclick={handleDocChip}
+                                    title="Show in document"
+                                  >
+                                    {pt.docLabel}
+                                  </button>
+                                </template>
                                 <template lwc:if={pt.workOrderNumber}>
                                   <span
                                     class="point-wo"
@@ -809,13 +906,47 @@
                                   >
                                 </template>
                                 <span class="point-date"
-                                  >{pt.formattedDate}</span
+                                  >🕓 {pt.formattedDate}</span
                                 >
                                 <template lwc:if={pt.showDefect}>
                                   <span class="point-defect"
                                     >📍 {pt.defectLocation}</span
                                   >
                                 </template>
+                              </div>
+                              <div class="mz-outcomes">
+                                <button
+                                  class={pt.okCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="OK"
+                                  onclick={handleOutcome}
+                                >
+                                  ✓ OK
+                                </button>
+                                <button
+                                  class={pt.attCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="Attention Required"
+                                  onclick={handleOutcome}
+                                >
+                                  ⚠ Attention
+                                </button>
+                                <button
+                                  class={pt.scrapCls}
+                                  data-point-id={pt.id}
+                                  data-outcome="Scrap"
+                                  onclick={handleOutcome}
+                                >
+                                  ✕ Scrap
+                                </button>
+                                <button
+                                  class="mz-edit"
+                                  data-point-id={pt.id}
+                                  onclick={handleEditMeasure}
+                                  title="Edit"
+                                >
+                                  ✎ Edit
+                                </button>
                               </div>
                               <template lwc:if={pt.hasImage}>
                                 <div class="point-image">
@@ -1371,18 +1502,27 @@
                   oninput={handleRaiseWtSearch}
                   onkeydown={handleInputKeydown}
                 />
-                <select
-                  class="form-select"
-                  size="5"
-                  onchange={handleRaiseWtPick}
-                  onkeydown={handleInputKeydown}
-                >
+                <div class="rt-wt-list" role="listbox">
                   <template for:each={raiseWtOptions} for:item="o">
-                    <option key={o.id} value={o.id} selected={o.selected}>
+                    <button
+                      key={o.id}
+                      type="button"
+                      class={o.cls}
+                      data-id={o.id}
+                      role="option"
+                      aria-selected={o.selected}
+                      onclick={handleRaiseWtPick}
+                    >
                       {o.name}
-                    </option>
+                    </button>
                   </template>
-                </select>
+                  <template lwc:if={raiseWtEmpty}>
+                    <p class="rt-wt-empty">No work types match.</p>
+                  </template>
+                </div>
+                <template lwc:if={raiseWtName}>
+                  <p class="rt-wt-picked">Selected: {raiseWtName}</p>
+                </template>
               </div>
               <div class="form-group">
                 <label class="form-label">Subject</label>

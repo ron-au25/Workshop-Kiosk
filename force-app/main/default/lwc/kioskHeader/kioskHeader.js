@@ -32,6 +32,15 @@ export default class KioskHeader extends LightningElement {
     return !this.hasMenuItems;
   }
 
+  // Labeled clock segment so the menu reads as the clock in/out control.
+  get clockSegLabel() {
+    return this.isClocked ? "Clock out" : "Clock in";
+  }
+
+  get clockSegClass() {
+    return "clock-seg" + (this.isClocked ? " on" : "");
+  }
+
   handleChipClick() {
     this.menuOpen = !this.menuOpen;
   }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Est_Parts_Cost__c</fullName>
+    <description
+  >Estimated parts cost for this work order, derived by COALESCE of WorkOrder ProductRequired over WorkType ProductRequired priced from PricebookEntry. Feeds the cost factor of the priority score.</description>
+    <inlineHelpText
+  >Estimated cost of parts required for this job, in the pricebook currency.</inlineHelpText>
+    <label>Est Parts Cost</label>
+    <precision>16</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Currency</type>
+</CustomField>

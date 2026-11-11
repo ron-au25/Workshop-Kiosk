@@ -107,7 +107,8 @@ Beyond standard FSL objects (`ServiceResource`, `ServiceTerritory`, `ServiceTerr
 - `ServiceTerritory`: `Kiosk_Notes__c`
 - `WorkOrder`: `Wagon_Number__c`, `SAP_FLOC_Desc__c`, `SAP_Work_Center__c`, `External_ID__c`, `Supervisor_Notes__c`, `Cause_Codes__c`, `Work_Delay_Codes__c`, `Damage_Codes__c`
 - `Time_Report__c` (custom object): `Work_Order__c`, `Resource_Name__c`, `Start_Time__c`, `End_Time__c`, `Duration_in_Minutes__c`, `Description__c`, `Related_To__c`
-- `Measure_Point__c` (custom object): `Work_Order__c` (Lookup), `Component_Name__c` (Text 255), `Measure_Type__c` (Picklist: Attention Required/Measure/OK), `Comments__c` (Long Text), `Review_Notes__c` (Long Text), `Measure_Value__c` (Number 16,2), `MeasureValue_Type__c` (Picklist: Temperature/Pressure/Level/Width/Length)
+- `Measure_Point__c` (custom object): `Work_Order__c` (Lookup), `Component_Name__c` (Text 255), `Measure_Type__c` (Picklist: Attention Required/Measure/OK), `Comments__c` (Long Text), `Review_Notes__c` (Long Text), `Measure_Value__c` (Number 16,2), `MeasureValue_Type__c` (Picklist: Temperature/Pressure/Level/Width/Length), plus `Asset__c`, `Defect_Location__c`, `Update_Date__c`, `Work_Type__c`, and PDF provenance `Source_Document__c` (ContentDocument Id), `Page_Number__c`, `Page_Position_Estimate__c`, `Table_Name__c`
+- `Kiosk_App_Config__c` (custom object): `Settings_JSON__c` — merged with defaults by `c/kioskConfigDefaults.mergeConfig`; saved via `saveKioskConfig` (Supervisor/Admin only, `ServiceResource.Role__c`)
 
 Custom field metadata files are in `force-app/main/default/objects/`.
 
@@ -168,6 +169,13 @@ The `agentforceChat` LWC talks to the **`Rio_Tinto_Shutdown_Agent`** ("Superviso
 - Several Wagon PM01 child WorkOrders (+ 1 WOLI each) + 1 PM02 child
 
 Called from the **"Generate Demo Workpack"** button in `kioskDashboard`. On success, fires `opendetail` event so `workshopPortal` navigates directly into the new workpack. Token is validated via `KioskController.isValidSession` before building.
+
+### v3.0 redesign (workpack + Asset Review)
+
+- `kioskWorkpack` (workpack tabs/rings/work-order list) is slotted into `workOrderDetail`; `assetReview` takes `initialWorkOrderId` (deep link) and `config`. Status/next-step rules live in `c/kioskStatus`; config schema/defaults in `c/kioskConfigDefaults`.
+- Workpack scoping uses `ParentWorkOrderId = :id OR RootWorkOrderId = :id` (grandchildren exist).
+- `kioskPdfPane` is a read-only PDF viewer (`showMeasure({documentId,pageNumber,componentName,pagePositionEstimate,tableName})`, `goToPage(n)`). It uses kiosk-owned static resources `kioskPdfjs`, `kioskPdfLib`, `kioskPdfjsHost` — never deploy the org's Digital Checklist `pdfjs`/`pdflib` zips. Extraction is manual only (`processWorkpackButton` → `processLatestPdf`); `WorkpackPdfTrigger` and `WorkOrderWorkpackTrigger` are Inactive. Reprocessing replaces measures.
+- Revert: tag `v2.58-baseline` / branch `release/v2.58`.
 
 ### Measure point image attachments
 

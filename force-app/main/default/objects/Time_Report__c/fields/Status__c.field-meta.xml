@@ -1,10 +1,12 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Status__c</fullName>
+    <description
+  >Approval status of the time report (kiosk time tracking review).</description>
     <label>Status</label>
-    <type>Picklist</type>
     <required>false</required>
-    <description>Approval status of the time report (kiosk time tracking review).</description>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
     <valueSet>
         <restricted>true</restricted>
         <valueSetDefinition>

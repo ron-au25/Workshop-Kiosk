@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Est_Labour_Hours__c</fullName>
+    <description
+  >Estimated labour hours for this work order, used for capacity/bay-load planning and workpack duration roll-up.</description>
+    <externalId>false</externalId>
+    <inlineHelpText
+  >Estimated hands-on labour time in hours for this job.</inlineHelpText>
+    <label>Est Labour Hours</label>
+    <precision>9</precision>
+    <required>false</required>
+    <scale>1</scale>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

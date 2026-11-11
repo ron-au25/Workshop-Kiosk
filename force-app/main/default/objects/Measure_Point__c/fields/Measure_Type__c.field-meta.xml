@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Measure_Type__c</fullName>
+    <label>Measure Type</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Attention Required</fullName>
+                <default>false</default>
+                <label>Attention Required</label>
+            </value>
+            <value>
+                <fullName>Measure</fullName>
+                <default>false</default>
+                <label>Measure</label>
+            </value>
+            <value>
+                <fullName>OK</fullName>
+                <default>false</default>
+                <label>OK</label>
+            </value>
+            <value>
+                <fullName>Scrap</fullName>
+                <default>false</default>
+                <label>Scrap</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

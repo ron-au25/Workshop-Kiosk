@@ -72,7 +72,17 @@ Rail wagon maintenance workshops generate dozens of work orders per shift. Previ
 - **`ServiceTerritory`** — extended with `Kiosk_Notes__c`
 - **`WorkOrder`** — extended with `Wagon_Number__c`, `SAP_FLOC_Desc__c`, `SAP_Work_Center__c`, `External_ID__c`, `Supervisor_Notes__c`, `Cause_Codes__c`, `Work_Delay_Codes__c`, `Damage_Codes__c`
 - **`Time_Report__c`** — custom object for shift time entries
-- **`Measure_Point__c`** — custom object for inspection measurements (temperature, pressure, width, etc.)
+- **`Measure_Point__c`** — custom object for inspection measurements; v3.0 adds `Source_Document__c`, `Page_Number__c`, `Page_Position_Estimate__c`, `Table_Name__c` (PDF provenance)
+- **`Kiosk_App_Config__c`** — per-site kiosk configuration (`Settings_JSON__c`), edited on the Config page (Supervisor/Admin only)
+
+## v3.0 — Workpack + Asset Review redesign
+
+- **Workpack page** (`kioskWorkpack`): tabs, KPI rings, next-step band, work-order list.
+- **Asset Review** (`assetReview`): work-order list grouped by asset (collapsible rail), WO tile + next-step band, icicle asset map, tabs Measure / Execute / Parts / Notes / Raised, Raise Task modal.
+- **Measure tab**: one-tap OK / Attention / Scrap, inline value, grouping by PDF page/table, 📄 chip, Document / Trend side panel.
+- **PDF viewer** (`kioskPdfPane`): read-only, pdf.js in an iframe host; static resources `kioskPdfjs`, `kioskPdfLib`, `kioskPdfjsHost`. Extraction is manual only (Process Workpack PDF quick action).
+- **Config** (`kioskConfig`) and **Time Tracking** sidebar items show only for `ServiceResource.Role__c` = Supervisor or Admin.
+- Revert path: tag `v2.58-baseline`, branch `release/v2.58`.
 
 ---
 

@@ -1993,38 +1993,9 @@ span.ok .type-badge {
   color: #f2b441;
 }
 
-/* ─── Layout v3.2: WO list full-width between asset map and work area ─── */
-.ar-split,
-.ar-split:has(.ar-wolist.rail) {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.ar-wolist,
-.ar-wolist.rail {
-  width: 100%;
-  max-height: none;
-}
-.wl-rail {
-  flex-direction: row;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-}
+/* ─── Layout v3.3: matches mock v6 (rail left, detail right below map) ─── */
 .wl-body {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 10px;
-  max-height: 340px;
-  align-content: start;
-}
-.wl-body > .wl-row.wp {
-  grid-column: 1 / -1;
-}
-.wl-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  max-height: 62vh;
 }
 .wl-chips {
   padding: 10px 12px;

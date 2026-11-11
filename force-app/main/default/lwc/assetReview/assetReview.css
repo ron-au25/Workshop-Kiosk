@@ -1872,3 +1872,72 @@ span.ok .type-badge {
   text-align: right;
   font-weight: 600;
 }
+
+.ic-map {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+.ic-root {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--rt-surface-2, #18222e);
+  border: 1px solid var(--rt-border, #2c3a4a);
+  color: var(--rt-text, #e6edf3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 44px;
+  font-weight: 600;
+}
+.ic-root-hint {
+  font-size: 12px;
+  color: var(--rt-text-muted, #8a97a6);
+  font-weight: 400;
+}
+.ic-cols {
+  display: flex;
+  gap: 4px;
+  align-items: stretch;
+}
+.ic-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ic-kids {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.ic-node {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--rt-surface, #101820);
+  border: 1px solid var(--rt-border, #2c3a4a);
+  color: var(--rt-text, #e6edf3);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.ic-node .chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ic-node.tapped {
+  border: 2px solid #f2b441;
+  background: rgba(242, 180, 65, 0.12);
+}
+.ic-node.woasset {
+  box-shadow: 0 0 0 2px #4aa3ff;
+}
+.ic-node.dim {
+  opacity: 0.35;
+}

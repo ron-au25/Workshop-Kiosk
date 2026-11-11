@@ -55,50 +55,48 @@
             <span class="collapse-icon">{diagramToggleIcon}</span>
           </button>
 
-          <!-- Compact indicator strip: always visible; the only control when collapsed -->
-          <div class="indicator-strip">
-            <template for:each={diagramZones} for:item="zone">
-              <button
-                key={zone.id}
-                class={zone.chipClass}
-                data-id={zone.id}
-                onclick={handleSelectWheelset}
-                aria-label={zone.label}
-              >
-                <span class={zone.dotClass}></span>
-                <span class="chip-label">{zone.label}</span>
-                <template lwc:if={zone.hasWos}>
-                  <span class="wo-badge" title="Work orders in this workpack"
-                    >{zone.woCount}</span
+          <!-- Icicle asset map: wagon > component > sub-asset -->
+          <div class="ic-map">
+            <button class="ic-root" onclick={handleIcicleRoot}>
+              {icicleRootLabel}
+              <span class="ic-root-hint">Show all</span>
+            </button>
+            <div class="ic-cols">
+              <template for:each={icicleCols} for:item="col">
+                <div key={col.id} class="ic-col" style={col.flexStyle}>
+                  <button
+                    class={col.cls}
+                    data-id={col.id}
+                    onclick={handleSelectWheelset}
+                    aria-label={col.name}
                   >
-                </template>
-              </button>
-            </template>
-          </div>
-
-          <!-- Level-3 sub-assets of the selected component -->
-          <template lwc:if={hasChildComponents}>
-            <div class="child-strip">
-              <span class="child-strip-label">Sub-assets</span>
-              <template for:each={childComponents} for:item="child">
-                <button
-                  key={child.id}
-                  class={child.chipClass}
-                  data-id={child.id}
-                  onclick={handleSelectChild}
-                  aria-label={child.name}
-                >
-                  <span class={child.dotClass}></span>
-                  <span class="chip-label">{child.name}</span>
-                  <template lwc:if={child.hasWos}>
-                    <span class="wo-badge" title="Work orders in this workpack"
-                      >{child.woCount}</span
-                    >
-                  </template>
-                </button>
+                    <span class={col.dotClass}></span>
+                    <span class="chip-label">{col.name}</span>
+                    <template lwc:if={col.hasWos}>
+                      <span class="wo-badge">{col.woCount}</span>
+                    </template>
+                  </button>
+                  <div class="ic-kids">
+                    <template for:each={col.kids} for:item="kid">
+                      <button
+                        key={kid.id}
+                        class={kid.cls}
+                        data-id={kid.id}
+                        onclick={handleSelectChild}
+                        aria-label={kid.name}
+                      >
+                        <span class={kid.dotClass}></span>
+                        <span class="chip-label">{kid.name}</span>
+                        <template lwc:if={kid.hasWos}>
+                          <span class="wo-badge">{kid.woCount}</span>
+                        </template>
+                      </button>
+                    </template>
+                  </div>
+                </div>
               </template>
             </div>
-          </template>
+          </div>
 
           <template lwc:if={showSchematic}>
             <div class="diagram-frame">

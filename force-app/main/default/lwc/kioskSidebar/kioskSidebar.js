@@ -1,6 +1,6 @@
 import { LightningElement, api } from "lwc";
 
-const VERSION = "v2.65";
+const VERSION = "v2.66";
 
 export default class KioskSidebar extends LightningElement {
   version = VERSION;

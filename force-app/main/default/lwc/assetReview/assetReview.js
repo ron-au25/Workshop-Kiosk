@@ -534,6 +534,14 @@ export default class AssetReview extends LightningElement {
     return row.l2AssetId === l2 || row.assetId === l2;
   }
 
+  _autoCollapse() {
+    if (!this.listPinned) this.listCollapsed = true;
+  }
+
+  _autoExpand() {
+    this.listCollapsed = false;
+  }
+
   handleToggleList() {
     this.listCollapsed = !this.listCollapsed;
   }
@@ -712,6 +720,7 @@ export default class AssetReview extends LightningElement {
     const id = evt.currentTarget.dataset.id;
     if (!id) return;
     const firstSelection = !this.selectedWheelsetId;
+    this._autoExpand();
     this.selectedWheelsetId = id;
     this.selectedChildId = null; // reset the level-3 drill on a new component
     this._clearWoFilter(); // WO filter is per-asset — reset on a new component
@@ -734,6 +743,7 @@ export default class AssetReview extends LightningElement {
   async handleSelectChild(evt) {
     const id = evt.currentTarget.dataset.id;
     if (!id) return;
+    this._autoExpand();
     this.selectedChildId = id;
     this._clearWoFilter(); // WO filter is per-asset — reset on a new sub-asset
     this.overviewExpanded = true;
@@ -1126,13 +1136,14 @@ export default class AssetReview extends LightningElement {
   handleSideMode(evt) {
     this.sideMode = evt.currentTarget.dataset.mode;
     if (this.sideMode === "doc") this._pendingShow = true;
+    if (this.sideMode !== "off") this._autoCollapse();
   }
 
   handleDocChip(evt) {
     this.sidePointId = evt.currentTarget.dataset.pointId;
     this.sideMode = "doc";
     this._pendingShow = true;
-    this.listCollapsed = true;
+    this._autoCollapse();
   }
 
   handleSelectPoint(evt) {
@@ -1606,6 +1617,74 @@ export default class AssetReview extends LightningElement {
         chipClass: "indicator-chip" + (selected ? " selected" : ""),
         dotClass: "zone-dot status-" + (w.iconStatus || "grey")
       };
+    });
+  }
+
+  // ─── Icicle asset map ────────────────────────────────────────────────────
+  handleIcicleRoot() {
+    this._autoExpand();
+    this.wtSel = [];
+    if (this.selectedChildId) {
+      this.selectedChildId = null;
+      this._clearWoFilter();
+      this.loadDetail(this.selectedWheelsetId);
+    }
+  }
+
+  _icicleNode(a, level, parentId) {
+    const wo = this.woRows.find((r) => r.id === this.selectedFilterWoId);
+    const woAsset = wo ? [wo.assetId, wo.l2AssetId] : [];
+    const tapped = a.id === this.activeAssetId;
+    const rows = this.woRows.filter((r) => {
+      return level === 2
+        ? r.l2AssetId === a.id || r.assetId === a.id
+        : r.assetId === a.id;
+    });
+    const dim =
+      this.wtSel.length > 0 &&
+      !rows.some((r) => this.wtSel.includes(r.workTypeName));
+    return {
+      id: a.id,
+      name: a.name || a.label,
+      parentId,
+      woCount: a.workOrderCount || 0,
+      hasWos: (a.workOrderCount || 0) > 0,
+      dotClass: "zone-dot status-" + (a.iconStatus || "grey"),
+      cls:
+        "ic-node" +
+        (tapped ? " tapped" : "") +
+        (woAsset.includes(a.id) ? " woasset" : "") +
+        (dim ? " dim" : "")
+    };
+  }
+
+  get icicleCols() {
+    return this.wheelsets.map((w) => {
+      const kids = (w.children || []).map((c) => {
+        return this._icicleNode(c, 3, w.id);
+      });
+      return {
+        ...this._icicleNode(w, 2, null),
+        flexStyle: "flex:" + Math.max(1, kids.length) + " 1 0;",
+        kids
+      };
+    });
+  }
+
+  get icicleRootLabel() {
+    return (this.wagon && this.wagon.name) || "Asset";
+  }
+
+  get crumbs() {
+    const out = [];
+    const w = this.wheelsets.find((x) => x.id === this.selectedWheelsetId);
+    if (w) out.push(w.label || w.name);
+    if (this.selectedChildId) {
+      const c = this._findChild(this.selectedChildId);
+      if (c) out.push(c.name);
+    }
+    return out.map((label, i) => {
+      return { key: "c" + i, label, last: i === out.length - 1 };
     });
   }
 

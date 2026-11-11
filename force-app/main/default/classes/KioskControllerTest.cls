@@ -526,6 +526,44 @@ private class KioskControllerTest {
   }
 
   @IsTest
+  static void testGetWorkOrderTile_whitelistAndValues() {
+    String token = loginTestWorker('TESTTIL01', '1357');
+    if (token == null)
+      return;
+    List<WorkOrder> wos = [
+      SELECT Id, Status
+      FROM WorkOrder
+      WHERE WorkTypeId != NULL
+      LIMIT 1
+    ];
+    if (wos.isEmpty())
+      return;
+    Test.startTest();
+    Map<String, Object> m = (Map<String, Object>) JSON.deserializeUntyped(
+      KioskController.getWorkOrderTile(
+        token,
+        wos[0].Id,
+        '["Status","WorkType","Bogus__c","Id"]'
+      )
+    );
+    Test.stopTest();
+    System.assertEquals(wos[0].Status, (String) m.get('Status'));
+    System.assert(m.containsKey('WorkType'));
+    System.assert(!m.containsKey('Bogus__c'));
+    System.assert(!m.containsKey('Id'));
+  }
+
+  @IsTest
+  static void testGetWorkOrderTile_expiredToken_throws() {
+    try {
+      KioskController.getWorkOrderTile('bad', null, '["Status"]');
+      System.assert(false, 'Expected exception');
+    } catch (AuraHandledException e) {
+      System.assert(true);
+    }
+  }
+
+  @IsTest
   static void testGetMeasurePdf_gates() {
     String token = loginTestWorker('TESTPDF01', '6802');
     if (token == null)

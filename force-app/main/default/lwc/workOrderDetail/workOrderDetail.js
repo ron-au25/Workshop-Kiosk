@@ -11,10 +11,6 @@ import clockIn from "@salesforce/apex/KioskController.clockIn";
 import clockOut from "@salesforce/apex/KioskController.clockOut";
 import saveWorkOrderNotes from "@salesforce/apex/KioskController.saveWorkOrderNotes";
 import updateWorkStepStatus from "@salesforce/apex/KioskController.updateWorkStepStatus";
-import getWorkpackProgress from "@salesforce/apex/KioskController.getWorkpackProgress";
-
-const RING_R = 30;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
 const CAUSE_OPTIONS = [
   { value: "", label: "— Select —" },
@@ -142,9 +138,9 @@ export default class WorkOrderDetail extends LightningElement {
   @track saveFeedbackIsError = false;
   @track showExecution = false;
   @track showAssetReview = false;
-  @track wpSidebarCollapsed = false; // Rail Workpack: Operations + Work Plans sidebar
   @track timeHistoryExpanded = false; // Time History: collapsed shows only the most recent entry
-  @track progress = null; // Workpack progress KPI rollup (rail workpacks only)
+  @track wpTab = "notes"; // workpack page tab, kept across Asset Review round-trips
+  assetReviewWoId = null; // WO to preselect in Asset Review (used from Phase 7)
 
   connectedCallback() {
     if (this._workOrderId) this.loadDetail();
@@ -189,27 +185,6 @@ export default class WorkOrderDetail extends LightningElement {
     });
   }
 
-  handleToggleWpSidebar() {
-    this.wpSidebarCollapsed = !this.wpSidebarCollapsed;
-  }
-  get wpSidebarExpanded() {
-    return !this.wpSidebarCollapsed;
-  }
-  get wpSidebarClass() {
-    return "wp-sidebar" + (this.wpSidebarCollapsed ? " collapsed" : "");
-  }
-  get wpLayoutClass() {
-    return "wp-layout" + (this.wpSidebarCollapsed ? " sidebar-collapsed" : "");
-  }
-  get wpSidebarToggleIcon() {
-    return this.wpSidebarCollapsed ? "‹" : "›";
-  }
-  get wpSidebarToggleTitle() {
-    return this.wpSidebarCollapsed
-      ? "Show Operations & Work Plans"
-      : "Hide Operations & Work Plans";
-  }
-
   async loadDetail() {
     this.isLoading = true;
     this.hasError = false;
@@ -230,18 +205,8 @@ export default class WorkOrderDetail extends LightningElement {
         expanded[p.id] = true;
       });
       this.expandedPlanIds = expanded;
-      // Progress KPI rollup — only for rail workpacks (root WO + children).
-      this.progress = null;
-      if (this.isRailWorkpack) {
-        try {
-          this.progress = await getWorkpackProgress({
-            token: this.sessionToken,
-            workOrderId: this.workOrderId
-          });
-        } catch {
-          /* non-fatal: panel just hides */
-        }
-      }
+      const wpc = this.template.querySelector("c-kiosk-workpack");
+      if (wpc) wpc.refresh();
     } catch {
       this.hasError = true;
       this.errorMessage = "Failed to load work order details.";
@@ -269,8 +234,16 @@ export default class WorkOrderDetail extends LightningElement {
     this.showExecution = false;
   }
 
-  handleOpenAssetReview() {
+  handleOpenAssetReviewFromWorkpack(evt) {
+    this.assetReviewWoId = (evt.detail && evt.detail.workOrderId) || null;
     this.showAssetReview = true;
+  }
+  handleWpTabChange(evt) {
+    this.wpTab = evt.detail.tab;
+  }
+  get notesCount() {
+    return (this.existingNotes || "").split("\n").filter((l) => l.trim())
+      .length;
   }
   handleAssetReviewBack() {
     this.showAssetReview = false;
@@ -616,82 +589,6 @@ export default class WorkOrderDetail extends LightningElement {
     return (this.detail?.workTypeName || "").includes("Workpack");
   }
 
-  get hasProgress() {
-    return !!this.progress;
-  }
-
-  // Full-width row of progress rings: the 6 KPIs + an Overall ring.
-  get progressRings() {
-    const p = this.progress;
-    if (!p) return [];
-    const specs = [
-      { key: "steps", label: "Steps", kpi: p.steps, color: "#2E8FE6" },
-      { key: "measures", label: "Measures", kpi: p.measures, color: "#21C07A" },
-      { key: "labour", label: "Labour", kpi: p.labour, color: "#A855F7" },
-      { key: "parts", label: "Parts", kpi: p.parts, color: "#F2B441" },
-      {
-        key: "partsCost",
-        label: "Parts Cost",
-        kpi: p.partsCost,
-        color: "#14B8A6",
-        currency: true
-      },
-      {
-        key: "components",
-        label: "Components",
-        kpi: p.components,
-        color: "#E84B4B"
-      }
-    ];
-    const rings = specs.map((s) => {
-      const na = !(s.kpi && (s.kpi.totalRaw || 0) > 0);
-      return this._buildRing(
-        s.key,
-        s.label,
-        s.kpi ? s.kpi.percent : 0,
-        this._countText(s),
-        s.color,
-        na
-      );
-    });
-    // Overall — accent ring, percent only (no count).
-    rings.push(
-      this._buildRing(
-        "overall",
-        "Overall",
-        p.overallPercent,
-        "",
-        "#E25822",
-        false
-      )
-    );
-    return rings;
-  }
-
-  _buildRing(key, label, percent, countText, color, na) {
-    const pctClamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
-    const dash = `${(pctClamped / 100) * RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
-    return {
-      key,
-      label,
-      percentText: `${pctClamped}%`,
-      countText,
-      dash,
-      color: na ? "#2A3744" : color,
-      hasCount: !!countText
-    };
-  }
-
-  _countText(s) {
-    const k = s.kpi;
-    if (!k) return "0/0";
-    if (s.currency) return `$${this._fmtNum(k.done)}/$${this._fmtNum(k.total)}`;
-    return `${this._fmtNum(k.done)}/${this._fmtNum(k.total)}`;
-  }
-
-  _fmtNum(n) {
-    return (n == null ? 0 : n).toLocaleString("en-AU");
-  }
   get hasAsset() {
     return !!this.detail?.assetId;
   }

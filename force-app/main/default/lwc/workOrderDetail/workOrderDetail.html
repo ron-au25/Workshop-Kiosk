@@ -107,235 +107,19 @@
           </template>
         </div>
 
-        <!-- ─── Workpack progress KPIs (rail workpacks only) ─── -->
+        <!-- ─── Rail workpack: redesigned page (kioskWorkpack) ─── -->
         <template lwc:if={isRailWorkpack}>
-          <template lwc:if={hasProgress}>
-            <div class="wp-progress-panel">
-              <h3 class="wp-progress-title">Workpack Progress</h3>
-              <div class="wp-ring-row">
-                <template for:each={progressRings} for:item="r">
-                  <div key={r.key} class="wp-ring">
-                    <svg class="wp-ring-svg" viewBox="0 0 80 80">
-                      <circle
-                        class="wp-ring-track"
-                        cx="40"
-                        cy="40"
-                        r="30"
-                      ></circle>
-                      <circle
-                        class="wp-ring-arc"
-                        cx="40"
-                        cy="40"
-                        r="30"
-                        stroke={r.color}
-                        stroke-dasharray={r.dash}
-                        transform="rotate(-90 40 40)"
-                      ></circle>
-                      <text
-                        class="wp-ring-pct"
-                        x="40"
-                        y="40"
-                        text-anchor="middle"
-                        dominant-baseline="central"
-                      >
-                        {r.percentText}
-                      </text>
-                    </svg>
-                    <template lwc:if={r.hasCount}>
-                      <div class="wp-ring-count">{r.countText}</div>
-                    </template>
-                    <div class="wp-ring-label">{r.label}</div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </template>
-        </template>
-
-        <!-- ─── Rail Workpack: collapsible Ops/Plans sidebar + main content ─── -->
-        <template lwc:if={isRailWorkpack}>
-          <div class={wpLayoutClass}>
-            <!-- ░░ Left sidebar: Operations + Work Plans (collapsible) ░░ -->
-            <aside class={wpSidebarClass}>
-              <button
-                class="wp-sidebar-toggle"
-                onclick={handleToggleWpSidebar}
-                title={wpSidebarToggleTitle}
-                aria-label={wpSidebarToggleTitle}
-              >
-                {wpSidebarToggleIcon}
-              </button>
-
-              <template lwc:if={wpSidebarExpanded}>
-                <div class="wp-sidebar-inner">
-                  <!-- Operations (WorkOrderLineItems) -->
-                  <template lwc:if={hasLineItems}>
-                    <div class="wd-section">
-                      <h3 class="section-title">Operations</h3>
-                      <div class="op-list">
-                        <template for:each={detail.lineItems} for:item="li">
-                          <div key={li.id} class="op-row">
-                            <span class="op-num">{li.subject}</span>
-                            <div class="op-body">
-                              <span class="op-desc">{li.description}</span>
-                              <template lwc:if={li.duration}>
-                                <span class="op-dur">{li.duration}h</span>
-                              </template>
-                            </div>
-                          </div>
-                        </template>
-                      </div>
-                    </div>
-                  </template>
-
-                  <!-- Work Plans -->
-                  <div class="wd-section">
-                    <h3 class="section-title">Work Plans</h3>
-                    <template lwc:if={hasPlans}>
-                      <div class="plan-list">
-                        <template for:each={workPlansEnriched} for:item="plan">
-                          <div key={plan.id} class="plan-card">
-                            <button
-                              class={plan.toggleClass}
-                              data-plan-id={plan.id}
-                              onclick={handleTogglePlan}
-                              aria-expanded={plan.isExpanded}
-                            >
-                              <span class="plan-order"
-                                >{plan.executionOrder}</span
-                              >
-                              <span class="plan-name">{plan.name}</span>
-                              <span class="plan-chevron">{plan.chevron}</span>
-                            </button>
-                            <template lwc:if={plan.isExpanded}>
-                              <div class="step-list">
-                                <template for:each={plan.steps} for:item="step">
-                                  <button
-                                    key={step.id}
-                                    class={step.stepClass}
-                                    data-step-id={step.id}
-                                    data-action-def={step.actionDefinition}
-                                    onclick={handleStepClick}
-                                  >
-                                    <span class="step-num"
-                                      >{step.executionOrder}</span
-                                    >
-                                    <div class="step-body">
-                                      <span class="step-name">{step.name}</span>
-                                      <template lwc:if={step.description}>
-                                        <span class="step-desc"
-                                          >{step.description}</span
-                                        >
-                                      </template>
-                                    </div>
-                                    <span class="step-status"
-                                      >{step.status}</span
-                                    >
-                                    <template lwc:if={step.hasAction}>
-                                      <span class="step-action-icon">▶</span>
-                                    </template>
-                                  </button>
-                                </template>
-                                <template lwc:if={plan.hasNoSteps}>
-                                  <p class="no-steps">No steps defined.</p>
-                                </template>
-                              </div>
-                            </template>
-                          </div>
-                        </template>
-                      </div>
-                    </template>
-                    <template lwc:else>
-                      <p class="no-plans">
-                        No work plans linked to this work order.
-                      </p>
-                    </template>
-                  </div>
-                </div>
-              </template>
-            </aside>
-
-            <!-- ░░ Main content ░░ -->
-            <div class="wp-main">
-              <!-- Open Asset Components -->
-              <template lwc:if={hasAsset}>
-                <div class="wd-section">
-                  <button
-                    class="btn-wagon-asset"
-                    onclick={handleOpenAssetReview}
-                  >
-                    <span>Open Asset Components</span>
-                  </button>
-                </div>
-              </template>
-
-              <!-- Clock in/out -->
-              <div class="wd-section">
-                <h3 class="section-title">Time Tracking</h3>
-                <template lwc:if={isClocked}>
-                  <div class="clock-active">
-                    <div class="clock-indicator">
-                      <span class="pulse-dot"></span>
-                      <span>Clocked in since {activeClockDisplay}</span>
-                    </div>
-                    <button
-                      class="btn-clock-out"
-                      onclick={handleClockOut}
-                      disabled={isClockingOut}
-                    >
-                      {clockOutLabel}
-                    </button>
-                  </div>
-                </template>
-                <template lwc:else>
-                  <button
-                    class="btn-clock-in"
-                    onclick={handleClockIn}
-                    disabled={isClockingIn}
-                  >
-                    {clockBtnLabel}
-                  </button>
-                </template>
-              </div>
-
-              <!-- Time report history -->
-              <template lwc:if={hasTimeReports}>
-                <div class="wd-section">
-                  <template lwc:if={hasMultipleTimeReports}>
-                    <button
-                      type="button"
-                      class={timeHistoryToggleClass}
-                      onclick={handleToggleTimeHistory}
-                      aria-expanded={timeHistoryExpanded}
-                    >
-                      <span class="tr-toggle-label">Time History</span>
-                      <span class="tr-toggle-action"
-                        >{timeHistoryToggleLabel}</span
-                      >
-                      <span class="tr-toggle-chevron"
-                        >{timeHistoryChevron}</span
-                      >
-                    </button>
-                  </template>
-                  <template lwc:else>
-                    <h3 class="section-title">Time History</h3>
-                  </template>
-                  <div class="tr-list">
-                    <template for:each={timeReportsEnriched} for:item="tr">
-                      <div key={tr.id} class={tr.rowClass}>
-                        <div class="tr-who">{tr.resourceName}</div>
-                        <div class="tr-times">
-                          <span class="tr-start">{tr.startDisplay}</span>
-                          <span class="tr-arrow">→</span>
-                          <span class="tr-end">{tr.endDisplay}</span>
-                        </div>
-                        <span class="tr-dur">{tr.durationDisplay}</span>
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </template>
-
+          <c-kiosk-workpack
+            session-token={sessionToken}
+            workpack-id={workOrderId}
+            detail={detail}
+            config={config}
+            notes-count={notesCount}
+            initial-tab={wpTab}
+            onopenassetreview={handleOpenAssetReviewFromWorkpack}
+            ontabchange={handleWpTabChange}
+          >
+            <div slot="notes">
               <!-- Notes + codes -->
               <div class="wd-section">
                 <h3 class="section-title">Notes &amp; Codes</h3>
@@ -417,26 +201,69 @@
                   </template>
                 </div>
               </div>
-
+            </div>
+            <div slot="execute">
+              <!-- Work Plans -->
               <div class="wd-section">
-                <h3 class="section-title">Child Work Orders</h3>
-                <template lwc:if={hasChildWorkOrders}>
-                  <c-work-order-card-list
-                    records={detail.childWorkOrders}
-                    onopendetail={handleChildOpen}
-                  ></c-work-order-card-list>
+                <h3 class="section-title">Work Plans</h3>
+                <template lwc:if={hasPlans}>
+                  <div class="plan-list">
+                    <template for:each={workPlansEnriched} for:item="plan">
+                      <div key={plan.id} class="plan-card">
+                        <button
+                          class={plan.toggleClass}
+                          data-plan-id={plan.id}
+                          onclick={handleTogglePlan}
+                          aria-expanded={plan.isExpanded}
+                        >
+                          <span class="plan-order">{plan.executionOrder}</span>
+                          <span class="plan-name">{plan.name}</span>
+                          <span class="plan-chevron">{plan.chevron}</span>
+                        </button>
+                        <template lwc:if={plan.isExpanded}>
+                          <div class="step-list">
+                            <template for:each={plan.steps} for:item="step">
+                              <button
+                                key={step.id}
+                                class={step.stepClass}
+                                data-step-id={step.id}
+                                data-action-def={step.actionDefinition}
+                                onclick={handleStepClick}
+                              >
+                                <span class="step-num"
+                                  >{step.executionOrder}</span
+                                >
+                                <div class="step-body">
+                                  <span class="step-name">{step.name}</span>
+                                  <template lwc:if={step.description}>
+                                    <span class="step-desc"
+                                      >{step.description}</span
+                                    >
+                                  </template>
+                                </div>
+                                <span class="step-status">{step.status}</span>
+                                <template lwc:if={step.hasAction}>
+                                  <span class="step-action-icon">▶</span>
+                                </template>
+                              </button>
+                            </template>
+                            <template lwc:if={plan.hasNoSteps}>
+                              <p class="no-steps">No steps defined.</p>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
                 </template>
                 <template lwc:else>
                   <p class="no-plans">
-                    No child work orders yet. Use the "Process Workpack PDF"
-                    button to generate them.
+                    No work plans linked to this work order.
                   </p>
                 </template>
               </div>
             </div>
-            <!-- /wp-main -->
-          </div>
-          <!-- /wp-layout -->
+          </c-kiosk-workpack>
         </template>
 
         <!-- ─── Standard WO: two-column layout ─── -->

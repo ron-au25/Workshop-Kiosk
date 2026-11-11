@@ -4122,6 +4122,86 @@ public with sharing class KioskController {
     return JSON.serialize(out);
   }
 
+  // ---- Workpack header tile values (configurable field list, spec wpTile) ----
+
+  // Whitelist of WorkOrder fields the config may show (matches kioskConfigDefaults WO_FIELDS).
+  private static final Map<String, String> WO_TILE_FIELDS = new Map<String, String>{
+    'WorkOrderNumber' => 'WorkOrderNumber',
+    'WorkType' => 'WorkType.Name',
+    'Status' => 'Status',
+    'Priority' => 'Priority',
+    'StartDate' => 'StartDate',
+    'SAP_FLOC_Desc__c' => 'SAP_FLOC_Desc__c',
+    'SAP_Work_Center__c' => 'SAP_Work_Center__c',
+    'Est_Labour_Hours__c' => 'Est_Labour_Hours__c',
+    'Est_Parts_Cost__c' => 'Est_Parts_Cost__c',
+    'Critical_Path__c' => 'Critical_Path__c',
+    'Shut_Scope__c' => 'Shut_Scope__c',
+    'Basic_Finish_Date__c' => 'Basic_Finish_Date__c'
+  };
+
+  /**
+   * Returns a JSON object {configKey: displayValue} for the requested tile fields on one WO.
+   * Field names are checked against WO_TILE_FIELDS; unknown names are ignored.
+   * Fields the running user cannot read (or that this org lacks) are skipped, never an error.
+   */
+  @AuraEnabled(cacheable=false)
+  public static String getWorkOrderTile(
+    String token,
+    String workOrderId,
+    String fieldsJson
+  ) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    Map<String, Object> out = new Map<String, Object>();
+    if (String.isBlank(workOrderId) || String.isBlank(fieldsJson))
+      return JSON.serialize(out);
+    Id woId = (Id) workOrderId;
+    List<String> wanted = new List<String>();
+    for (Object o : (List<Object>) JSON.deserializeUntyped(fieldsJson)) {
+      String k = String.valueOf(o);
+      if (WO_TILE_FIELDS.containsKey(k) && !wanted.contains(k))
+        wanted.add(k);
+    }
+    if (wanted.isEmpty())
+      return JSON.serialize(out);
+    List<String> paths = new List<String>();
+    for (String k : wanted)
+      paths.add(WO_TILE_FIELDS.get(k));
+    List<WorkOrder> rows;
+    try {
+      rows = (List<WorkOrder>) Database.query(
+        'SELECT ' +
+          String.join(paths, ',') +
+          ' FROM WorkOrder WHERE Id = :woId WITH SECURITY_ENFORCED LIMIT 1'
+      );
+    } catch (Exception e) {
+      return JSON.serialize(out);
+    }
+    if (rows.isEmpty())
+      return JSON.serialize(out);
+    WorkOrder wo = rows[0];
+    for (String k : wanted) {
+      Object v;
+      if (k == 'WorkType')
+        v = wo.WorkType == null ? null : wo.WorkType.Name;
+      else
+        v = wo.get(WO_TILE_FIELDS.get(k));
+      if (v == null)
+        continue;
+      if (v instanceof Boolean)
+        out.put(k, ((Boolean) v) ? 'Yes' : 'No');
+      else if (v instanceof Date)
+        out.put(k, ((Date) v).format());
+      else if (v instanceof Datetime)
+        out.put(k, ((Datetime) v).format('dd MMM yyyy HH:mm'));
+      else
+        out.put(k, String.valueOf(v));
+    }
+    return JSON.serialize(out);
+  }
+
   // Query a single PM02 task work order with the full field projection, typed as WorkOrder.
   private static WorkOrder queryTaskById(Id taskId) {
     List<WorkOrder> rows = (List<WorkOrder>) Database.query(

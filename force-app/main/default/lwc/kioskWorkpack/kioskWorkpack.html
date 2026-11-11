@@ -1,0 +1,481 @@
+<template>
+  <div class="wp">
+    <!-- Header card -->
+    <div class="card wph">
+      <div class="top">
+        <span class="hdot" style={headerDotStyle}></span>
+        <h1>{subject}</h1>
+        <template lwc:if={hasAsset}>
+          <span class="chip">⚙ {assetName}</span>
+        </template>
+        <button class="btn btn-p btn-big" onclick={handleOpenAssetReviewTop}>
+          ◧ Open Asset Review
+        </button>
+      </div>
+      <template lwc:if={hasTile}>
+        <div class="kvs">
+          <template for:each={tileFields} for:item="f">
+            <div key={f.key} class="kv">
+              <span class="k">{f.label}</span>
+              <span class="v">{f.value}</span>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template lwc:if={hasDescription}>
+        <div>
+          <span class={descClass}>{description}</span>
+          <button class="linkb" onclick={handleDescToggle}>
+            {descToggleLabel}
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <!-- Next step band -->
+    <template lwc:if={showNext}>
+      <div class={nextClass}>
+        <div>
+          <div class="sec-t">Next step</div>
+          <div class="txt">{nextText}</div>
+        </div>
+        <template lwc:if={nextIsOpen}>
+          <button
+            class="btn btn-p btn-next"
+            data-woid={nextWoId}
+            onclick={handleOpenAssetReviewNext}
+          >
+            Open Asset Review →
+          </button>
+        </template>
+        <template lwc:if={nextIsExecute}>
+          <button class="btn btn-b btn-next" onclick={handleNextExecute}>
+            Execute →
+          </button>
+        </template>
+      </div>
+    </template>
+
+    <!-- Progress panel -->
+    <template lwc:if={showProgress}>
+      <div class="card prog">
+        <div class="prog-h">
+          <h3>▥ {progTitle}</h3>
+          <div class="sumc">
+            <template lwc:if={progCollapsed}>
+              <template for:each={chips} for:item="c">
+                <span key={c.key} class="sumchip">{c.text}</span>
+              </template>
+            </template>
+          </div>
+          <button class="btn btn-g btn-sm" onclick={handleProgToggle}>
+            {progToggleLabel}
+          </button>
+        </div>
+        <template lwc:if={progBodyOpen}>
+          <div class="prog-b">
+            <div class="rg big">
+              <svg class="ring big" viewBox="0 0 80 80">
+                <circle class="trk" cx="40" cy="40" r="30"></circle>
+                <circle
+                  class="arc"
+                  cx="40"
+                  cy="40"
+                  r="30"
+                  stroke={overallRing.color}
+                  stroke-dasharray={overallRing.dash}
+                  transform="rotate(-90 40 40)"
+                ></circle>
+                <text
+                  x="40"
+                  y="40"
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                >
+                  {overallRing.percentText}
+                </text>
+              </svg>
+              <span class="l">Overall</span>
+            </div>
+            <div class="vsep"></div>
+            <template for:each={rings} for:item="r">
+              <div key={r.key} class="rg">
+                <svg class="ring" viewBox="0 0 80 80">
+                  <circle class="trk" cx="40" cy="40" r="30"></circle>
+                  <circle
+                    class="arc"
+                    cx="40"
+                    cy="40"
+                    r="30"
+                    stroke={r.color}
+                    stroke-dasharray={r.dash}
+                    transform="rotate(-90 40 40)"
+                  ></circle>
+                  <text
+                    x="40"
+                    y="40"
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                  >
+                    {r.percentText}
+                  </text>
+                </svg>
+                <span class="l">{r.label}</span>
+                <span class="c">{r.count}</span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Tabs -->
+    <div class="card tabs" style={tabsStyle}>
+      <template for:each={tabs} for:item="t">
+        <button
+          key={t.key}
+          class={t.cls}
+          data-key={t.key}
+          onclick={handleTabClick}
+        >
+          <span class="ic">{t.icon}</span>
+          <span>
+            <div class="t">{t.label}</div>
+            <div class="d">{t.sub}</div>
+          </span>
+        </button>
+      </template>
+    </div>
+
+    <div class="card panel">
+      <!-- Notes & codes (content slotted from workOrderDetail) -->
+      <template lwc:if={isNotes}>
+        <slot name="notes"></slot>
+      </template>
+
+      <!-- Execute -->
+      <template lwc:if={isExecute}>
+        <button class="btn btn-p btn-xl" onclick={handleOpenAssetReviewTop}>
+          <span>◧ Open Asset Review</span>
+          <span class="xl-sub">{executeHint}</span>
+        </button>
+        <slot name="execute"></slot>
+      </template>
+
+      <!-- Work orders -->
+      <template lwc:if={isOrders}>
+        <div class="ph">
+          <h2>☰ Child work orders</h2>
+          <span class="hint">{kids.length} under this workpack</span>
+        </div>
+        <template lwc:if={noKids}>
+          <div class="empty">
+            No child work orders yet. Use the "Process Workpack PDF" button to
+            generate them.
+          </div>
+        </template>
+        <template lwc:else>
+          <template lwc:if={hasWtFilter}>
+            <div class="wtf">
+              <span class="lb">Work type focus</span>
+              <template for:each={workTypeChips} for:item="w">
+                <button
+                  key={w.name}
+                  class={w.cls}
+                  data-name={w.name}
+                  onclick={handleWtToggle}
+                >
+                  {w.name}
+                </button>
+              </template>
+              <template lwc:if={wtActive}>
+                <button class="linkb" onclick={handleWtClear}>Clear ✕</button>
+              </template>
+            </div>
+          </template>
+          <div class="cbar">
+            <div class="stk">
+              <template for:each={stackSegs} for:item="s">
+                <button
+                  key={s.key}
+                  class={s.cls}
+                  style={s.style}
+                  title={s.title}
+                  data-status={s.status}
+                  onclick={handleStackClick}
+                ></button>
+              </template>
+            </div>
+            <div class="lg">
+              <template for:each={legend} for:item="l">
+                <button
+                  key={l.key}
+                  class={l.cls}
+                  data-status={l.key}
+                  onclick={handleLegendClick}
+                >
+                  <i class="dot" style={l.dotStyle}></i>{l.label}
+                  <b>{l.count}</b>
+                </button>
+              </template>
+              <template lwc:if={statusFiltered}>
+                <button class="linkb" onclick={handleShowAll}>
+                  Show all ✕
+                </button>
+              </template>
+            </div>
+          </div>
+          <div class="cbar">
+            <span class="hint2"
+              >Sorted: needs attention first. Tap a work order to open it in
+              Asset Review.</span
+            >
+            <div class="ctr">
+              <span class="lb">View</span>
+              <div class="seg">
+                <template for:each={viewSegs} for:item="v">
+                  <button
+                    key={v.key}
+                    class={v.cls}
+                    data-key={v.key}
+                    onclick={handleViewClick}
+                  >
+                    {v.label}
+                  </button>
+                </template>
+              </div>
+              <template lwc:if={isList}>
+                <span class="lb">Group</span>
+                <div class="seg">
+                  <template for:each={groupSegs} for:item="g">
+                    <button
+                      key={g.key}
+                      class={g.cls}
+                      data-key={g.key}
+                      onclick={handleGroupClick}
+                    >
+                      {g.label}
+                    </button>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <template lwc:if={hasShown}>
+            <template lwc:if={isList}>
+              <div class="chead">
+                <span>Work order</span>
+                <span>Subject · type · asset</span>
+                <span>Steps</span>
+                <span>Measures</span>
+                <span>Parts</span>
+                <span>Next step</span>
+                <span></span>
+              </div>
+              <template for:each={groupedRows} for:item="g">
+                <div key={g.key}>
+                  <template lwc:if={g.showHead}>
+                    <div class="ggrp">
+                      {g.label} <span class="tag">{g.count}</span>
+                      <div class="stk small">
+                        <template for:each={g.segs} for:item="s">
+                          <i key={s.key} style={s.style}></i>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                  <template for:each={g.rows} for:item="k">
+                    <button
+                      key={k.id}
+                      class={k.rowClass}
+                      data-woid={k.id}
+                      onclick={handleRowClick}
+                    >
+                      <span class="num">
+                        <b><i class="dot" style={k.dotStyle}></i>{k.number}</b>
+                        <span class="pill">{k.statusPill}</span>
+                      </span>
+                      <span class="sj">
+                        <span class="t">{k.subject}</span>
+                        <span class="m">
+                          <span class="tag wt">{k.workTypeName}</span>⚙
+                          {k.assetName}
+                        </span>
+                      </span>
+                      <span class={k.stepsBar.cls}>
+                        <span class="bar2">
+                          <template for:each={k.stepsBar.segs} for:item="s">
+                            <i key={s.key} style={s.style}></i>
+                          </template>
+                        </span>
+                        <span class="tx">{k.stepsBar.text}</span>
+                      </span>
+                      <span class={k.measBar.cls}>
+                        <span class="bar2">
+                          <template for:each={k.measBar.segs} for:item="s">
+                            <i key={s.key} style={s.style}></i>
+                          </template>
+                        </span>
+                        <span class="tx">{k.measBar.text}</span>
+                      </span>
+                      <span class={k.partsBar.cls}>
+                        <span class="bar2">
+                          <template for:each={k.partsBar.segs} for:item="s">
+                            <i key={s.key} style={s.style}></i>
+                          </template>
+                        </span>
+                        <span class="tx">{k.partsBar.text}</span>
+                      </span>
+                      <span class="nx">
+                        <template lwc:if={k.nextDone}>
+                          <span class="okt">✓ {k.next.text}</span>
+                        </template>
+                        <template lwc:else>{k.next.text}</template>
+                      </span>
+                      <span class="go">›</span>
+                    </button>
+                  </template>
+                </div>
+              </template>
+            </template>
+            <template lwc:if={isBoard}>
+              <div class="board">
+                <template for:each={boardCols} for:item="col">
+                  <div key={col.key} class="bcol">
+                    <h4>
+                      <i class="dot" style={col.dotStyle}></i>{col.label}
+                      <span class="tag">{col.count}</span>
+                    </h4>
+                    <template for:each={col.rows} for:item="k">
+                      <button
+                        key={k.id}
+                        class="bcard"
+                        data-woid={k.id}
+                        onclick={handleRowClick}
+                      >
+                        <span class="h">
+                          <b>{k.number}</b>
+                          <span class="tag wt">{k.workTypeName}</span>
+                        </span>
+                        <span class="t">{k.subject}</span>
+                        <span class="bars">
+                          <span class={k.stepsBar.cls}>
+                            <span class="bar2">
+                              <template for:each={k.stepsBar.segs} for:item="s">
+                                <i key={s.key} style={s.style}></i>
+                              </template>
+                            </span>
+                            <span class="tx">{k.stepsBar.text}</span>
+                          </span>
+                          <span class={k.measBar.cls}>
+                            <span class="bar2">
+                              <template for:each={k.measBar.segs} for:item="s">
+                                <i key={s.key} style={s.style}></i>
+                              </template>
+                            </span>
+                            <span class="tx">{k.measBar.text}</span>
+                          </span>
+                          <span class={k.partsBar.cls}>
+                            <span class="bar2">
+                              <template for:each={k.partsBar.segs} for:item="s">
+                                <i key={s.key} style={s.style}></i>
+                              </template>
+                            </span>
+                            <span class="tx">{k.partsBar.text}</span>
+                          </span>
+                        </span>
+                      </button>
+                    </template>
+                    <template lwc:if={col.empty}>
+                      <div class="hint2 pad">—</div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </template>
+          <template lwc:else>
+            <div class="empty">No child work orders match.</div>
+          </template>
+        </template>
+      </template>
+
+      <!-- Operations -->
+      <template lwc:if={isOps}>
+        <div class="ph">
+          <h2>⚙ Operations</h2>
+          <span class="hint">Work order line items on this workpack</span>
+        </div>
+        <template lwc:if={hasOps}>
+          <div class="ops">
+            <template for:each={ops} for:item="o">
+              <div key={o.id} class="op">
+                <span class="n">{o.num}</span>
+                <span>{o.text}</span>
+                <span class="h">{o.hours}</span>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template lwc:else>
+          <div class="empty">No operations on this workpack.</div>
+        </template>
+      </template>
+
+      <!-- Time records -->
+      <template lwc:if={isTime}>
+        <div class="ph">
+          <h2>⏱ Time records</h2>
+          <span class="hint">Read-only. Clock in / out is in the header.</span>
+        </div>
+        <template lwc:if={hasTimeRows}>
+          <div class="tsum">
+            <div class="kv">
+              <span class="k">Logged</span><span class="v">{timeLogged}</span>
+            </div>
+            <div class="kv">
+              <span class="k">Records</span
+              ><span class="v">{timeRows.length}</span>
+            </div>
+          </div>
+          <template for:each={timeList} for:item="t">
+            <div key={t.id} class={t.rowClass}>
+              <b>{t.who}<span class="wo"> · {t.wo}</span></b>
+              <span>{t.start} → <span class={t.endClass}>{t.end}</span></span>
+              <span class="d">{t.dur}</span>
+            </div>
+          </template>
+        </template>
+        <template lwc:else>
+          <div class="empty">No time records yet.</div>
+        </template>
+      </template>
+
+      <!-- Raised tasks -->
+      <template lwc:if={isRaised}>
+        <div class="ph">
+          <h2>⚠ Raised tasks</h2>
+          <span class="hint"
+            >Extra work raised on this asset and its sub-assets, across
+            workpacks</span
+          >
+        </div>
+        <template lwc:if={hasRaised}>
+          <div class="ops">
+            <template for:each={raisedList} for:item="r">
+              <div key={r.id} class="op raised">
+                <span class="n">{r.num}</span>
+                <span>{r.subject}</span>
+                <span class="h">{r.status}</span>
+              </div>
+            </template>
+          </div>
+        </template>
+        <template lwc:else>
+          <div class="empty">No raised tasks.</div>
+        </template>
+      </template>
+    </div>
+  </div>
+</template>

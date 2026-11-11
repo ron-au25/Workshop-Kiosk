@@ -2843,3 +2843,64 @@ span.ok .type-badge {
 .wl-body > * {
   flex-shrink: 0;
 }
+
+/* v3.8: measure/task forms open as a right-side drawer */
+.entry-form.aw-form-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 540px;
+  max-width: 94vw;
+  z-index: 9001;
+  padding: 22px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border: 0;
+  border-left: 1px solid var(--rt-border, #2a3744);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+}
+
+/* WO card: edit pencil lives inside the card, left of the progress ring */
+.wl-rowwrap {
+  position: relative;
+}
+.wl-rowwrap .edit-btn {
+  position: absolute;
+  top: 4px;
+  right: 62px;
+  width: 30px;
+  height: 30px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  font-size: 14px;
+  background: transparent;
+  border: 0;
+  align-self: auto;
+}
+
+/* Selected WO header: single top line only */
+.aw-wo {
+  padding: 10px 16px;
+}
+
+/* Compact tab selector: shrink to content instead of spanning the pane */
+.aw-tabs {
+  display: inline-grid;
+  grid-template-columns: repeat(5, auto);
+  max-width: 100%;
+}
+.aw-tab {
+  min-height: 52px;
+  padding: 6px 16px 6px 10px;
+  gap: 8px;
+}
+.aw-tab-i {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+.aw-tab-s {
+  max-width: 130px;
+}

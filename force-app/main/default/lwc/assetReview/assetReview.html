@@ -644,16 +644,6 @@
                       ✕ All on asset
                     </button>
                   </div>
-                  <template lwc:if={hasTile}>
-                    <div class="aw-facts">
-                      <template for:each={tileFields} for:item="f">
-                        <span key={f.key} class="aw-fact"
-                          ><span class="aw-fact-l">{f.label}</span
-                          ><span class="aw-fact-v">{f.value}</span></span
-                        >
-                      </template>
-                    </div>
-                  </template>
                 </div>
                 <template lwc:if={nextStepText}>
                   <div class="aw-next">
@@ -709,7 +699,25 @@
                   </button>
                 </div>
                 <template lwc:if={showMeasureForm}>
-                  <div class="entry-form">
+                  <div class="aw-scrim" onclick={handleMeasureCancel}></div>
+                  <div
+                    class="entry-form aw-form-drawer"
+                    role="dialog"
+                    aria-label="Measure"
+                  >
+                    <div class="aw-drawer-h">
+                      <span class="aw-drawer-t">
+                        <template lwc:if={editId}>Edit measure</template>
+                        <template lwc:else>New measure</template>
+                      </span>
+                      <button
+                        class="aw-drawer-x"
+                        onclick={handleMeasureCancel}
+                        aria-label="Close"
+                      >
+                        ✕
+                      </button>
+                    </div>
                     <div class="form-group">
                       <label class="form-label">Component Name</label>
                       <input
@@ -1325,7 +1333,25 @@
 
         <!-- Task form (PM02 create/edit) -->
         <template lwc:if={showTaskForm}>
-          <div class="entry-form">
+          <div class="aw-scrim" onclick={handleTaskCancel}></div>
+          <div
+            class="entry-form aw-form-drawer"
+            role="dialog"
+            aria-label="Task"
+          >
+            <div class="aw-drawer-h">
+              <span class="aw-drawer-t">
+                <template lwc:if={taskEditId}>Edit task</template>
+                <template lwc:else>New task</template>
+              </span>
+              <button
+                class="aw-drawer-x"
+                onclick={handleTaskCancel}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
             <div class="form-group">
               <label class="form-label">Subject</label>
               <input

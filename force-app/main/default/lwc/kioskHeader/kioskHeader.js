@@ -9,6 +9,7 @@ export default class KioskHeader extends LightningElement {
   @api isPortrait = false;
   @api clockedWorkOrderId = null; // workpack the open clock belongs to
   @api currentWorkOrderId = null; // workpack currently open on screen (null on other pages)
+  @api chatOpen = false; // Agentforce panel open — highlights the chat button
 
   @track menuOpen = false;
 
@@ -104,6 +105,14 @@ export default class KioskHeader extends LightningElement {
     } else {
       this.clockElapsed = "00:00:00";
     }
+  }
+
+  get chatBtnClass() {
+    return "chat-btn" + (this.chatOpen ? " on" : "");
+  }
+
+  handleChat() {
+    this.dispatchEvent(new CustomEvent("togglechat"));
   }
 
   handleHamburger() {

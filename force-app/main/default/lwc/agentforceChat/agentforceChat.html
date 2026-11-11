@@ -1,72 +1,105 @@
 <template>
-    <!-- Floating launcher button -->
-    <button class={launcherClass} onclick={handleToggle} title={launcherLabel} aria-label={launcherLabel}>
-        <template lwc:if={open}>✕</template>
-        <template lwc:else>💬</template>
-    </button>
+  <!-- Right-side slide-in panel; opened from the kiosk header button -->
+  <section class={panelClass} aria-hidden={isClosed}>
+    <header class="af-header">
+      <span class="af-header-title">Agentforce Assistant</span>
+      <span class="af-header-btns">
+        <button
+          class={pinClass}
+          onclick={handlePinToggle}
+          title={pinLabel}
+          aria-label={pinLabel}
+          aria-pressed={pinned}
+        >
+          📌
+        </button>
+        <button class="af-close" onclick={handleClose} aria-label="Close">
+          ✕
+        </button>
+      </span>
+    </header>
 
-    <!-- Slide-in chat panel -->
-    <section class={panelClass} aria-hidden={open}>
-        <header class="af-header">
-            <span class="af-header-title">Agentforce Assistant</span>
-            <button class="af-close" onclick={handleToggle} aria-label="Close">✕</button>
-        </header>
-
-        <div class="af-log" data-id="log">
-            <template lwc:if={hasMessages}>
-                <template for:each={messages} for:item="m">
-                    <div key={m.id} class="af-msg-group">
-                        <template lwc:if={m.hasText}>
-                            <div class={m.cssClass}>
-                                <template for:each={m.lines} for:item="ln">
-                                    <hr key={ln.key} lwc:if={ln.isRule} class="af-rule" />
-                                    <div key={ln.key} lwc:elseif={ln.isBlank} class="af-blank-line"></div>
-                                    <div key={ln.key} lwc:else class="af-line">
-                                        <template for:each={ln.segments} for:item="seg">
-                                            <span key={seg.key} class={seg.cssClass}>{seg.text}</span>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                        <template lwc:if={m.hasBlocks}>
-                            <c-agent-rich-blocks blocks={m.blocks} theme={theme} ondrilldown={handleDrilldown}></c-agent-rich-blocks>
-                        </template>
-                    </div>
+    <div class="af-log" data-id="log">
+      <template lwc:if={hasMessages}>
+        <template for:each={messages} for:item="m">
+          <div key={m.id} class="af-msg-group">
+            <template lwc:if={m.hasText}>
+              <div class={m.cssClass}>
+                <template for:each={m.lines} for:item="ln">
+                  <hr key={ln.key} lwc:if={ln.isRule} class="af-rule" />
+                  <div
+                    key={ln.key}
+                    lwc:elseif={ln.isBlank}
+                    class="af-blank-line"
+                  ></div>
+                  <div key={ln.key} lwc:else class="af-line">
+                    <template for:each={ln.segments} for:item="seg">
+                      <span key={seg.key} class={seg.cssClass}>{seg.text}</span>
+                    </template>
+                  </div>
                 </template>
+              </div>
             </template>
-            <template lwc:else>
-                <div class="af-empty">
-                    <p class="af-empty-title">How can I help?</p>
-                    <p class="af-empty-hint">Ask about work orders, delays, scope changes, or shutdown activities.</p>
-                </div>
+            <template lwc:if={m.hasBlocks}>
+              <c-agent-rich-blocks
+                blocks={m.blocks}
+                theme={theme}
+                ondrilldown={handleDrilldown}
+              ></c-agent-rich-blocks>
             </template>
-
-            <template lwc:if={isThinking}>
-                <div class="af-msg af-agent af-thinking">
-                    <span class="af-dot"></span><span class="af-dot"></span><span class="af-dot"></span>
-                </div>
-            </template>
-        </div>
-
-        <template lwc:if={errorMessage}>
-            <div class="af-error">{errorMessage}</div>
+          </div>
         </template>
-
-        <div class="af-input-row">
-            <textarea
-                class="af-input"
-                data-id="chatInput"
-                placeholder="Type your message…"
-                value={draft}
-                oninput={handleInput}
-                onkeydown={handleInputKeydown}
-                rows="1"
-            ></textarea>
-            <template lwc:if={voiceSupported}>
-                <button class={micClass} onclick={handleMicToggle} aria-label={micLabel} title={micLabel}>🎤</button>
-            </template>
-            <button class="af-send" onclick={handleSend} disabled={sendDisabled} aria-label="Send">➤</button>
+      </template>
+      <template lwc:else>
+        <div class="af-empty">
+          <p class="af-empty-title">How can I help?</p>
+          <p class="af-empty-hint">
+            Ask about work orders, delays, scope changes, or shutdown
+            activities.
+          </p>
         </div>
-    </section>
+      </template>
+
+      <template lwc:if={isThinking}>
+        <div class="af-msg af-agent af-thinking">
+          <span class="af-dot"></span><span class="af-dot"></span
+          ><span class="af-dot"></span>
+        </div>
+      </template>
+    </div>
+
+    <template lwc:if={errorMessage}>
+      <div class="af-error">{errorMessage}</div>
+    </template>
+
+    <div class="af-input-row">
+      <textarea
+        class="af-input"
+        data-id="chatInput"
+        placeholder="Type your message…"
+        value={draft}
+        oninput={handleInput}
+        onkeydown={handleInputKeydown}
+        rows="1"
+      ></textarea>
+      <template lwc:if={voiceSupported}>
+        <button
+          class={micClass}
+          onclick={handleMicToggle}
+          aria-label={micLabel}
+          title={micLabel}
+        >
+          🎤
+        </button>
+      </template>
+      <button
+        class="af-send"
+        onclick={handleSend}
+        disabled={sendDisabled}
+        aria-label="Send"
+      >
+        ➤
+      </button>
+    </div>
+  </section>
 </template>

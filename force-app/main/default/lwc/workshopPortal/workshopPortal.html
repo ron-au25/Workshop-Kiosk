@@ -84,6 +84,8 @@
             onclockswitch={handleHeaderClockSwitch}
             is-portrait={isPortrait}
             onhamburger={handleSidebarToggle}
+            chat-open={chatOpen}
+            ontogglechat={handleToggleChat}
           ></c-kiosk-header>
 
           <div class="kiosk-content">
@@ -159,11 +161,15 @@
         </main>
       </div>
 
-      <!-- Agentforce assistant (runs as the supervisor); floats over all in-app screens -->
+      <!-- Agentforce assistant (runs as the supervisor); right-side panel opened from the header -->
       <c-agentforce-chat
         supervisor-name={supervisorName}
         work-order-id={selectedWorkOrderId}
         theme={theme}
+        open={chatOpen}
+        pinned={chatPinned}
+        onclose={handleChatClose}
+        onpinchange={handleChatPin}
         ondrilldown={handleChatDrilldown}
       ></c-agentforce-chat>
 

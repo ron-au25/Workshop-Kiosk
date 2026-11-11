@@ -45,6 +45,8 @@ export default class WorkshopPortal extends LightningElement {
   @track orgId = "";
   @track networkId = "";
   @track sidebarCollapsed = false;
+  @track chatOpen = false;
+  @track chatPinned = false;
   @track isPortrait = false;
   @track showIdleWarning = false;
   @track idleCountdown = IDLE_WARN_SECONDS;
@@ -189,6 +191,7 @@ export default class WorkshopPortal extends LightningElement {
     await this._onWorkpackChange(woId);
     this.selectedWorkOrderId = woId;
     this.state = STATE.WORK_ORDER_DETAIL;
+    this.sidebarCollapsed = true; // more room for the work order
   }
 
   // Drill-down from a tapped carousel image in the Agentforce chat.
@@ -199,6 +202,21 @@ export default class WorkshopPortal extends LightningElement {
     this.selectedWorkOrderId = woId;
     this.state = STATE.WORK_ORDER_DETAIL;
     this.activeNav = "workorders";
+    this.sidebarCollapsed = true;
+    if (!this.chatPinned) this.chatOpen = false;
+  }
+
+  handleToggleChat() {
+    this.chatOpen = !this.chatOpen;
+    if (this.chatOpen) this.sidebarCollapsed = true; // make room
+  }
+
+  handleChatClose() {
+    this.chatOpen = false;
+  }
+
+  handleChatPin(evt) {
+    this.chatPinned = !!(evt.detail && evt.detail.pinned);
   }
 
   // ─── Auto clock (activity-driven, workpack-level) ──────────────────────────
@@ -328,6 +346,7 @@ export default class WorkshopPortal extends LightningElement {
     this.barcodeEmployeeId = null;
     this.showIdleWarning = false;
     this._resetAgentChat();
+    this.chatOpen = false;
     this.state = STATE.ROSTER;
   }
 
@@ -470,6 +489,8 @@ export default class WorkshopPortal extends LightningElement {
     let cls = "kiosk-app";
     if (this.isPortrait) cls += " portrait";
     if (this.sidebarCollapsed) cls += " sidebar-collapsed";
+    if (this.chatOpen && this.chatPinned && !this.isPortrait)
+      cls += " chat-docked";
     return cls;
   }
 

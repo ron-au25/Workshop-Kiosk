@@ -21,6 +21,16 @@
       <span class="header-clock">{currentTime}</span>
     </div>
     <div class="header-right">
+      <button
+        type="button"
+        class={chatBtnClass}
+        onclick={handleChat}
+        aria-label="Agentforce assistant"
+        aria-pressed={chatOpen}
+        title="Ask Agentforce"
+      >
+        💬
+      </button>
       <template lwc:if={workerName}>
         <div class="worker-wrap">
           <button

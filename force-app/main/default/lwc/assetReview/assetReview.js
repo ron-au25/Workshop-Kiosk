@@ -1219,6 +1219,7 @@ export default class AssetReview extends LightningElement {
     this.measureFeedback = "";
     this._clearPendingImage();
     this.showMeasureForm = true;
+    this._scrollForm = true;
   }
 
   handleEditMeasure(evt) {
@@ -1240,6 +1241,7 @@ export default class AssetReview extends LightningElement {
     // LWC does not reliably reflect a bound `value` onto a <textarea>'s displayed
     // text, so push the preloaded Comments/Review Notes into the DOM after render.
     this._syncMeasureTextareas = true;
+    this._scrollForm = true;
   }
 
   _clearPendingImage() {
@@ -1738,6 +1740,15 @@ export default class AssetReview extends LightningElement {
       const notes = this.template.querySelector('[data-id="editReviewNotes"]');
       if (comm) comm.value = this.editComments;
       if (notes) notes.value = this.editReviewNotes;
+    }
+    // The measure form sits above the list; bring it into view when the user
+    // taps Edit / New Measure from further down the list.
+    if (this._scrollForm) {
+      const form = this.template.querySelector(".entry-form");
+      if (form) {
+        this._scrollForm = false;
+        form.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
     }
   }
 

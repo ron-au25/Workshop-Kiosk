@@ -1,5 +1,7 @@
 import { LightningElement, api, track } from "lwc";
 import validateEmployee from "@salesforce/apex/KioskController.validateEmployee";
+import requestPinReset from "@salesforce/apex/KioskController.requestPinReset";
+import confirmPinReset from "@salesforce/apex/KioskController.confirmPinReset";
 
 const PIN_LENGTH = 4;
 const PAD_KEYS = [
@@ -29,8 +31,23 @@ export default class KioskLogin extends LightningElement {
   @track isLocked = false;
   @track lockoutCountdown = "";
   @track shakeActive = false;
+  // PIN reset: pin (normal) | request | code | newpin | confirm
+  @track mode = "pin";
+  @track code = "";
+  @track maskedEmail = "";
+  @track infoMessage = "";
+  _newPin = "";
+  _noPin = false;
 
   _lockoutInterval;
+
+  connectedCallback() {
+    // Roster says no PIN: go straight to the set-PIN (emailed code) step.
+    if (this.worker && this.worker.hasPin === false) {
+      this._noPin = true;
+      this.mode = "request";
+    }
+  }
 
   disconnectedCallback() {
     if (this._lockoutInterval) clearInterval(this._lockoutInterval);
@@ -79,6 +96,45 @@ export default class KioskLogin extends LightningElement {
     }));
   }
 
+  get workerKey() {
+    return (
+      this.prefilledEmployeeId || (this.worker ? this.worker.resourceId : null)
+    );
+  }
+  get isModePin() {
+    return this.mode === "pin";
+  }
+  get isModeRequest() {
+    return this.mode === "request";
+  }
+  get isModeCode() {
+    return this.mode === "code";
+  }
+  get isPadMode() {
+    return (
+      this.mode === "pin" || this.mode === "newpin" || this.mode === "confirm"
+    );
+  }
+  get showForgot() {
+    return this.mode === "pin" && !this.isLocked;
+  }
+  get instructionText() {
+    if (this.mode === "newpin") return "Choose a new 4-digit PIN";
+    if (this.mode === "confirm") return "Enter the new PIN again";
+    if (this._noPin) return "No PIN set yet";
+    return this.isBarcodePrefilled
+      ? "Badge scanned — enter your PIN"
+      : "Enter your 4-digit PIN";
+  }
+  get requestText() {
+    return this._noPin
+      ? "You have no PIN yet. We will email you a one-time code so you can set one."
+      : "We will email you a one-time code so you can set a new PIN.";
+  }
+  get codeSubmitDisabled() {
+    return this.isSubmitting || this.code.length !== 6;
+  }
+
   get isPadDisabled() {
     return this.isSubmitting || this.isLocked;
   }
@@ -97,20 +153,153 @@ export default class KioskLogin extends LightningElement {
     if (this.pin.length >= PIN_LENGTH) return;
     this.pin += val;
     if (this.pin.length === PIN_LENGTH) {
+      this._onPinComplete();
+    }
+  }
+
+  _onPinComplete() {
+    if (this.mode === "newpin") {
+      this._newPin = this.pin;
+      this.pin = "";
+      this.mode = "confirm";
+    } else if (this.mode === "confirm") {
+      if (this.pin !== this._newPin) {
+        this.pin = "";
+        this._newPin = "";
+        this.mode = "newpin";
+        this._showErr("PINs did not match. Start again.");
+        return;
+      }
+      this._submitReset();
+    } else {
       this._submitPin();
     }
+  }
+
+  _showErr(msg) {
+    this.errorMessage = msg;
+    this.showError = true;
+    this._triggerShake();
+  }
+
+  // ─── PIN reset flow ───
+  handleForgot() {
+    this.showError = false;
+    this.infoMessage = "";
+    this.mode = "request";
+  }
+
+  async handleSendCode() {
+    this.isSubmitting = true;
+    this.showError = false;
+    try {
+      const r = await requestPinReset({
+        territoryId: this.territoryId,
+        workerId: this.workerKey
+      });
+      if (r.success) {
+        this.maskedEmail = r.maskedEmail;
+        this.code = "";
+        this.mode = "code";
+         
+        console.log("[PinReset] code emailed to", r.maskedEmail);
+      } else {
+         
+        console.warn("[PinReset] request failed:", r.errorCode);
+        this._showErr(
+          r.errorCode === "NO_EMAIL"
+            ? "No email on file. Ask your supervisor to set your PIN."
+            : "Could not send the code. Ask your supervisor to set your PIN."
+        );
+      }
+    } catch (e) {
+       
+      console.error("[PinReset] request error", e);
+      this._showErr("Connection error. Please try again.");
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  handleCodeInput(evt) {
+    this.code = (evt.target.value || "").replace(/\D/g, "").slice(0, 6);
+    evt.target.value = this.code;
+  }
+
+  handleInputKeydown(evt) {
+    evt.stopPropagation();
+  }
+
+  handleCodeNext() {
+    if (this.code.length !== 6) return;
+    this.showError = false;
+    this.pin = "";
+    this.mode = "newpin";
+  }
+
+  async _submitReset() {
+    this.isSubmitting = true;
+    try {
+      const r = await confirmPinReset({
+        territoryId: this.territoryId,
+        workerId: this.workerKey,
+        code: this.code,
+        newPin: this._newPin
+      });
+      this.pin = "";
+      if (r.success) {
+        this._newPin = "";
+        this.code = "";
+        this._noPin = false;
+        this.mode = "pin";
+        this.infoMessage = "PIN saved. Enter it to sign in.";
+         
+        console.log("[PinReset] PIN saved");
+      } else if (r.errorCode === "LOCKED") {
+        this.mode = "pin";
+        this.isLocked = true;
+        this._startLockoutCountdown(r.lockedUntilMs);
+      } else if (r.errorCode === "WRONG_CODE") {
+        this._newPin = "";
+        this.code = "";
+        this.mode = "code";
+        this._showErr("That code is wrong or expired.");
+      } else if (r.errorCode === "WEAK_PIN") {
+        this._newPin = "";
+        this.mode = "newpin";
+        this._showErr("PIN too easy (like 1234 or 1111). Pick another.");
+      } else {
+        this.mode = "newpin";
+        this._showErr("Could not save the PIN. Try again.");
+      }
+    } catch (e) {
+       
+      console.error("[PinReset] confirm error", e);
+      this.pin = "";
+      this.mode = "newpin";
+      this._showErr("Connection error. Please try again.");
+    } finally {
+      this.isSubmitting = false;
+    }
+  }
+
+  handleResetBack() {
+    this.pin = "";
+    this._newPin = "";
+    this.code = "";
+    this.showError = false;
+    this.mode = "pin";
   }
 
   async _submitPin() {
     this.isSubmitting = true;
     this.showError = false;
-    const employeeId =
-      this.prefilledEmployeeId || (this.worker ? this.worker.employeeId : null);
+    const workerId = this.workerKey;
 
     try {
       const result = await validateEmployee({
         territoryId: this.territoryId,
-        employeeId: employeeId,
+        workerId: workerId,
         pin: this.pin
       });
 
@@ -152,6 +341,9 @@ export default class KioskLogin extends LightningElement {
           : `Incorrect PIN — ${result.remainingAttempts} attempts remaining`;
       this.showError = true;
       this._triggerShake();
+    } else if (result.errorCode === "NO_PIN") {
+      this._noPin = true;
+      this.mode = "request";
     } else if (result.errorCode === "NOT_FOUND") {
       this.errorMessage = "Employee not found. Check with your supervisor.";
       this.showError = true;

@@ -318,3 +318,44 @@
   font-size: var(--rt-font-md);
   padding: 0 48px;
 }
+
+/* Worker memory: resume last work order */
+.resume-bar {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--rt-accent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rt-accent);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.resume-bar:active {
+  background: var(--rt-accent);
+  color: #fff;
+}
+
+/* Leave-while-clocked-in prompt */
+.leave-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-self: stretch;
+}
+.btn-secondary {
+  padding: 14px 24px;
+  border: 1px solid var(--rt-border);
+  border-radius: var(--rt-radius);
+  background: transparent;
+  color: var(--rt-text);
+  font-size: var(--rt-font-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-secondary:active {
+  background: var(--rt-surface-2);
+}

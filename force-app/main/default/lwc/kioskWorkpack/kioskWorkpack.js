@@ -316,9 +316,28 @@ export default class KioskWorkpack extends LightningElement {
     this.wtSel = this.wtSel.includes(n)
       ? this.wtSel.filter((x) => x !== n)
       : this.wtSel.concat(n);
+    this._fireWtChange();
   }
   handleWtClear() {
     this.wtSel = [];
+    this._fireWtChange();
+  }
+  // Worker memory: restore the saved chips once, report every change upward.
+  @api
+  get initialWtSel() {
+    return this.wtSel;
+  }
+  set initialWtSel(v) {
+    if (Array.isArray(v) && !this._wtInit) {
+      this._wtInit = true;
+      this.wtSel = [...v];
+    }
+  }
+  _wtInit = false;
+  _fireWtChange() {
+    this.dispatchEvent(
+      new CustomEvent("wtchange", { detail: { wtSel: [...this.wtSel] } })
+    );
   }
   get wtActive() {
     return this.wtSel.length > 0;

@@ -1,0 +1,55 @@
+<template>
+  <section class="sec">
+    <h4>Worker PINs</h4>
+    <div class="sec-sub">
+      Set or clear a worker PIN, or unlock a locked worker. A worker with no PIN
+      sets their own with an emailed code at login.
+    </div>
+    <div if:true={message} class={messageCls} role="status">{message}</div>
+    <template lwc:if={loading}><div class="sec-sub">Loading…</div></template>
+    <template for:each={rows} for:item="w">
+      <div key={w.resourceId} class="wrow">
+        <div class="wname">
+          {w.name}
+          <span class="wrole">{w.role}</span>
+        </div>
+        <span class={w.statusCls}>{w.status}</span>
+        <template lwc:if={w.editing}>
+          <input
+            type="tel"
+            inputmode="numeric"
+            maxlength="4"
+            class="pin-in"
+            placeholder="4 digits"
+            oninput={handlePinInput}
+            onkeydown={handleInputKeydown}
+            aria-label="New PIN"
+          />
+          <button
+            class="btn primary"
+            onclick={handleSavePin}
+            disabled={saveDisabled}
+          >
+            Save
+          </button>
+          <button class="btn" onclick={handleCancelSet}>Cancel</button>
+        </template>
+        <template lwc:else>
+          <button class="btn" data-id={w.resourceId} onclick={handleStartSet}>
+            {w.setLabel}
+          </button>
+          <template lwc:if={w.canClear}>
+            <button class="btn" data-id={w.resourceId} onclick={handleClear}>
+              Clear PIN
+            </button>
+          </template>
+          <template lwc:if={w.canUnlock}>
+            <button class="btn" data-id={w.resourceId} onclick={handleUnlock}>
+              Unlock
+            </button>
+          </template>
+        </template>
+      </div>
+    </template>
+  </section>
+</template>

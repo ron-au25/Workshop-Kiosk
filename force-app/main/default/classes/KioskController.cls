@@ -36,7 +36,7 @@ public with sharing class KioskController {
     @AuraEnabled
     public String photoUrl;
     @AuraEnabled
-    public String employeeId;
+    public Boolean hasPin; // false = worker must set a PIN first
     @AuraEnabled
     public Boolean isLocked;
     @AuraEnabled
@@ -320,6 +320,10 @@ public with sharing class KioskController {
     public Boolean isActive;
     @AuraEnabled
     public String resourceName;
+    @AuraEnabled
+    public String workOrderId; // the WO the record sits on (workpack root for new records)
+    @AuraEnabled
+    public String workOrderNumber;
   }
 
   public class TimeTrackingDashboard {
@@ -734,7 +738,7 @@ public with sharing class KioskController {
         ServiceResource.IsActive,
         ServiceResource.PIN_Locked_Until__c,
         ServiceResource.PIN_Failed_Count__c,
-        ServiceResource.Employee_Id__c,
+        ServiceResource.PIN_Hash__c,
         ServiceResource.RelatedRecordId
       FROM ServiceTerritoryMember
       WHERE
@@ -779,7 +783,7 @@ public with sharing class KioskController {
       rm.name = sr.Name;
       rm.role = sr.Role__c;
       rm.ganttLabel = sr.FSL__GanttLabel__c;
-      rm.employeeId = sr.Employee_Id__c;
+      rm.hasPin = String.isNotBlank(sr.PIN_Hash__c);
       rm.photoUrl = sr.RelatedRecordId != null
         ? userPhotoUrls.get(sr.RelatedRecordId)
         : null;
@@ -798,12 +802,12 @@ public with sharing class KioskController {
   @AuraEnabled
   public static EmployeeSession validateEmployee(
     String territoryId,
-    String employeeId,
+    String workerId,
     String pin
   ) {
     if (
       String.isBlank(territoryId) ||
-      String.isBlank(employeeId) ||
+      String.isBlank(workerId) ||
       String.isBlank(pin)
     ) {
       EmployeeSession fail = new EmployeeSession();
@@ -812,6 +816,7 @@ public with sharing class KioskController {
       return fail;
     }
 
+    Id wid = parseId(workerId);
     List<ServiceResource> matches = [
       SELECT
         Id,
@@ -820,12 +825,11 @@ public with sharing class KioskController {
         PIN_Salt__c,
         PIN_Failed_Count__c,
         PIN_Locked_Until__c,
-        Employee_Id__c,
         Role__c
       FROM ServiceResource
-      WHERE Employee_Id__c = :employeeId AND IsActive = TRUE
+      WHERE Id = :wid AND IsActive = TRUE
       WITH SECURITY_ENFORCED
-      LIMIT 2
+      LIMIT 1
     ];
 
     EmployeeSession result = new EmployeeSession();
@@ -833,11 +837,6 @@ public with sharing class KioskController {
     if (matches.isEmpty()) {
       result.success = false;
       result.errorCode = 'NOT_FOUND';
-      return result;
-    }
-    if (matches.size() > 1) {
-      result.success = false;
-      result.errorCode = 'DUPLICATE_ID';
       return result;
     }
 
@@ -848,6 +847,12 @@ public with sharing class KioskController {
       result.success = false;
       result.errorCode = 'LOCKED';
       result.lockedUntilMs = sr.PIN_Locked_Until__c.getTime();
+      return result;
+    }
+
+    if (String.isBlank(sr.PIN_Hash__c) || String.isBlank(sr.PIN_Salt__c)) {
+      result.success = false;
+      result.errorCode = 'NO_PIN'; // not a failed attempt: worker must set a PIN
       return result;
     }
 
@@ -1253,7 +1258,8 @@ public with sharing class KioskController {
         Damage_Codes__c,
         ParentWorkOrderId,
         ParentWorkOrder.WorkOrderNumber,
-        ParentWorkOrder.Subject
+        ParentWorkOrder.Subject,
+        RootWorkOrderId
       FROM WorkOrder
       WHERE Id = :workOrderId
       WITH SECURITY_ENFORCED
@@ -1263,6 +1269,7 @@ public with sharing class KioskController {
       throw new AuraHandledException('WORK_ORDER_NOT_FOUND');
 
     WorkOrder wo = wos[0];
+    Id timeRootId = wo.RootWorkOrderId != null ? wo.RootWorkOrderId : wo.Id;
     WorkOrderDetail detail = new WorkOrderDetail();
     detail.id = wo.Id;
     detail.woNumber = wo.WorkOrderNumber;
@@ -1420,7 +1427,8 @@ public with sharing class KioskController {
     }
     detail.workPlans = plans;
 
-    // Time reports for this worker + work order
+    // Time reports for this worker across the whole workpack (root + descendants):
+    // the clock is kept on the workpack root, so a child page must still see it.
     String workerName = getWorkerName(payload.workerId);
     List<Time_Report__c> reports = [
       SELECT
@@ -1430,11 +1438,17 @@ public with sharing class KioskController {
         End_Time__c,
         Duration_in_Minutes__c,
         Description__c,
-        Resource_Name__c
+        Resource_Name__c,
+        Work_Order__c,
+        Work_Order__r.WorkOrderNumber
       FROM Time_Report__c
-      WHERE Work_Order__c = :workOrderId AND Resource_Name__c = :workerName
+      WHERE
+        (Work_Order__c = :timeRootId
+        OR Work_Order__r.RootWorkOrderId = :timeRootId)
+        AND Resource_Name__c = :workerName
       WITH SECURITY_ENFORCED
       ORDER BY Start_Time__c DESC
+      LIMIT 200
     ];
 
     List<TimeReportDTO> timeReports = new List<TimeReportDTO>();
@@ -1451,6 +1465,10 @@ public with sharing class KioskController {
         : null;
       dto.description = tr.Description__c;
       dto.resourceName = tr.Resource_Name__c;
+      dto.workOrderId = tr.Work_Order__c;
+      dto.workOrderNumber = tr.Work_Order__r != null
+        ? tr.Work_Order__r.WorkOrderNumber
+        : null;
       dto.isActive = (tr.End_Time__c == null);
       timeReports.add(dto);
       if (dto.isActive && activeReport == null)
@@ -1529,33 +1547,43 @@ public with sharing class KioskController {
 
   // ─── Clock in ─────────────────────────────────────────────────────────────
 
+  // Page "Clock In" button. Same rules as the auto clock-in: the record goes on the
+  // workpack ROOT with Status__c = New, and a worker has at most one open record.
   @AuraEnabled
   public static TimeReportDTO clockIn(String token, String workOrderId) {
     TokenPayload payload = validateToken(token);
     if (payload == null)
       throw new AuraHandledException('SESSION_EXPIRED');
+    if (String.isBlank(workOrderId))
+      throw new AuraHandledException('MISSING_INPUT');
 
     String workerName = getWorkerName(payload.workerId);
+    Id rootWoId = resolveRootId((Id) workOrderId);
 
-    // Check no open entry already exists
     List<Time_Report__c> open = [
-      SELECT Id
+      SELECT Id, Work_Order__c, Work_Order__r.RootWorkOrderId
       FROM Time_Report__c
-      WHERE
-        Work_Order__c = :workOrderId
-        AND Resource_Name__c = :workerName
-        AND End_Time__c = NULL
+      WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
       WITH SECURITY_ENFORCED
+      ORDER BY Start_Time__c DESC
       LIMIT 1
     ];
-    if (!open.isEmpty())
-      throw new AuraHandledException('ALREADY_CLOCKED_IN');
+    if (!open.isEmpty()) {
+      Id openRoot = open[0].Work_Order__r != null &&
+        open[0].Work_Order__r.RootWorkOrderId != null
+        ? open[0].Work_Order__r.RootWorkOrderId
+        : open[0].Work_Order__c;
+      throw new AuraHandledException(
+        openRoot == rootWoId ? 'ALREADY_CLOCKED_IN' : 'CLOCKED_IN_ELSEWHERE'
+      );
+    }
 
     Time_Report__c tr = new Time_Report__c(
-      Work_Order__c = workOrderId,
+      Work_Order__c = rootWoId,
       Resource_Name__c = workerName,
       Start_Time__c = DateTime.now(),
-      Related_To__c = workOrderId
+      Related_To__c = rootWoId,
+      Status__c = 'New'
     );
     insert tr;
 
@@ -1564,7 +1592,32 @@ public with sharing class KioskController {
     dto.startTime = String.valueOf(tr.Start_Time__c);
     dto.endTime = null;
     dto.isActive = true;
+    dto.workOrderId = rootWoId;
     return dto;
+  }
+
+  // Workpack root of any work order in the tree (the WO itself when it is the root).
+  private static Id resolveRootId(Id woId) {
+    List<WorkOrder> wos = [
+      SELECT RootWorkOrderId
+      FROM WorkOrder
+      WHERE Id = :woId
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    return !wos.isEmpty() && wos[0].RootWorkOrderId != null
+      ? wos[0].RootWorkOrderId
+      : woId;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static String getWorkOrderRoot(String token, String workOrderId) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (String.isBlank(workOrderId))
+      throw new AuraHandledException('MISSING_INPUT');
+    return String.valueOf(resolveRootId((Id) workOrderId));
   }
 
   // ─── Clock out ────────────────────────────────────────────────────────────
@@ -1617,6 +1670,10 @@ public with sharing class KioskController {
     public String workOrderId; // workpack root
     @AuraEnabled
     public Long startTimeMs; // Start_Time__c epoch ms (client timer base)
+    @AuraEnabled
+    public String rootWorkOrderId; // workpack root of the record's WO
+    @AuraEnabled
+    public String workOrderNumber; // number of the WO the record sits on
   }
 
   // Ensure the worker has an open time report on the workpack root. Idempotent:
@@ -1632,20 +1689,16 @@ public with sharing class KioskController {
     String workerName = getWorkerName(payload.workerId);
 
     // Resolve the workpack root for the opened WO.
-    Id rootWoId = (Id) workOrderId;
-    List<WorkOrder> wos = [
-      SELECT RootWorkOrderId
-      FROM WorkOrder
-      WHERE Id = :workOrderId
-      WITH SECURITY_ENFORCED
-      LIMIT 1
-    ];
-    if (!wos.isEmpty() && wos[0].RootWorkOrderId != null)
-      rootWoId = wos[0].RootWorkOrderId;
+    Id rootWoId = resolveRootId((Id) workOrderId);
 
     // Existing open report wins (one clock per worker).
     List<Time_Report__c> open = [
-      SELECT Id, Start_Time__c, Work_Order__c
+      SELECT
+        Id,
+        Start_Time__c,
+        Work_Order__c,
+        Work_Order__r.RootWorkOrderId,
+        Work_Order__r.WorkOrderNumber
       FROM Time_Report__c
       WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
       WITH SECURITY_ENFORCED
@@ -1663,7 +1716,19 @@ public with sharing class KioskController {
       Status__c = 'New'
     );
     insert tr;
-    return toClockDTO(tr);
+    return toClockDTO(
+      [
+        SELECT
+          Id,
+          Start_Time__c,
+          Work_Order__c,
+          Work_Order__r.RootWorkOrderId,
+          Work_Order__r.WorkOrderNumber
+        FROM Time_Report__c
+        WHERE Id = :tr.Id
+        WITH SECURITY_ENFORCED
+      ][0]
+    );
   }
 
   // Close every open report for the worker (set End_Time__c). Duration is a formula.
@@ -1697,7 +1762,12 @@ public with sharing class KioskController {
 
     String workerName = getWorkerName(payload.workerId);
     List<Time_Report__c> open = [
-      SELECT Id, Start_Time__c, Work_Order__c
+      SELECT
+        Id,
+        Start_Time__c,
+        Work_Order__c,
+        Work_Order__r.RootWorkOrderId,
+        Work_Order__r.WorkOrderNumber
       FROM Time_Report__c
       WHERE Resource_Name__c = :workerName AND End_Time__c = NULL
       WITH SECURITY_ENFORCED
@@ -1711,6 +1781,15 @@ public with sharing class KioskController {
     ClockDTO c = new ClockDTO();
     c.timeReportId = tr.Id;
     c.workOrderId = String.valueOf(tr.Work_Order__c);
+    c.rootWorkOrderId = String.valueOf(
+      tr.Work_Order__r != null &&
+        tr.Work_Order__r.RootWorkOrderId != null
+        ? tr.Work_Order__r.RootWorkOrderId
+        : tr.Work_Order__c
+    );
+    c.workOrderNumber = tr.Work_Order__r != null
+      ? tr.Work_Order__r.WorkOrderNumber
+      : null;
     c.startTimeMs = (tr.Start_Time__c != null)
       ? tr.Start_Time__c.getTime()
       : null;
@@ -4055,6 +4134,350 @@ public with sharing class KioskController {
       : rows[0];
     cfg.Settings_JSON__c = settingsJson;
     upsert cfg;
+  }
+
+  // ---- Per-worker preferences (theme, pin, work-type chips, last work order/tab) ----
+  // One Kiosk_App_Config__c per worker, Name = 'Worker:<ServiceResourceId>'.
+  // The worker id always comes from the validated token, so a worker can only
+  // read or write their own record.
+
+  private static final Integer MAX_PREFS_LENGTH = 20000;
+
+  private static String workerPrefsName(String workerId) {
+    return 'Worker:' + workerId;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static String getWorkerPrefs(String token) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    String recName = workerPrefsName(payload.workerId);
+    List<Kiosk_App_Config__c> rows = [
+      SELECT Settings_JSON__c
+      FROM Kiosk_App_Config__c
+      WHERE Name = :recName
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (rows.isEmpty() || String.isBlank(rows[0].Settings_JSON__c))
+      return '{}';
+    return rows[0].Settings_JSON__c;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static void saveWorkerPrefs(String token, String prefsJson) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (String.isBlank(prefsJson) || prefsJson.length() > MAX_PREFS_LENGTH)
+      throw new AuraHandledException('INVALID_PREFS_JSON');
+    Object parsed;
+    try {
+      parsed = JSON.deserializeUntyped(prefsJson);
+    } catch (Exception e) {
+      throw new AuraHandledException('INVALID_PREFS_JSON');
+    }
+    if (!(parsed instanceof Map<String, Object>))
+      throw new AuraHandledException('INVALID_PREFS_JSON');
+    String recName = workerPrefsName(payload.workerId);
+    List<Kiosk_App_Config__c> rows = [
+      SELECT Id
+      FROM Kiosk_App_Config__c
+      WHERE Name = :recName
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    Kiosk_App_Config__c cfg = rows.isEmpty()
+      ? new Kiosk_App_Config__c(Name = recName)
+      : rows[0];
+    cfg.Settings_JSON__c = prefsJson;
+    upsert cfg;
+  }
+
+  // ─── PIN management: reset by emailed code, supervisor set/clear/unlock ───
+
+  public class PinResetResult {
+    @AuraEnabled
+    public Boolean success;
+    @AuraEnabled
+    public String errorCode;
+    @AuraEnabled
+    public String maskedEmail;
+    @AuraEnabled
+    public Long lockedUntilMs;
+  }
+
+  private static final Integer RESET_WINDOW_MS = 600000; // 10 min bucket; code valid for this + previous bucket
+  private static final Set<String> WEAK_PINS = new Set<String>{
+    '0000',
+    '1111',
+    '2222',
+    '3333',
+    '4444',
+    '5555',
+    '6666',
+    '7777',
+    '8888',
+    '9999',
+    '1234',
+    '4321',
+    '0123',
+    '3210'
+  };
+
+  private static Id parseId(String s) {
+    try {
+      return Id.valueOf(s);
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  private static Boolean isValidNewPin(String pin) {
+    return String.isNotBlank(pin) &&
+      Pattern.matches('^[0-9]{4}$', pin) &&
+      !WEAK_PINS.contains(pin);
+  }
+
+  private static void storePin(ServiceResource sr, String pin) {
+    List<String> parts = hashPin(pin).split('\\|\\|');
+    sr.PIN_Salt__c = parts[0];
+    sr.PIN_Hash__c = parts[1];
+    sr.PIN_Failed_Count__c = 0;
+    sr.PIN_Locked_Until__c = null;
+  }
+
+  // Stateless 6-digit code: HMAC(workerId, time bucket, current PIN hash). Expires with
+  // the window and dies the moment the PIN changes (single use). Nothing is stored.
+  private static String resetCode(ServiceResource sr, Long bucket) {
+    String msg =
+      sr.Id +
+      '|' +
+      bucket +
+      '|' +
+      (sr.PIN_Hash__c == null ? 'none' : sr.PIN_Hash__c);
+    Blob mac = Crypto.generateMac(
+      'hmacSHA256',
+      Blob.valueOf(msg),
+      Blob.valueOf(HMAC_KEY + ':pinreset')
+    );
+    String hex = EncodingUtil.convertToHex(mac).substring(0, 8);
+    Long n = 0;
+    for (Integer i = 0; i < hex.length(); i++) {
+      n = n * 16 + '0123456789abcdef'.indexOf(hex.substring(i, i + 1));
+    }
+    return String.valueOf(Math.mod(n, 1000000)).leftPad(6, '0');
+  }
+
+  // Plain string compare for 6-digit codes (constantTimeEquals base64-decodes).
+  private static Boolean codeEquals(String a, String b) {
+    if (a == null || b == null || a.length() != b.length())
+      return false;
+    Integer diff = 0;
+    for (Integer i = 0; i < a.length(); i++) {
+      diff = diff | (a.charAt(i) ^ b.charAt(i));
+    }
+    return diff == 0;
+  }
+
+  private static Long resetBucket() {
+    return DateTime.now().getTime() / RESET_WINDOW_MS;
+  }
+
+  private static String maskEmail(String email) {
+    Integer at = email.indexOf('@');
+    if (at < 1)
+      return '***';
+    return email.substring(0, 1) + '***' + email.substring(at);
+  }
+
+  @AuraEnabled
+  public static PinResetResult requestPinReset(
+    String territoryId,
+    String workerId
+  ) {
+    PinResetResult res = new PinResetResult();
+    res.success = false;
+    if (String.isBlank(territoryId) || String.isBlank(workerId)) {
+      res.errorCode = 'MISSING_FIELDS';
+      return res;
+    }
+    Id wid = parseId(workerId);
+    List<ServiceResource> srs = [
+      SELECT Id, PIN_Hash__c, RelatedRecordId
+      FROM ServiceResource
+      WHERE Id = :wid AND IsActive = TRUE
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (srs.isEmpty()) {
+      res.errorCode = 'NOT_FOUND';
+      return res;
+    }
+    List<User> us = srs[0].RelatedRecordId == null
+      ? new List<User>()
+      : [SELECT Email FROM User WHERE Id = :srs[0].RelatedRecordId LIMIT 1];
+    if (us.isEmpty() || String.isBlank(us[0].Email)) {
+      res.errorCode = 'NO_EMAIL';
+      return res;
+    }
+    Messaging.SingleEmailMessage m = new Messaging.SingleEmailMessage();
+    m.setToAddresses(new List<String>{ us[0].Email });
+    m.setSubject('Your Workshop Kiosk PIN reset code');
+    m.setPlainTextBody(
+      'Your PIN reset code is ' +
+        resetCode(srs[0], resetBucket()) +
+        '. It expires in about 10 minutes. If you did not ask for this, ignore this email.'
+    );
+    m.setSaveAsActivity(false);
+    try {
+      List<Messaging.SendEmailResult> sent = Messaging.sendEmail(
+        new List<Messaging.SingleEmailMessage>{ m }
+      );
+      if (!sent[0].isSuccess()) {
+        res.errorCode = 'EMAIL_FAILED';
+        return res;
+      }
+    } catch (Exception e) {
+      res.errorCode = 'EMAIL_FAILED';
+      return res;
+    }
+    res.success = true;
+    res.maskedEmail = maskEmail(us[0].Email);
+    return res;
+  }
+
+  @AuraEnabled
+  public static PinResetResult confirmPinReset(
+    String territoryId,
+    String workerId,
+    String code,
+    String newPin
+  ) {
+    PinResetResult res = new PinResetResult();
+    res.success = false;
+    if (
+      String.isBlank(territoryId) ||
+      String.isBlank(workerId) ||
+      String.isBlank(code)
+    ) {
+      res.errorCode = 'MISSING_FIELDS';
+      return res;
+    }
+    if (!isValidNewPin(newPin)) {
+      res.errorCode = 'WEAK_PIN';
+      return res;
+    }
+    Id wid = parseId(workerId);
+    List<ServiceResource> srs = [
+      SELECT
+        Id,
+        PIN_Hash__c,
+        PIN_Salt__c,
+        PIN_Failed_Count__c,
+        PIN_Locked_Until__c
+      FROM ServiceResource
+      WHERE Id = :wid AND IsActive = TRUE
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (srs.isEmpty()) {
+      res.errorCode = 'NOT_FOUND';
+      return res;
+    }
+    ServiceResource sr = srs[0];
+    DateTime now = DateTime.now();
+    if (sr.PIN_Locked_Until__c != null && sr.PIN_Locked_Until__c > now) {
+      res.errorCode = 'LOCKED';
+      res.lockedUntilMs = sr.PIN_Locked_Until__c.getTime();
+      return res;
+    }
+    Long b = resetBucket();
+    Boolean ok =
+      codeEquals(code.trim(), resetCode(sr, b)) ||
+      codeEquals(code.trim(), resetCode(sr, b - 1));
+    if (!ok) {
+      Integer fails =
+        (sr.PIN_Failed_Count__c == null
+          ? 0
+          : (Integer) sr.PIN_Failed_Count__c) + 1;
+      sr.PIN_Failed_Count__c = fails;
+      if (fails >= PIN_MAX_FAILURES) {
+        sr.PIN_Locked_Until__c = now.addMinutes(PIN_LOCKOUT_MINUTES);
+        res.errorCode = 'LOCKED';
+        res.lockedUntilMs = sr.PIN_Locked_Until__c.getTime();
+      } else {
+        res.errorCode = 'WRONG_CODE';
+      }
+      update sr;
+      return res;
+    }
+    storePin(sr, newPin);
+    update sr;
+    res.success = true;
+    return res;
+  }
+
+  private static ServiceResource adminTarget(String token, String workerId) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (!isAdminWorker(payload.workerId))
+      throw new AuraHandledException('NOT_ALLOWED');
+    Id wid = parseId(workerId);
+    List<ServiceResource> srs = [
+      SELECT
+        Id,
+        PIN_Hash__c,
+        PIN_Salt__c,
+        PIN_Failed_Count__c,
+        PIN_Locked_Until__c
+      FROM ServiceResource
+      WHERE Id = :wid
+      WITH SECURITY_ENFORCED
+      LIMIT 1
+    ];
+    if (srs.isEmpty())
+      throw new AuraHandledException('NOT_FOUND');
+    return srs[0];
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static List<RosterMember> getManagedWorkers(String token) {
+    TokenPayload payload = validateToken(token);
+    if (payload == null)
+      throw new AuraHandledException('SESSION_EXPIRED');
+    if (!isAdminWorker(payload.workerId))
+      throw new AuraHandledException('NOT_ALLOWED');
+    return getTerritoryRoster(payload.territoryId);
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static void setWorkerPin(String token, String workerId, String pin) {
+    ServiceResource sr = adminTarget(token, workerId);
+    if (!isValidNewPin(pin))
+      throw new AuraHandledException('WEAK_PIN');
+    storePin(sr, pin);
+    update sr;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static void clearWorkerPin(String token, String workerId) {
+    ServiceResource sr = adminTarget(token, workerId);
+    sr.PIN_Hash__c = null;
+    sr.PIN_Salt__c = null;
+    sr.PIN_Failed_Count__c = 0;
+    sr.PIN_Locked_Until__c = null;
+    update sr;
+  }
+
+  @AuraEnabled(cacheable=false)
+  public static void unlockWorker(String token, String workerId) {
+    ServiceResource sr = adminTarget(token, workerId);
+    sr.PIN_Failed_Count__c = 0;
+    sr.PIN_Locked_Until__c = null;
+    update sr;
   }
 
   private static Boolean isAdminWorker(String workerId) {

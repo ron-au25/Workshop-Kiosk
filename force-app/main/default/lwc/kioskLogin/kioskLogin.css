@@ -165,3 +165,31 @@
     background: var(--rt-surface-2, #1B2530);
 }
 .cancel-btn { align-self: center; }
+
+.code-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 32px;
+    letter-spacing: 12px;
+    text-align: center;
+    padding: 12px;
+    margin: 12px 0;
+    background: var(--rt-surface-2, #1B242E);
+    color: var(--rt-text, #F2F5F7);
+    border: 2px solid var(--rt-border, #2A3744);
+    border-radius: 10px;
+    user-select: text;
+    -webkit-user-select: text;
+}
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--rt-accent, #E25822);
+    border: 0;
+    border-radius: 10px;
+}
+.btn-primary:disabled { opacity: 0.5; }

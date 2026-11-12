@@ -15,42 +15,32 @@ private class KioskControllerTest {
     return stm.isEmpty() ? null : stm[0].ServiceTerritoryId;
   }
 
-  private static ServiceResource setupWorker(String employeeId, String pin) {
+  // Test workers are the supervisor's own ServiceResource (login is by ServiceResource.Id).
+  private static Map<String, Id> workerIds = new Map<String, Id>();
+
+  private static Id wid(String key) {
+    return workerIds.get(key);
+  }
+
+  private static ServiceResource setupWorker(String key, String pin) {
     String saltHash = KioskController.hashPin(pin);
     List<String> parts = saltHash.split('\\|\\|');
-    List<ServiceResource> existing = [
-      SELECT Id
-      FROM ServiceResource
-      WHERE Employee_Id__c = :employeeId
-      LIMIT 1
-    ];
-    if (!existing.isEmpty()) {
-      ServiceResource sr = existing[0];
-      sr.PIN_Salt__c = parts[0];
-      sr.PIN_Hash__c = parts[1];
-      sr.PIN_Failed_Count__c = 0;
-      sr.PIN_Locked_Until__c = null;
-      update sr;
-      return sr;
-    }
-    // Fall back: use supervisor's own ServiceResource as a test stand-in
     List<ServiceResource> supSR = [
       SELECT Id
       FROM ServiceResource
       WHERE RelatedRecordId = :UserInfo.getUserId() AND IsActive = TRUE
       LIMIT 1
     ];
-    if (!supSR.isEmpty()) {
-      ServiceResource sr = supSR[0];
-      sr.Employee_Id__c = employeeId;
-      sr.PIN_Salt__c = parts[0];
-      sr.PIN_Hash__c = parts[1];
-      sr.PIN_Failed_Count__c = 0;
-      sr.PIN_Locked_Until__c = null;
-      update sr;
-      return sr;
-    }
-    return null;
+    if (supSR.isEmpty())
+      return null;
+    ServiceResource sr = supSR[0];
+    sr.PIN_Salt__c = parts[0];
+    sr.PIN_Hash__c = parts[1];
+    sr.PIN_Failed_Count__c = 0;
+    sr.PIN_Locked_Until__c = null;
+    update sr;
+    workerIds.put(key, sr.Id);
+    return sr;
   }
 
   @IsTest
@@ -102,15 +92,12 @@ private class KioskControllerTest {
     Test.startTest();
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN01',
+      wid('TESTPIN01'),
       '4321'
     );
     Test.stopTest();
     System.assertEquals(true, session.success);
     System.assert(String.isNotBlank(session.token));
-    // Reset employee ID to avoid polluting org data
-    worker.Employee_Id__c = null;
-    update worker;
   }
 
   @IsTest
@@ -124,14 +111,12 @@ private class KioskControllerTest {
     Test.startTest();
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN02',
+      wid('TESTPIN02'),
       '9999'
     );
     Test.stopTest();
     System.assertEquals(false, session.success);
     System.assertEquals('WRONG_PIN', session.errorCode);
-    worker.Employee_Id__c = null;
-    update worker;
   }
 
   @IsTest
@@ -163,13 +148,12 @@ private class KioskControllerTest {
     Test.startTest();
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN03',
+      wid('TESTPIN03'),
       '2222'
     );
     Test.stopTest();
     System.assertEquals(false, session.success);
     System.assertEquals('LOCKED', session.errorCode);
-    worker.Employee_Id__c = null;
     worker.PIN_Locked_Until__c = null;
     update worker;
   }
@@ -187,14 +171,13 @@ private class KioskControllerTest {
     for (Integer i = 0; i < 5; i++) {
       session = KioskController.validateEmployee(
         territoryId,
-        'TESTPIN04',
+        wid('TESTPIN04'),
         '0000'
       );
     }
     Test.stopTest();
     System.assertEquals(false, session.success);
     System.assertEquals('LOCKED', session.errorCode);
-    worker.Employee_Id__c = null;
     worker.PIN_Locked_Until__c = null;
     worker.PIN_Failed_Count__c = 0;
     update worker;
@@ -210,7 +193,7 @@ private class KioskControllerTest {
       return;
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN05',
+      wid('TESTPIN05'),
       '5678'
     );
     if (!session.success)
@@ -225,8 +208,6 @@ private class KioskControllerTest {
     System.assertNotEquals(null, metrics);
     System.assert(metrics.openCount >= 0);
     System.assertNotEquals(null, metrics.workTypeBreakdown);
-    worker.Employee_Id__c = null;
-    update worker;
   }
 
   @IsTest
@@ -252,7 +233,7 @@ private class KioskControllerTest {
       return;
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN06',
+      wid('TESTPIN06'),
       '9012'
     );
     if (!session.success)
@@ -268,8 +249,6 @@ private class KioskControllerTest {
     Test.stopTest();
     System.assertNotEquals(null, page);
     System.assert(page.totalCount >= 0);
-    worker.Employee_Id__c = null;
-    update worker;
   }
 
   @IsTest
@@ -298,7 +277,7 @@ private class KioskControllerTest {
       return;
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTPIN07',
+      wid('TESTPIN07'),
       '3456'
     );
     if (!session.success)
@@ -310,8 +289,6 @@ private class KioskControllerTest {
     Test.stopTest();
     System.assertEquals(true, refreshed.success);
     System.assert(String.isNotBlank(refreshed.token));
-    worker.Employee_Id__c = null;
-    update worker;
   }
 
   @IsTest
@@ -361,7 +338,7 @@ private class KioskControllerTest {
       return null;
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      empId,
+      worker.Id,
       pin
     );
     return session.success ? session.token : null;
@@ -371,7 +348,7 @@ private class KioskControllerTest {
     ServiceResource sr = [
       SELECT Id, Role__c
       FROM ServiceResource
-      WHERE Employee_Id__c = :empId
+      WHERE Id = :wid(empId)
       LIMIT 1
     ];
     sr.Role__c = role;
@@ -391,7 +368,7 @@ private class KioskControllerTest {
     Test.startTest();
     KioskController.EmployeeSession session = KioskController.validateEmployee(
       territoryId,
-      'TESTROLE01',
+      wid('TESTROLE01'),
       '1357'
     );
     Test.stopTest();
@@ -423,6 +400,54 @@ private class KioskControllerTest {
     }
     Test.stopTest();
     System.assertEquals('{"a":1}', back);
+  }
+
+  @IsTest
+  static void testWorkerPrefs_roundTrip_andValidation() {
+    String token = loginTestWorker('TESTPRF01', '1357');
+    if (token == null)
+      return;
+    Test.startTest();
+    String empty = KioskController.getWorkerPrefs(token);
+    KioskController.saveWorkerPrefs(token, '{"theme":"light","pinList":true}');
+    KioskController.saveWorkerPrefs(token, '{"theme":"dark","pinList":false}');
+    String back = KioskController.getWorkerPrefs(token);
+    try {
+      KioskController.saveWorkerPrefs(token, '[1,2]');
+      System.assert(false, 'Expected INVALID_PREFS_JSON');
+    } catch (AuraHandledException e) {
+      System.assertEquals('INVALID_PREFS_JSON', e.getMessage());
+    }
+    Test.stopTest();
+    System.assertEquals('{}', empty);
+    System.assertEquals('{"theme":"dark","pinList":false}', back);
+    // Second save updated the same record (long text can't be filtered in SOQL).
+    List<Kiosk_App_Config__c> recs = [
+      SELECT Settings_JSON__c
+      FROM Kiosk_App_Config__c
+      WHERE Name LIKE 'Worker:%'
+    ];
+    Integer matches = 0;
+    for (Kiosk_App_Config__c r : recs)
+      if (r.Settings_JSON__c == back)
+        matches++;
+    System.assertEquals(1, matches);
+  }
+
+  @IsTest
+  static void testWorkerPrefs_expiredToken_throws() {
+    try {
+      KioskController.getWorkerPrefs('bad');
+      System.assert(false, 'Expected exception');
+    } catch (AuraHandledException e) {
+      System.assert(true);
+    }
+    try {
+      KioskController.saveWorkerPrefs('bad', '{}');
+      System.assert(false, 'Expected exception');
+    } catch (AuraHandledException e) {
+      System.assert(true);
+    }
   }
 
   @IsTest
@@ -635,6 +660,178 @@ private class KioskControllerTest {
     } catch (AuraHandledException e) {
       System.assertEquals('INVALID_REQUEST', e.getMessage());
     }
+    Test.stopTest();
+  }
+
+  // ---- Clock unification (record on workpack ROOT, one open clock) ----
+
+  @IsTest
+  static void testClockIn_recordsOnRoot_andBlocksSecond() {
+    String token = loginTestWorker('TESTCLK01', '2468');
+    if (token == null)
+      return;
+    List<WorkOrder> kids = [
+      SELECT Id, RootWorkOrderId
+      FROM WorkOrder
+      WHERE RootWorkOrderId != NULL AND ParentWorkOrderId != NULL
+      LIMIT 1
+    ];
+    if (kids.isEmpty())
+      return;
+    Id kidId = kids[0].Id;
+    Id rootId = kids[0].RootWorkOrderId;
+    Test.startTest();
+    KioskController.autoClockOut(token);
+    System.assertEquals(
+      String.valueOf(rootId),
+      KioskController.getWorkOrderRoot(token, kidId)
+    );
+    KioskController.TimeReportDTO tr = KioskController.clockIn(token, kidId);
+    System.assertEquals(String.valueOf(rootId), tr.workOrderId);
+    Time_Report__c rec = [
+      SELECT Work_Order__c, Status__c, End_Time__c
+      FROM Time_Report__c
+      WHERE Id = :tr.id
+    ];
+    System.assertEquals(rootId, rec.Work_Order__c);
+    System.assertEquals('New', rec.Status__c);
+    System.assertEquals(null, rec.End_Time__c);
+    try {
+      KioskController.clockIn(token, rootId);
+      System.assert(false, 'second clock-in on same workpack must throw');
+    } catch (Exception e) {
+      System.assert(e.getMessage().contains('ALREADY_CLOCKED_IN'));
+    }
+    KioskController.ClockDTO c = KioskController.getActiveClock(token);
+    System.assertEquals(String.valueOf(rootId), c.rootWorkOrderId);
+    KioskController.autoClockOut(token);
+    System.assertEquals(null, KioskController.getActiveClock(token));
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void testClockIn_otherWorkpack_throwsElsewhere() {
+    String token = loginTestWorker('TESTCLK02', '2468');
+    if (token == null)
+      return;
+    List<WorkOrder> a = [
+      SELECT Id, RootWorkOrderId
+      FROM WorkOrder
+      WHERE RootWorkOrderId != NULL
+      LIMIT 1
+    ];
+    if (a.isEmpty())
+      return;
+    List<WorkOrder> b = [
+      SELECT Id
+      FROM WorkOrder
+      WHERE
+        RootWorkOrderId != :a[0].RootWorkOrderId
+        AND Id != :a[0].RootWorkOrderId
+      LIMIT 1
+    ];
+    if (b.isEmpty())
+      return;
+    Test.startTest();
+    KioskController.autoClockOut(token);
+    KioskController.clockIn(token, a[0].Id);
+    try {
+      KioskController.clockIn(token, b[0].Id);
+      System.assert(false, 'clock-in on another workpack must throw');
+    } catch (Exception e) {
+      System.assert(
+        e.getMessage().contains('CLOCKED_IN_ELSEWHERE') ||
+        e.getMessage().contains('ALREADY_CLOCKED_IN')
+      );
+    }
+    KioskController.autoClockOut(token);
+    Test.stopTest();
+  }
+
+  // ---- PIN management ----
+
+  @IsTest
+  static void testPin_noPin_returnsNoPin_thenAdminSetWorks() {
+    String token = loginTestWorker('TESTPM01', '2468');
+    String territoryId = getExistingTerritoryId();
+    if (token == null)
+      return;
+    Id wId = wid('TESTPM01');
+    setWorkerRole('TESTPM01', 'Supervisor');
+    Test.startTest();
+    KioskController.clearWorkerPin(token, wId);
+    KioskController.EmployeeSession s1 = KioskController.validateEmployee(
+      territoryId,
+      wId,
+      '2468'
+    );
+    System.assertEquals('NO_PIN', s1.errorCode);
+    try {
+      KioskController.setWorkerPin(token, wId, '1111');
+      System.assert(false, 'weak PIN must be rejected');
+    } catch (AuraHandledException e) {
+      System.assertEquals('WEAK_PIN', e.getMessage());
+    }
+    KioskController.setWorkerPin(token, wId, '2580');
+    KioskController.EmployeeSession s2 = KioskController.validateEmployee(
+      territoryId,
+      wId,
+      '2580'
+    );
+    System.assertEquals(true, s2.success);
+    List<KioskController.RosterMember> ms = KioskController.getManagedWorkers(
+      token
+    );
+    System.assert(ms.size() > 0);
+    KioskController.unlockWorker(token, wId);
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void testPin_adminMethods_requireAdminRole() {
+    String token = loginTestWorker('TESTPM02', '2468');
+    if (token == null)
+      return;
+    setWorkerRole('TESTPM02', 'Technician');
+    Test.startTest();
+    try {
+      KioskController.unlockWorker(token, wid('TESTPM02'));
+      System.assert(false, 'non-admin must be rejected');
+    } catch (AuraHandledException e) {
+      System.assertEquals('NOT_ALLOWED', e.getMessage());
+    }
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void testPin_resetWithEmailedCode_wrongAndRight() {
+    String token = loginTestWorker('TESTPM03', '2468');
+    String territoryId = getExistingTerritoryId();
+    if (token == null)
+      return;
+    Id wId = wid('TESTPM03');
+    Test.startTest();
+    KioskController.PinResetResult bad = KioskController.confirmPinReset(
+      territoryId,
+      wId,
+      '000000',
+      '2580'
+    );
+    System.assertEquals(false, bad.success);
+    System.assertEquals('WRONG_CODE', bad.errorCode);
+    KioskController.PinResetResult weak = KioskController.confirmPinReset(
+      territoryId,
+      wId,
+      '000000',
+      '1234'
+    );
+    System.assertEquals('WEAK_PIN', weak.errorCode);
+    KioskController.PinResetResult req = KioskController.requestPinReset(
+      territoryId,
+      wId
+    );
+    // success depends on the stand-in worker having a user email + email deliverability
+    System.assert(req.success || String.isNotBlank(req.errorCode));
     Test.stopTest();
   }
 }

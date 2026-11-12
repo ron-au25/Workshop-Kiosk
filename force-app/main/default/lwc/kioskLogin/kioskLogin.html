@@ -17,24 +17,13 @@
                     <template lwc:if={workerRoleLabel}>
                         <p class="worker-role">{workerRoleLabel}</p>
                     </template>
-                    <p class="login-instruction">
-                        <template lwc:if={isBarcodePrefilled}>
-                            Badge scanned — enter your PIN
-                        </template>
-                        <template lwc:else>
-                            Enter your 4-digit PIN
-                        </template>
-                    </p>
+                    <p class="login-instruction">{instructionText}</p>
                 </div>
             </div>
 
-            <!-- PIN dots -->
-            <div class="pin-dots" aria-label="PIN entry progress">
-                <template for:each={pinDots} for:item="dot">
-                    <div key={dot.index} class={dot.dotClass}></div>
-                </template>
-            </div>
-
+            <template lwc:if={infoMessage}>
+                <div class="lockout-banner" role="status"><span>✓</span><span>{infoMessage}</span></div>
+            </template>
             <!-- Error message -->
             <template lwc:if={showError}>
                 <div class={errorClass} role="alert">
@@ -50,6 +39,14 @@
                     <span>Account locked — try again in <strong>{lockoutCountdown}</strong></span>
                 </div>
             </template>
+
+            <template lwc:if={isPadMode}>
+            <!-- PIN dots -->
+            <div class="pin-dots" aria-label="PIN entry progress">
+                <template for:each={pinDots} for:item="dot">
+                    <div key={dot.index} class={dot.dotClass}></div>
+                </template>
+            </div>
 
             <!-- PIN pad -->
             <div class="pin-pad" role="group" aria-label="PIN pad">
@@ -67,6 +64,40 @@
                     </button>
                 </template>
             </div>
+
+            </template>
+
+            <template lwc:if={showForgot}>
+                <button class="btn-ghost cancel-btn" onclick={handleForgot}>
+                    Forgot PIN?
+                </button>
+            </template>
+
+            <template lwc:if={isModeRequest}>
+                <p class="login-instruction">{requestText}</p>
+                <button class="btn-primary" onclick={handleSendCode} disabled={isSubmitting}>
+                    Email me a code
+                </button>
+                <button class="btn-ghost cancel-btn" onclick={handleResetBack}>Back</button>
+            </template>
+
+            <template lwc:if={isModeCode}>
+                <p class="login-instruction">Code sent to {maskedEmail}. Enter the 6 digits.</p>
+                <input
+                    type="tel"
+                    inputmode="numeric"
+                    maxlength="6"
+                    class="code-input"
+                    value={code}
+                    oninput={handleCodeInput}
+                    onkeydown={handleInputKeydown}
+                    aria-label="6-digit code"
+                />
+                <button class="btn-primary" onclick={handleCodeNext} disabled={codeSubmitDisabled}>
+                    Next
+                </button>
+                <button class="btn-ghost cancel-btn" onclick={handleResetBack}>Back</button>
+            </template>
 
             <!-- Cancel -->
             <button class="btn-ghost cancel-btn" onclick={handleCancel}>

@@ -569,6 +569,11 @@ export default class AssetReview extends LightningElement {
   handleTogglePin() {
     this.listPinned = !this.listPinned;
     if (this.listPinned) this.listCollapsed = false;
+    this.dispatchEvent(
+      new CustomEvent("listpinchange", {
+        detail: { pinned: this.listPinned }
+      })
+    );
   }
   handleToggleDrawer() {
     this.drawerOpen = !this.drawerOpen;
@@ -753,10 +758,40 @@ export default class AssetReview extends LightningElement {
       : [...this.wtSel, name];
     this.listCollapsed = false;
     this._followWtFilter();
+    this._fireWtChange();
   }
   handleClearWt() {
     this.wtSel = [];
     this.listCollapsed = false;
+    this._fireWtChange();
+  }
+  // Worker memory: restore saved chips / list pin once, report changes upward.
+  @api
+  get initialWtSel() {
+    return this.wtSel;
+  }
+  set initialWtSel(v) {
+    if (Array.isArray(v) && !this._wtInit) {
+      this._wtInit = true;
+      this.wtSel = [...v];
+    }
+  }
+  _wtInit = false;
+  @api
+  get initialPinned() {
+    return this.listPinned;
+  }
+  set initialPinned(v) {
+    if (typeof v === "boolean" && !this._pinInit) {
+      this._pinInit = true;
+      this.listPinned = v;
+    }
+  }
+  _pinInit = false;
+  _fireWtChange() {
+    this.dispatchEvent(
+      new CustomEvent("wtchange", { detail: { wtSel: [...this.wtSel] } })
+    );
   }
   _wtName(r) {
     return r.workTypeName || "—";

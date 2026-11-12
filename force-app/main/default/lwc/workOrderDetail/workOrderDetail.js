@@ -94,6 +94,8 @@ export default class WorkOrderDetail extends LightningElement {
   // Merged Kiosk Config (kioskConfigDefaults.mergeConfig); consumed by the workpack page and Asset Review.
   @api config;
   @api workerName;
+  // Worker memory (workshopPortal.workerPrefs): { pinList, wtFilter:{[workpackId]:{wp,ar}}, last:{workOrderId,woNumber,tab} }
+  @api prefs;
   @api
   get workOrderId() {
     return this._workOrderId;
@@ -193,7 +195,19 @@ export default class WorkOrderDetail extends LightningElement {
         token: this.sessionToken,
         workOrderId: this.workOrderId
       });
+      // Resume the workpack tab the worker left on (only for the same work order).
+      const last = this.prefs && this.prefs.last;
+      if (last && last.workOrderId === this.workOrderId && last.tab) {
+        this.wpTab = last.tab;
+      }
       this.detail = d;
+      this._firePrefs({
+        last: {
+          workOrderId: this.workOrderId,
+          woNumber: d.woNumber,
+          tab: this.wpTab
+        }
+      });
       this.existingNotes = d.supervisorNotes || "";
       this.newNoteText = "";
       this.causeCodes = d.causeCodes || "";
@@ -240,6 +254,44 @@ export default class WorkOrderDetail extends LightningElement {
   }
   handleWpTabChange(evt) {
     this.wpTab = evt.detail.tab;
+    this._firePrefs({
+      last: {
+        workOrderId: this.workOrderId,
+        woNumber: this.detail ? this.detail.woNumber : undefined,
+        tab: this.wpTab
+      }
+    });
+  }
+  // ---- worker memory ----
+  _firePrefs(patch) {
+    this.dispatchEvent(new CustomEvent("prefschange", { detail: patch }));
+  }
+  _savedWt(kind) {
+    const m = this.prefs && this.prefs.wtFilter;
+    const e = m && m[this.workOrderId];
+    return (e && Array.isArray(e[kind]) && e[kind]) || [];
+  }
+  get savedWpWt() {
+    return this._savedWt("wp");
+  }
+  get savedArWt() {
+    return this._savedWt("ar");
+  }
+  get savedPinList() {
+    return !!(this.prefs && this.prefs.pinList);
+  }
+  handleWpWtChange(evt) {
+    this._firePrefs({
+      wtFilter: { [this.workOrderId]: { wp: evt.detail.wtSel } }
+    });
+  }
+  handleArWtChange(evt) {
+    this._firePrefs({
+      wtFilter: { [this.workOrderId]: { ar: evt.detail.wtSel } }
+    });
+  }
+  handleListPinChange(evt) {
+    this._firePrefs({ pinList: !!evt.detail.pinned });
   }
   get notesCount() {
     return (this.existingNotes || "").split("\n").filter((l) => l.trim())
@@ -257,11 +309,19 @@ export default class WorkOrderDetail extends LightningElement {
         token: this.sessionToken,
         workOrderId: this.workOrderId
       });
+      // Tell the portal so the header timer starts (it re-reads the open record).
+      this.dispatchEvent(
+        new CustomEvent("clockstarted", { bubbles: true, composed: true })
+      );
       await this.loadDetail();
     } catch (e) {
       const msg = e.body?.message || "";
       if (msg.includes("ALREADY_CLOCKED_IN")) {
-        this._showFeedback("Already clocked in on this work order.");
+        this._showFeedback("Already clocked in on this workpack.");
+      } else if (msg.includes("CLOCKED_IN_ELSEWHERE")) {
+        this._showFeedback(
+          "You are clocked in on another workpack. Use the clock in the header to switch."
+        );
       } else {
         this._showFeedback("Clock in failed. Try again.");
       }

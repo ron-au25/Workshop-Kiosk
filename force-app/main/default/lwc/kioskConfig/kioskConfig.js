@@ -27,7 +27,8 @@ const CATS = [
       ["wp_child", "Work orders tab"]
     ]
   ],
-  ["Shared", [["sh_wtf", "Work type focus filter"]]]
+  ["Shared", [["sh_wtf", "Work type focus filter"]]],
+  ["Workers", [["workers", "Worker PINs"]]]
 ];
 
 export default class KioskConfig extends LightningElement {
@@ -64,6 +65,10 @@ export default class KioskConfig extends LightningElement {
         cls: "cn" + (key === this.section ? " on" : "")
       }))
     }));
+  }
+
+  get isWorkers() {
+    return this.section === "workers";
   }
 
   get crumb() {

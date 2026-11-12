@@ -4,7 +4,10 @@ import getSupervisorContext from "@salesforce/apex/KioskController.getSupervisor
 import ensureClockedIn from "@salesforce/apex/KioskController.ensureClockedIn";
 import autoClockOut from "@salesforce/apex/KioskController.autoClockOut";
 import getActiveClock from "@salesforce/apex/KioskController.getActiveClock";
+import getWorkOrderRoot from "@salesforce/apex/KioskController.getWorkOrderRoot";
 import getKioskConfig from "@salesforce/apex/KioskController.getKioskConfig";
+import getWorkerPrefs from "@salesforce/apex/KioskController.getWorkerPrefs";
+import saveWorkerPrefs from "@salesforce/apex/KioskController.saveWorkerPrefs";
 import { mergeConfig } from "c/kioskConfigDefaults";
 
 const STATE = {
@@ -54,8 +57,14 @@ export default class WorkshopPortal extends LightningElement {
   @track barcodeEmployeeId;
   @track selectedWorkOrderId = null;
   @track theme = "dark";
+  // Worker memory (Kiosk_App_Config__c 'Worker:<id>'): { theme, pinList, wtFilter:{[wpId]:{wp,ar}}, last:{workOrderId,woNumber,tab} }
+  @track workerPrefs = {};
+  @track showLeaveWarning = false; // "still clocked in" prompt when leaving the open work order
+  _pendingLeave = null; // the navigation to run once the worker answers the prompt
   @track clockStartMs = null; // epoch ms of the active clock's Start_Time__c (drives header timer)
-  @track clockedWorkOrderId = null; // WO opened when the worker was clocked in
+  @track clockedWorkOrderId = null; // workpack ROOT of the open time record
+  @track currentRootId = null; // workpack ROOT of the work order open on screen
+  @track staleClock = null; // open record found at login: asks "clock out or keep?"
 
   _idleTimer;
   _idleWarnTimer;
@@ -146,6 +155,138 @@ export default class WorkshopPortal extends LightningElement {
     this.state = STATE.DASHBOARD;
     this._startIdleTimer();
     this._loadKioskConfig();
+    this._loadWorkerPrefs();
+    this._checkStaleClock();
+  }
+
+  // A normal logout / idle logout clocks the worker out, so an open record at login
+  // means the last session ended without it (browser closed, other device). Ask.
+  async _checkStaleClock() {
+    const token = this.sessionToken;
+    try {
+      const c = await getActiveClock({ token });
+      if (this.sessionToken !== token || !c || !c.startTimeMs) return;
+      this.staleClock = c;
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  get staleClockText() {
+    const c = this.staleClock;
+    if (!c) return "";
+    return (
+      "You are still clocked in since " +
+      new Date(c.startTimeMs).toLocaleString() +
+      (c.workOrderNumber ? " on WO " + c.workOrderNumber : "") +
+      "."
+    );
+  }
+
+  async handleStaleClockOut() {
+    this.staleClock = null;
+    await this._doAutoClockOut();
+  }
+
+  handleStaleClockKeep() {
+    const c = this.staleClock;
+    this.staleClock = null;
+    if (c) {
+      this.clockStartMs = c.startTimeMs;
+      this.clockedWorkOrderId = c.rootWorkOrderId;
+    }
+  }
+
+  // Root of the workpack a WO belongs to; falls back to the WO itself so a lookup
+  // failure never blocks opening it.
+  async _rootOf(woId) {
+    try {
+      return await getWorkOrderRoot({
+        token: this.sessionToken,
+        workOrderId: woId
+      });
+    } catch {
+      return woId;
+    }
+  }
+
+  async _loadWorkerPrefs() {
+    const token = this.sessionToken;
+    try {
+      const raw = await getWorkerPrefs({ token });
+      if (this.sessionToken !== token) return; // worker switched meanwhile
+      const prefs = JSON.parse(raw || "{}");
+      this.workerPrefs = prefs && typeof prefs === "object" ? prefs : {};
+      this._prefsSaved = JSON.stringify(this.workerPrefs);
+      console.log("[WorkerPrefs] loaded", this.workerPrefs);
+      if (
+        this.workerPrefs.theme === "light" ||
+        this.workerPrefs.theme === "dark"
+      )
+        this.theme = this.workerPrefs.theme;
+    } catch (e) {
+      console.error("[WorkerPrefs] load failed", e && e.body ? e.body : e);
+      this.workerPrefs = {}; // memory must never block the kiosk
+    }
+  }
+
+  // Children send partial patches; wtFilter merges two levels deep (workpack -> wp/ar),
+  // everything else replaces by key. Held in memory only; written to the DB once,
+  // when the worker logs out / is idle-logged-out (see handleSwitchUser).
+  handlePrefsChange(evt) {
+    this._mergePrefs(evt.detail || {});
+  }
+
+  _mergePrefs(patch) {
+    const next = { ...this.workerPrefs };
+    Object.keys(patch).forEach((k) => {
+      if (k === "wtFilter") {
+        const wf = { ...(next.wtFilter || {}) };
+        Object.keys(patch.wtFilter).forEach((wpId) => {
+          wf[wpId] = { ...(wf[wpId] || {}), ...patch.wtFilter[wpId] };
+        });
+        next.wtFilter = wf;
+      } else {
+        next[k] = patch[k];
+      }
+    });
+    if (JSON.stringify(next) === JSON.stringify(this.workerPrefs)) return;
+    this.workerPrefs = next;
+  }
+
+  async _flushPrefs() {
+    const json = JSON.stringify(this.workerPrefs);
+    if (!this.sessionToken) return;
+    if (json === this._prefsSaved) {
+      console.log("[WorkerPrefs] save skipped, nothing changed");
+      return;
+    }
+    this._prefsSaved = json;
+    try {
+      await saveWorkerPrefs({ token: this.sessionToken, prefsJson: json });
+      console.log("[WorkerPrefs] saved", this.workerPrefs);
+    } catch (e) {
+      // not shown to the worker: losing a preference must not interrupt them
+      console.error("[WorkerPrefs] save failed", e && e.body ? e.body : e);
+    }
+  }
+
+  get resumeLast() {
+    const l = this.workerPrefs && this.workerPrefs.last;
+    return l && l.workOrderId ? l : null;
+  }
+  get showResume() {
+    return this.isDashboardState && !!this.resumeLast;
+  }
+  get resumeLabel() {
+    const l = this.resumeLast;
+    return l && l.woNumber
+      ? "Resume WO " + l.woNumber
+      : "Resume last work order";
+  }
+  handleResume() {
+    const l = this.resumeLast;
+    if (l) this.handleOpenDetail({ detail: { workOrderId: l.workOrderId } });
   }
 
   async _loadKioskConfig() {
@@ -167,12 +308,62 @@ export default class WorkshopPortal extends LightningElement {
     this.state = STATE.ROSTER;
   }
 
+  // Leaving the open work order while the clock runs asks first. Moving between
+  // work orders is handled by _onWorkpackChange and does not come through here.
+  _guardLeave(action) {
+    if (this.clockStartMs && this.state === STATE.WORK_ORDER_DETAIL) {
+      this._pendingLeave = action;
+      this.showLeaveWarning = true;
+      return;
+    }
+    action();
+  }
+
+  get leaveWarningText() {
+    const l = this.workerPrefs && this.workerPrefs.last;
+    const num =
+      l && l.workOrderId === this.selectedWorkOrderId ? l.woNumber : null;
+    return (
+      "Your clock is still running" +
+      (num ? " on WO " + num : "") +
+      ". Time keeps counting while you are away."
+    );
+  }
+
+  // Cancel: stay on the work order, clock untouched.
+  handleLeaveCancel() {
+    this.showLeaveWarning = false;
+    this._pendingLeave = null;
+  }
+
+  // Leave but keep the clock running.
+  handleLeaveKeepClock() {
+    this._runPendingLeave();
+  }
+
+  // Clock out, then leave.
+  async handleLeaveClockOut() {
+    await this._doAutoClockOut();
+    this._runPendingLeave();
+  }
+
+  _runPendingLeave() {
+    const action = this._pendingLeave;
+    this.showLeaveWarning = false;
+    this._pendingLeave = null;
+    if (action) action();
+  }
+
   handleNavigation(evt) {
-    const nav = evt.detail.nav;
+    this._guardLeave(() => this._navigate(evt.detail.nav));
+  }
+
+  _navigate(nav) {
     this.activeNav = nav;
     if (nav === "dashboard") this.state = STATE.DASHBOARD;
     else if (nav === "workorders") {
       this.selectedWorkOrderId = null;
+      this.currentRootId = null;
       this.state = STATE.WORK_ORDERS;
     } else if (nav === "timetracking" && this.showAdminNav)
       this.state = STATE.TIME_TRACKING;
@@ -188,7 +379,9 @@ export default class WorkshopPortal extends LightningElement {
 
   async handleOpenDetail(evt) {
     const woId = evt.detail.workOrderId;
-    await this._onWorkpackChange(woId);
+    const rootId = await this._rootOf(woId);
+    await this._onWorkpackChange(rootId);
+    this.currentRootId = rootId;
     this.selectedWorkOrderId = woId;
     this.state = STATE.WORK_ORDER_DETAIL;
     this.sidebarCollapsed = true; // more room for the work order
@@ -198,7 +391,9 @@ export default class WorkshopPortal extends LightningElement {
   async handleChatDrilldown(evt) {
     const woId = evt.detail && evt.detail.workOrderId;
     if (!woId) return;
-    await this._onWorkpackChange(woId);
+    const rootId = await this._rootOf(woId);
+    await this._onWorkpackChange(rootId);
+    this.currentRootId = rootId;
     this.selectedWorkOrderId = woId;
     this.state = STATE.WORK_ORDER_DETAIL;
     this.activeNav = "workorders";
@@ -233,7 +428,7 @@ export default class WorkshopPortal extends LightningElement {
       });
       if (c && c.startTimeMs) {
         this.clockStartMs = c.startTimeMs;
-        this.clockedWorkOrderId = this.selectedWorkOrderId;
+        this.clockedWorkOrderId = c.rootWorkOrderId;
         // Newly clocked in → refresh the detail so the time record shows without a full refresh.
         if (!wasClocked) this._reloadWorkOrderDetail();
       }
@@ -242,10 +437,9 @@ export default class WorkshopPortal extends LightningElement {
     }
   }
 
+  // Root of the open work order (the clock lives on the root, so compare roots).
   get currentWorkpackId() {
-    return this.state === STATE.WORK_ORDER_DETAIL
-      ? this.selectedWorkOrderId
-      : null;
+    return this.state === STATE.WORK_ORDER_DETAIL ? this.currentRootId : null;
   }
 
   // Header chip actions (any page). Clock in/switch only applies to the open workpack.
@@ -265,9 +459,14 @@ export default class WorkshopPortal extends LightningElement {
     this._reloadWorkOrderDetail();
   }
 
-  // Manual Clock Out button in workOrderDetail closed the report → stop the header timer.
+  // Page Clock In / Clock Out buttons in workOrderDetail: re-read the real open
+  // record so the header timer matches the database (also covers a second open one).
   handleClockStopped() {
-    this._clearClock();
+    this._syncClock();
+  }
+
+  handleClockStarted() {
+    this._syncClock();
   }
 
   _reloadWorkOrderDetail() {
@@ -275,20 +474,21 @@ export default class WorkshopPortal extends LightningElement {
     if (wod && typeof wod.reload === "function") wod.reload();
   }
 
-  // Switching to a different workpack clocks out the current one (no auto clock-in
-  // of the new one); then sync the header timer to whatever is still open.
-  async _onWorkpackChange(newWoId) {
+  // Switching to a different workpack (different ROOT) clocks out the current one
+  // (no auto clock-in of the new one); moving between work orders of the same
+  // workpack keeps the clock. Then sync the header timer to whatever is still open.
+  async _onWorkpackChange(newRootId) {
     if (
       this.clockStartMs &&
       this.clockedWorkOrderId &&
-      this.clockedWorkOrderId !== newWoId
+      this.clockedWorkOrderId !== newRootId
     ) {
       await this._doAutoClockOut();
     }
-    await this._syncClock(newWoId);
+    await this._syncClock();
   }
 
-  async _syncClock(woId) {
+  async _syncClock() {
     if (!this.sessionToken) {
       this._clearClock();
       return;
@@ -297,7 +497,7 @@ export default class WorkshopPortal extends LightningElement {
       const c = await getActiveClock({ token: this.sessionToken });
       if (c && c.startTimeMs) {
         this.clockStartMs = c.startTimeMs;
-        this.clockedWorkOrderId = woId || c.workOrderId;
+        this.clockedWorkOrderId = c.rootWorkOrderId;
       } else {
         this._clearClock();
       }
@@ -323,8 +523,11 @@ export default class WorkshopPortal extends LightningElement {
   }
 
   handleDetailBack() {
-    this.selectedWorkOrderId = null;
-    this.state = STATE.WORK_ORDERS;
+    this._guardLeave(() => {
+      this.selectedWorkOrderId = null;
+      this.currentRootId = null;
+      this.state = STATE.WORK_ORDERS;
+    });
   }
 
   handleSidebarToggle() {
@@ -333,10 +536,16 @@ export default class WorkshopPortal extends LightningElement {
 
   handleThemeToggle() {
     this.theme = this.theme === "dark" ? "light" : "dark";
+    this._mergePrefs({ theme: this.theme });
   }
 
   async handleSwitchUser() {
     this._clearTimers();
+    await this._flushPrefs(); // save before the token is dropped
+    this.workerPrefs = {};
+    this.staleClock = null;
+    this.currentRootId = null;
+    this.theme = "dark"; // next worker starts from the default until their prefs load
     await this._doAutoClockOut(); // close the open report before dropping the token
     this.sessionToken = null;
     this.currentWorkerName = null;

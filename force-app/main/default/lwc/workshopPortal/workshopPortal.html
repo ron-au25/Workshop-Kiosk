@@ -98,10 +98,13 @@
                   config={kioskConfig}
                   site-base-url={siteBaseUrl}
                   worker-name={currentWorkerName}
+                  prefs={workerPrefs}
+                  onprefschange={handlePrefsChange}
                   onback={handleDetailBack}
                   onopendetail={handleOpenDetail}
                   ondataupdate={handleDataUpdate}
                   onclockstopped={handleClockStopped}
+                  onclockstarted={handleClockStarted}
                 ></c-work-order-detail>
               </div>
             </template>
@@ -127,6 +130,15 @@
                 </template>
 
                 <template lwc:elseif={isDashboardState}>
+                  <template lwc:if={showResume}>
+                    <button
+                      type="button"
+                      class="resume-bar"
+                      onclick={handleResume}
+                    >
+                      {resumeLabel} &rsaquo;
+                    </button>
+                  </template>
                   <c-kiosk-dashboard
                     session-token={sessionToken}
                     is-supervisor={isSupervisor}
@@ -172,6 +184,68 @@
         onpinchange={handleChatPin}
         ondrilldown={handleChatDrilldown}
       ></c-agentforce-chat>
+
+      <template lwc:if={staleClock}>
+        <div
+          class="idle-overlay"
+          role="alertdialog"
+          aria-label="Open clock found"
+        >
+          <div class="idle-card">
+            <span class="idle-icon">⏱</span>
+            <h2>Clock still running</h2>
+            <p>{staleClockText}</p>
+            <div class="leave-actions">
+              <button
+                class="btn-primary btn-large"
+                onclick={handleStaleClockOut}
+              >
+                Clock out now
+              </button>
+              <button
+                class="btn-secondary btn-large"
+                onclick={handleStaleClockKeep}
+              >
+                Keep it running
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template lwc:if={showLeaveWarning}>
+        <div
+          class="idle-overlay"
+          role="alertdialog"
+          aria-label="Clock still running"
+        >
+          <div class="idle-card">
+            <span class="idle-icon">⏱</span>
+            <h2>Still clocked in</h2>
+            <p>{leaveWarningText}</p>
+            <div class="leave-actions">
+              <button
+                class="btn-primary btn-large"
+                onclick={handleLeaveClockOut}
+              >
+                Clock out &amp; leave
+              </button>
+              <button
+                class="btn-secondary btn-large"
+                onclick={handleLeaveKeepClock}
+              >
+                Leave, keep clock running
+              </button>
+              <button
+                class="btn-secondary btn-large"
+                onclick={handleLeaveCancel}
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <template lwc:if={showIdleWarning}>
         <div

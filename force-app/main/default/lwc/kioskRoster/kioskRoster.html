@@ -65,6 +65,12 @@
                             <span class="tile-name">{worker.name}</span>
                             <span class="tile-role">{worker.roleLabel}</span>
                         </div>
+                        <template lwc:if={worker.needsPin}>
+                            <div class="tile-locked-badge">
+                                <span>🔑</span>
+                                <span class="locked-label">Set PIN</span>
+                            </div>
+                        </template>
                         <template lwc:if={worker.isLocked}>
                             <div class="tile-locked-badge">
                                 <span>🔒</span>

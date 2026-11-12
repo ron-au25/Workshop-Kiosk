@@ -52,6 +52,10 @@
         worker-name={workerName}
         initial-work-order-id={assetReviewWoId}
         config={config}
+        initial-wt-sel={savedArWt}
+        initial-pinned={savedPinList}
+        onwtchange={handleArWtChange}
+        onlistpinchange={handleListPinChange}
         onback={handleAssetReviewBack}
       ></c-asset-review>
     </template>
@@ -118,6 +122,8 @@
             config={config}
             notes-count={notesCount}
             initial-tab={wpTab}
+            initial-wt-sel={savedWpWt}
+            onwtchange={handleWpWtChange}
             onopenassetreview={handleOpenAssetReviewFromWorkpack}
             ontabchange={handleWpTabChange}
           >
@@ -320,7 +326,12 @@
                   <div class="tr-list">
                     <template for:each={timeReportsEnriched} for:item="tr">
                       <div key={tr.id} class={tr.rowClass}>
-                        <div class="tr-who">{tr.resourceName}</div>
+                        <div class="tr-who">
+                          {tr.resourceName}
+                          <template lwc:if={tr.workOrderNumber}>
+                            · WO {tr.workOrderNumber}
+                          </template>
+                        </div>
                         <div class="tr-times">
                           <span class="tr-start">{tr.startDisplay}</span>
                           <span class="tr-arrow">→</span>

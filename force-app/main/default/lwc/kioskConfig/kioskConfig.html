@@ -7,7 +7,7 @@
           Org-wide: applies to every kiosk. Supervisor / Admin only.
         </div>
       </div>
-      <div class="actions">
+      <div class="actions" if:false={isWorkers}>
         <button class="btn" onclick={handleReset}>Reset to defaults</button>
         <button
           class="btn primary"
@@ -41,6 +41,10 @@
 
       <div class="cfg-main">
         <div class="crumb">{crumb}</div>
+        <template lwc:if={isWorkers}>
+          <c-kiosk-workers session-token={sessionToken}></c-kiosk-workers>
+        </template>
+        <template lwc:else>
         <template for:each={blocks} for:item="blk">
           <section key={blk.id} class="sec">
             <h4>{blk.title}</h4>
@@ -160,6 +164,7 @@
               </div>
             </template>
           </section>
+        </template>
         </template>
       </div>
     </div>

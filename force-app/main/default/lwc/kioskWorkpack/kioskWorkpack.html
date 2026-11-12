@@ -8,8 +8,11 @@
         <template lwc:if={hasAsset}>
           <span class="chip">⚙ {assetName}</span>
         </template>
-        <button class="btn btn-p btn-big" onclick={handleOpenAssetReviewTop}>
-          ◧ Open Asset Review
+        <button
+          class="k-btn k-btn--nav k-btn--lg"
+          onclick={handleOpenAssetReviewTop}
+        >
+          Open Asset Review →
         </button>
       </div>
       <template lwc:if={hasTile}>
@@ -25,7 +28,7 @@
       <template lwc:if={hasDescription}>
         <div>
           <span class={descClass}>{description}</span>
-          <button class="linkb" onclick={handleDescToggle}>
+          <button class="k-btn k-btn--link linkb" onclick={handleDescToggle}>
             {descToggleLabel}
           </button>
         </div>
@@ -41,7 +44,7 @@
         </div>
         <template lwc:if={nextIsOpen}>
           <button
-            class="btn btn-p btn-next"
+            class="k-btn k-btn--nav btn-next"
             data-woid={nextWoId}
             onclick={handleOpenAssetReviewNext}
           >
@@ -49,7 +52,7 @@
           </button>
         </template>
         <template lwc:if={nextIsExecute}>
-          <button class="btn btn-b btn-next" onclick={handleNextExecute}>
+          <button class="k-btn k-btn--nav-ghost" onclick={handleNextExecute}>
             Execute →
           </button>
         </template>
@@ -68,7 +71,10 @@
               </template>
             </template>
           </div>
-          <button class="btn btn-g btn-sm" onclick={handleProgToggle}>
+          <button
+            class="k-btn k-btn--secondary k-btn--sm"
+            onclick={handleProgToggle}
+          >
             {progToggleLabel}
           </button>
         </div>
@@ -155,8 +161,11 @@
 
       <!-- Execute -->
       <template lwc:if={isExecute}>
-        <button class="btn btn-p btn-xl" onclick={handleOpenAssetReviewTop}>
-          <span>◧ Open Asset Review</span>
+        <button
+          class="k-btn k-btn--nav k-btn--lg k-btn--block btn-xl"
+          onclick={handleOpenAssetReviewTop}
+        >
+          <span>Open Asset Review →</span>
           <span class="xl-sub">{executeHint}</span>
         </button>
         <slot name="execute"></slot>
@@ -189,7 +198,9 @@
                 </button>
               </template>
               <template lwc:if={wtActive}>
-                <button class="linkb" onclick={handleWtClear}>Clear ✕</button>
+                <button class="k-btn k-btn--link linkb" onclick={handleWtClear}>
+                  Clear ✕
+                </button>
               </template>
             </div>
           </template>
@@ -219,7 +230,7 @@
                 </button>
               </template>
               <template lwc:if={statusFiltered}>
-                <button class="linkb" onclick={handleShowAll}>
+                <button class="k-btn k-btn--link linkb" onclick={handleShowAll}>
                   Show all ✕
                 </button>
               </template>

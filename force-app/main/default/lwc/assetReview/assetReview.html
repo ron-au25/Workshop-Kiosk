@@ -3,7 +3,7 @@
     <!-- Top bar -->
     <div class="ar-topbar">
       <button
-        class="ar-back-btn"
+        class="k-btn k-btn--secondary k-btn--sm ar-back-btn"
         onclick={handleBack}
         aria-label="Back to work pack"
       >
@@ -35,7 +35,9 @@
       <div class="ar-center">
         <span class="ar-error-icon">⚠</span>
         <p>Failed to load the wagon asset. This work pack may have no asset.</p>
-        <button class="btn-secondary" onclick={loadWagon}>Retry</button>
+        <button class="k-btn k-btn--secondary" onclick={loadWagon}>
+          Retry
+        </button>
       </div>
     </template>
 
@@ -61,7 +63,7 @@
                 </template>
               </div>
               <button
-                class="aw-info"
+                class="k-btn k-btn--secondary aw-info"
                 onclick={handleToggleDrawer}
                 title="Asset details"
               >
@@ -69,21 +71,12 @@
               </button>
             </div>
             <template lwc:if={drawerOpen}>
-              <div class="aw-scrim" onclick={handleToggleDrawer}></div>
-              <div class="aw-drawer" role="dialog" aria-label="Asset details">
-                <div class="aw-drawer-h">
-                  <span class="aw-drawer-t">ⓘ {selectedAssetName}</span>
-                  <button
-                    class="aw-drawer-x"
-                    onclick={handleToggleDrawer}
-                    aria-label="Close"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div class="aw-drawer-sub">
-                  Fields and edit rights from Kiosk Config
-                </div>
+              <c-kiosk-drawer
+                class="aw-drawer"
+                heading={selectedAssetName}
+                subheading="Asset details · fields and edit rights from Kiosk Config"
+                onclose={handleToggleDrawer}
+              >
                 <template lwc:if={hasDrawerRows}>
                   <div class="overview-grid">
                     <template for:each={drawerRows} for:item="r">
@@ -133,20 +126,6 @@
                       </div>
                     </template>
                   </div>
-                  <template lwc:if={drawerDirty}>
-                    <div class="dr-actions">
-                      <button class="btn-cancel" onclick={handleDrawerReset}>
-                        Reset
-                      </button>
-                      <button
-                        class="btn-save-entry"
-                        onclick={handleDrawerSave}
-                        disabled={drawerSaveDisabled}
-                      >
-                        {drawerSaveLabel}
-                      </button>
-                    </div>
-                  </template>
                   <template lwc:if={drawerFeedback}>
                     <p class={drawerFeedbackClass}>{drawerFeedback}</p>
                   </template>
@@ -156,12 +135,33 @@
                     No drawer fields configured or readable.
                   </p>
                 </template>
-                <div class="aw-drawer-foot">
-                  <button class="btn-cancel" onclick={handleToggleDrawer}>
+                <div slot="footer" class="k-drawer-actions">
+                  <template lwc:if={drawerDirty}>
+                    <button
+                      class="k-btn k-btn--secondary"
+                      onclick={handleDrawerReset}
+                    >
+                      Reset
+                    </button>
+                    <span class="k-spacer"></span>
+                  </template>
+                  <button
+                    class="k-btn k-btn--secondary"
+                    onclick={handleToggleDrawer}
+                  >
                     Close
                   </button>
+                  <template lwc:if={drawerDirty}>
+                    <button
+                      class="k-btn k-btn--primary"
+                      onclick={handleDrawerSave}
+                      disabled={drawerSaveDisabled}
+                    >
+                      {drawerSaveLabel}
+                    </button>
+                  </template>
                 </div>
-              </div>
+              </c-kiosk-drawer>
             </template>
           </template>
 
@@ -482,13 +482,6 @@
                       <span class="wl-dot" style={r.dotStyle}></span>{r.short}
                     </button>
                   </template>
-                  <button
-                    class="wl-rail-btn raise"
-                    onclick={handleOpenRaise}
-                    title="Raise Task"
-                  >
-                    ＋
-                  </button>
                 </div>
               </template>
               <template lwc:else>
@@ -507,9 +500,6 @@
                     title="Keep list open"
                   >
                     📌
-                  </button>
-                  <button class="wl-raise-top" onclick={handleOpenRaise}>
-                    ⚑ Raise Task
                   </button>
                 </div>
                 <div class="wl-body">
@@ -611,12 +601,13 @@
                           </button>
                           <template lwc:if={r.canEdit}>
                             <button
-                              class="icon-btn edit-btn"
+                              class="k-icon-btn k-icon-btn--plain edit-btn"
                               data-task-id={r.id}
                               onclick={handleEditTask}
                               title="Edit task"
+                              aria-label="Edit task"
                             >
-                              ✏️
+                              ✎
                             </button>
                           </template>
                         </div>
@@ -638,7 +629,7 @@
                     <span class="aw-wo-num">{selectedFilterWoNumber}</span>
                     <span class="aw-wo-sub">{selectedSubject}</span>
                     <button
-                      class="wo-filter-clear"
+                      class="k-btn k-btn--link wo-filter-clear"
                       onclick={handleClearWoFilter}
                     >
                       ✕ All on asset
@@ -652,7 +643,10 @@
                       <span class="aw-next-v">{nextStepText}</span>
                     </span>
                     <template lwc:if={nextStepBtn}>
-                      <button class="aw-next-btn" onclick={handleNextStep}>
+                      <button
+                        class="k-btn k-btn--nav aw-next-btn"
+                        onclick={handleNextStep}
+                      >
                         {nextStepBtn.label} →
                       </button>
                     </template>
@@ -694,30 +688,18 @@
                       </button>
                     </template>
                   </div>
-                  <button class="btn-add-entry" onclick={handleAddMeasure}>
-                    + New Measure
+                  <button
+                    class="k-btn k-btn--form k-btn--sm"
+                    onclick={handleAddMeasure}
+                  >
+                    ＋ New measure
                   </button>
                 </div>
                 <template lwc:if={showMeasureForm}>
-                  <div class="aw-scrim" onclick={handleMeasureCancel}></div>
-                  <div
-                    class="entry-form aw-form-drawer"
-                    role="dialog"
-                    aria-label="Measure"
+                  <c-kiosk-drawer
+                    heading={measureDrawerTitle}
+                    onclose={handleMeasureCancel}
                   >
-                    <div class="aw-drawer-h">
-                      <span class="aw-drawer-t">
-                        <template lwc:if={editId}>Edit measure</template>
-                        <template lwc:else>New measure</template>
-                      </span>
-                      <button
-                        class="aw-drawer-x"
-                        onclick={handleMeasureCancel}
-                        aria-label="Close"
-                      >
-                        ✕
-                      </button>
-                    </div>
                     <div class="form-group">
                       <label class="form-label">Component Name</label>
                       <input
@@ -869,19 +851,22 @@
                       <p class={measureFeedbackClass}>{measureFeedback}</p>
                     </template>
 
-                    <div class="form-actions">
-                      <button class="btn-cancel" onclick={handleMeasureCancel}>
+                    <div slot="footer" class="k-drawer-actions">
+                      <button
+                        class="k-btn k-btn--secondary"
+                        onclick={handleMeasureCancel}
+                      >
                         Cancel
                       </button>
                       <button
-                        class="btn-save-entry"
+                        class="k-btn k-btn--primary"
                         onclick={handleMeasureSave}
                         disabled={isSavingMeasure}
                       >
                         {measureSaveLabel}
                       </button>
                     </div>
-                  </div>
+                  </c-kiosk-drawer>
                 </template>
                 <div class={measureWrapClass}>
                   <div class="points-list">
@@ -1002,22 +987,27 @@
                         <div class="ar-empty">
                           <span class="ar-empty-icon">🔍</span>
                           <p>
-                            No measure points yet.<br />Tap "+ New Measure".
+                            No measure points yet.<br />Tap "＋ New measure".
                           </p>
                         </div>
                       </template>
                     </template>
                   </div>
                   <template lwc:if={isSideDoc}>
-                    <div class="mz-side">
+                    <div class="mz-side mz-side-doc">
                       <div class="mz-side-title">{sidePointLabel}</div>
-                      <template lwc:if={sidePointHasDoc}>
+                      <template lwc:if={sideDocTitle}>
+                        <div class="mz-side-doc-name" title={sideDocTitle}>
+                          📄 {sideDocTitle}
+                        </div>
+                      </template>
+                      <div class={sidePaneCls}>
                         <c-kiosk-pdf-pane
                           session-token={sessionToken}
                           workpack-id={workOrderId}
                         ></c-kiosk-pdf-pane>
-                      </template>
-                      <template lwc:else>
+                      </div>
+                      <template lwc:if={sidePointNoDoc}>
                         <p class="mz-side-empty">
                           No source document for this measure. Tap a 📄 chip.
                         </p>
@@ -1119,17 +1109,17 @@
                                 <span class="step-status">{step.status}</span>
                                 <template lwc:if={step.hasAction}>
                                   <button
-                                    class="ar-step-action-btn"
+                                    class="k-btn k-btn--nav-ghost k-btn--sm"
                                     data-step-id={step.id}
                                     data-action-def={step.actionDefinition}
                                     onclick={handleStepClick}
                                   >
-                                    Open action
+                                    Open action ↗
                                   </button>
                                 </template>
                                 <template lwc:if={step.canComplete}>
                                   <button
-                                    class="ar-step-complete-btn"
+                                    class="k-btn k-btn--primary k-btn--sm"
                                     data-step-id={step.id}
                                     onclick={handleMarkStepComplete}
                                   >
@@ -1177,14 +1167,14 @@
                         <span class="parts-col-act">
                           <template lwc:if={part.canConsume}>
                             <button
-                              class="ar-consume-btn"
+                              class="k-btn k-btn--primary k-btn--sm"
                               data-wo-id={part.workOrderId}
                               data-product-id={part.product2Id}
                               data-pbe-id={part.pricebookEntryId}
                               data-unit-price={part.unitPrice}
                               onclick={handleConsumePart}
                             >
-                              + Consume
+                              ✓ Consume
                             </button>
                           </template>
                         </span>
@@ -1202,13 +1192,20 @@
                 <template lwc:if={canAddPart}>
                   <div class="ar-addpart">
                     <button
-                      class="ar-addpart-toggle"
+                      class="k-btn k-btn--form k-btn--sm"
                       onclick={handleToggleAddPart}
                     >
-                      + Add part
+                      ＋ Add part
                     </button>
-                    <template lwc:if={showAddPart}>
-                      <div class="ar-addpart-row">
+                  </div>
+                  <template lwc:if={showAddPart}>
+                    <c-kiosk-drawer
+                      heading="Add part"
+                      subheading="Consumed on this asset's work order"
+                      onclose={handleCloseAddPart}
+                    >
+                      <div class="form-group">
+                        <label class="form-label">Part</label>
                         <select
                           class="form-select"
                           onchange={handleAddProductChange}
@@ -1221,16 +1218,27 @@
                             </option>
                           </template>
                         </select>
+                      </div>
+                      <template lwc:if={partActionError}>
+                        <p class="form-feedback error">{partActionError}</p>
+                      </template>
+                      <div slot="footer" class="k-drawer-actions">
                         <button
-                          class="ar-consume-btn"
+                          class="k-btn k-btn--secondary"
+                          onclick={handleCloseAddPart}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          class="k-btn k-btn--primary"
                           onclick={handleAddPart}
                           disabled={addPartDisabled}
                         >
-                          Add
+                          {addPartSaveLabel}
                         </button>
                       </div>
-                    </template>
-                  </div>
+                    </c-kiosk-drawer>
+                  </template>
                 </template>
               </template>
 
@@ -1296,7 +1304,7 @@
                   </template>
                   <div class="form-actions">
                     <button
-                      class="btn-save-entry"
+                      class="k-btn k-btn--primary"
                       onclick={handleSaveNotes}
                       disabled={notesSaveDisabled}
                     >
@@ -1326,6 +1334,14 @@
                     <p>No raised tasks on this asset.</p>
                   </div>
                 </template>
+                <div class="ar-addpart">
+                  <button
+                    class="k-btn k-btn--form k-btn--sm"
+                    onclick={handleOpenRaise}
+                  >
+                    ⚑ Raise task
+                  </button>
+                </div>
               </template>
             </section>
           </div>
@@ -1333,25 +1349,7 @@
 
         <!-- Task form (PM02 create/edit) -->
         <template lwc:if={showTaskForm}>
-          <div class="aw-scrim" onclick={handleTaskCancel}></div>
-          <div
-            class="entry-form aw-form-drawer"
-            role="dialog"
-            aria-label="Task"
-          >
-            <div class="aw-drawer-h">
-              <span class="aw-drawer-t">
-                <template lwc:if={taskEditId}>Edit task</template>
-                <template lwc:else>New task</template>
-              </span>
-              <button
-                class="aw-drawer-x"
-                onclick={handleTaskCancel}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+          <c-kiosk-drawer heading={taskDrawerTitle} onclose={handleTaskCancel}>
             <div class="form-group">
               <label class="form-label">Subject</label>
               <input
@@ -1508,108 +1506,112 @@
             <template lwc:if={taskFeedback}>
               <p class={taskFeedbackClass}>{taskFeedback}</p>
             </template>
-            <div class="form-actions">
-              <button class="btn-cancel" onclick={handleTaskCancel}>
+            <div slot="footer" class="k-drawer-actions">
+              <button class="k-btn k-btn--secondary" onclick={handleTaskCancel}>
                 Cancel
               </button>
               <button
-                class="btn-save-entry"
+                class="k-btn k-btn--primary"
                 onclick={handleTaskSave}
                 disabled={isSavingTask}
               >
                 {taskSaveLabel}
               </button>
             </div>
-          </div>
+          </c-kiosk-drawer>
         </template>
 
         <template lwc:if={showRaise}>
-          <div class="raise-backdrop">
-            <div class="raise-modal">
-              <h3 class="raise-title">Raise Task</h3>
-              <div class="form-group">
-                <label class="form-label">Asset</label>
-                <select
-                  class="form-select"
-                  onchange={handleRaiseAssetChange}
-                  onkeydown={handleInputKeydown}
-                >
-                  <template for:each={raiseAssetOptions} for:item="o">
-                    <option key={o.value} value={o.value} selected={o.selected}>
-                      {o.label}
-                    </option>
-                  </template>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Work type</label>
-                <input
-                  type="text"
-                  class="form-input"
-                  placeholder="Search work types…"
-                  value={raiseWtQuery}
-                  oninput={handleRaiseWtSearch}
-                  onkeydown={handleInputKeydown}
-                />
-                <div class="rt-wt-list" role="listbox">
-                  <template for:each={raiseWtOptions} for:item="o">
-                    <button
-                      key={o.id}
-                      type="button"
-                      class={o.cls}
-                      data-id={o.id}
-                      role="option"
-                      aria-selected={o.selected}
-                      onclick={handleRaiseWtPick}
-                    >
-                      {o.name}
-                    </button>
-                  </template>
-                  <template lwc:if={raiseWtEmpty}>
-                    <p class="rt-wt-empty">No work types match.</p>
-                  </template>
-                </div>
-                <template lwc:if={raiseWtName}>
-                  <p class="rt-wt-picked">Selected: {raiseWtName}</p>
+          <c-kiosk-drawer
+            heading="Raise task"
+            subheading="New work order on this asset or one in its hierarchy"
+            onclose={handleRaiseCancel}
+          >
+            <div class="form-group">
+              <label class="form-label">Asset</label>
+              <select
+                class="form-select"
+                onchange={handleRaiseAssetChange}
+                onkeydown={handleInputKeydown}
+              >
+                <template for:each={raiseAssetOptions} for:item="o">
+                  <option key={o.value} value={o.value} selected={o.selected}>
+                    {o.label}
+                  </option>
+                </template>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Work type</label>
+              <input
+                type="text"
+                class="form-input"
+                placeholder="Search work types…"
+                value={raiseWtQuery}
+                oninput={handleRaiseWtSearch}
+                onkeydown={handleInputKeydown}
+              />
+              <div class="rt-wt-list" role="listbox">
+                <template for:each={raiseWtOptions} for:item="o">
+                  <button
+                    key={o.id}
+                    type="button"
+                    class={o.cls}
+                    data-id={o.id}
+                    role="option"
+                    aria-selected={o.selected}
+                    onclick={handleRaiseWtPick}
+                  >
+                    {o.name}
+                  </button>
+                </template>
+                <template lwc:if={raiseWtEmpty}>
+                  <p class="rt-wt-empty">No work types match.</p>
                 </template>
               </div>
-              <div class="form-group">
-                <label class="form-label">Subject</label>
-                <input
-                  type="text"
-                  class="form-input large"
-                  value={raiseSubject}
-                  oninput={handleRaiseSubject}
-                  onkeydown={handleInputKeydown}
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea
-                  class="form-textarea"
-                  rows="3"
-                  value={raiseDescription}
-                  oninput={handleRaiseDescription}
-                  onkeydown={handleInputKeydown}
-                ></textarea>
-              </div>
-              <template lwc:if={raiseFeedback}>
-                <p class="form-feedback error">{raiseFeedback}</p>
+              <template lwc:if={raiseWtName}>
+                <p class="rt-wt-picked">Selected: {raiseWtName}</p>
               </template>
-              <div class="form-actions">
-                <button class="btn-cancel" onclick={handleRaiseCancel}>
-                  Cancel
-                </button>
-                <button
-                  class="btn-save-entry"
-                  onclick={handleRaiseSave}
-                  disabled={raiseSaving}
-                >
-                  {raiseSaveLabel}
-                </button>
-              </div>
             </div>
-          </div>
+            <div class="form-group">
+              <label class="form-label">Subject</label>
+              <input
+                type="text"
+                class="form-input large"
+                value={raiseSubject}
+                oninput={handleRaiseSubject}
+                onkeydown={handleInputKeydown}
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea
+                class="form-textarea"
+                rows="3"
+                value={raiseDescription}
+                oninput={handleRaiseDescription}
+                onkeydown={handleInputKeydown}
+              ></textarea>
+            </div>
+            <template lwc:if={raiseFeedback}>
+              <p class="form-feedback error">{raiseFeedback}</p>
+            </template>
+            <div slot="footer" class="k-drawer-actions">
+              <button
+                class="k-btn k-btn--secondary"
+                onclick={handleRaiseCancel}
+              >
+                Cancel
+              </button>
+              <button
+                class="k-btn k-btn--primary"
+                onclick={handleRaiseSave}
+                disabled={raiseSaving}
+              >
+                {raiseSaveLabel}
+              </button>
+            </div>
+          </c-kiosk-drawer>
         </template>
       </div>
     </template>

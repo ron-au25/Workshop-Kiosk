@@ -57,7 +57,6 @@
     <div id="status">waiting for pdfjs URL parameters...</div>
     <canvas id="cv" aria-label="Rendered PDF page"></canvas>
 
-    <script src="imagetext.js"></script>
     <script>
     /* eslint-env browser */
     /**
@@ -75,7 +74,7 @@
      *                   { type: 'pdfjsHost:rendered', payload: { pageCount, pageNumber, bitmapCss* rect, pageHeights?, totalCssHeight? } }
      *                   { type: 'pdfjsHost:error',    payload: { message } }
      *                   { type: 'pdfjsHost:text',     payload: { pages: [{ pageNumber, items }] } }
-     * Text items are PDF glyphs plus words read from a ruled table picture.
+     * Text items are PDF glyphs and form-field labels (kiosk: no picture reading).
      *
      * allPages:true (digitalChecklist) stacks every page for continuous scroll.
      * Annotator omits it and keeps the single-canvas path.
@@ -321,124 +320,6 @@
             };
         }
 
-        function pdfObject(store, name) {
-            return new Promise(function (resolve) {
-                if (!store || !name || typeof store.get !== 'function') {
-                    resolve(null);
-                    return;
-                }
-                var settled = false;
-                function finish(obj) {
-                    if (settled) {
-                        return;
-                    }
-                    settled = true;
-                    resolve(obj && obj.width ? obj : null);
-                }
-                try {
-                    var maybe = store.get(name, finish);
-                    if (maybe && typeof maybe.then === 'function') {
-                        maybe.then(finish, function () { finish(null); });
-                    } else if (maybe && maybe.width) {
-                        finish(maybe);
-                    }
-                } catch (e) {
-                    finish(null);
-                }
-                setTimeout(function () { finish(null); }, 8000);
-            });
-        }
-
-        function pixelsFromBuffer(data, w, h) {
-            if (!data || !w || !h) {
-                return null;
-            }
-            if (data.length !== w * h && data.length !== w * h * 3 && data.length !== w * h * 4) {
-                return null;
-            }
-            return {
-                data: data,
-                width: w,
-                height: h,
-                kind: data.length === w * h * 4 ? 3 : (data.length === w * h ? 1 : 2)
-            };
-        }
-
-        // Never draw the bitmap pdf.js paints with. On iPad that bitmap can be
-        // used once, so a second draw leaves the form picture blank on reopen.
-        function imagePixels(img) {
-            var w = img && img.width;
-            var h = img && img.height;
-            var fromBuffer = pixelsFromBuffer(img && img.data, w, h);
-            var source;
-            if (!w || !h) {
-                return Promise.resolve(null);
-            }
-            if (fromBuffer) {
-                return Promise.resolve(fromBuffer);
-            }
-            source = img.bitmap || null;
-            if (!source || typeof createImageBitmap !== 'function') {
-                return Promise.resolve(null);
-            }
-            return createImageBitmap(source).then(function (clone) {
-                var canvas;
-                var ctx;
-                var pixels;
-                try {
-                    canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    ctx = canvas.getContext('2d', { willReadFrequently: true });
-                    ctx.drawImage(clone, 0, 0, w, h);
-                    pixels = ctx.getImageData(0, 0, w, h);
-                    return { data: pixels.data, width: w, height: h, kind: 3 };
-                } finally {
-                    if (clone && typeof clone.close === 'function') {
-                        clone.close();
-                    }
-                }
-            }).catch(function () {
-                return null;
-            });
-        }
-
-        function imageTextItems(page, view) {
-            var reader = window.imageText;
-            if (!reader || page.getOperatorList == null) {
-                return Promise.resolve([]);
-            }
-            return page.getOperatorList().then(function (op) {
-                var paints = reader.collectImagePaints(op.fnArray, op.argsArray, pdfjsLib.OPS);
-                var chain = Promise.resolve([]);
-                paints.slice(0, 8).forEach(function (paint) {
-                    chain = chain.then(function (all) {
-                        return pdfObject(page.objs, paint.name).then(function (img) {
-                            if (!img || (!img.data && !img.bitmap)) {
-                                return pdfObject(page.commonObjs, paint.name);
-                            }
-                            return img;
-                        }).then(function (img) {
-                            return imagePixels(img).then(function (pixels) {
-                                var words;
-                                if (!pixels) {
-                                    return all;
-                                }
-                                words = reader.readImageWords(pixels.data, pixels.width, pixels.height, pixels.kind);
-                                words.forEach(function (word) {
-                                    all.push(reader.mapImageBox(word, paint.ctm, view.width, view.height));
-                                });
-                                return all;
-                            });
-                        });
-                    });
-                });
-                return chain;
-            }).catch(function () {
-                return [];
-            });
-        }
-
         function textItemsFromPage(page) {
             var view = page.getViewport({ scale: 1 });
             return page.getTextContent().then(function (tc) {
@@ -478,15 +359,9 @@
                             f: 1
                         });
                     });
-                    return imageTextItems(page, view).then(function (extra) {
-                        return items.concat(extra || []);
-                    });
+                    return items;
                 }).catch(function () {
-                    return imageTextItems(page, view).then(function (extra) {
-                        return items.concat(extra || []);
-                    }, function () {
-                        return items;
-                    });
+                    return items;
                 });
             });
         }

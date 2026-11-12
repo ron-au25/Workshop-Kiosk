@@ -35,10 +35,15 @@
             Please log in with your Salesforce supervisor account to start the
             kiosk.
           </p>
-          <button class="btn-supervisor-login" onclick={handleSupervisorLogin}>
+          <button
+            class="k-btn k-btn--nav k-btn--lg"
+            onclick={handleSupervisorLogin}
+          >
             Log In as Supervisor
           </button>
-          <button class="btn-retry" onclick={handleRetry}>Retry</button>
+          <button class="k-btn k-btn--secondary" onclick={handleRetry}>
+            Retry
+          </button>
         </template>
         <template lwc:else>
           <span class="error-icon">⚠</span>
@@ -47,7 +52,9 @@
           <p class="error-hint">
             Contact your Salesforce administrator to assign a Service Territory.
           </p>
-          <button class="btn-retry" onclick={handleRetry}>Retry</button>
+          <button class="k-btn k-btn--secondary" onclick={handleRetry}>
+            Retry
+          </button>
         </template>
       </div>
     </template>
@@ -197,13 +204,13 @@
             <p>{staleClockText}</p>
             <div class="leave-actions">
               <button
-                class="btn-primary btn-large"
+                class="k-btn k-btn--danger k-btn--lg"
                 onclick={handleStaleClockOut}
               >
                 Clock out now
               </button>
               <button
-                class="btn-secondary btn-large"
+                class="k-btn k-btn--secondary k-btn--lg"
                 onclick={handleStaleClockKeep}
               >
                 Keep it running
@@ -225,19 +232,19 @@
             <p>{leaveWarningText}</p>
             <div class="leave-actions">
               <button
-                class="btn-primary btn-large"
+                class="k-btn k-btn--danger k-btn--lg"
                 onclick={handleLeaveClockOut}
               >
                 Clock out &amp; leave
               </button>
               <button
-                class="btn-secondary btn-large"
+                class="k-btn k-btn--secondary k-btn--lg"
                 onclick={handleLeaveKeepClock}
               >
                 Leave, keep clock running
               </button>
               <button
-                class="btn-secondary btn-large"
+                class="k-btn k-btn--secondary k-btn--lg"
                 onclick={handleLeaveCancel}
               >
                 Stay here
@@ -257,7 +264,7 @@
             <span class="idle-icon">⏱</span>
             <h2>Still there?</h2>
             <p>Session ends in <strong>{idleCountdown}</strong> seconds</p>
-            <button class="btn-primary btn-large" onclick={resetIdleTimer}>
+            <button class="k-btn k-btn--nav k-btn--lg" onclick={resetIdleTimer}>
               Stay Signed In
             </button>
           </div>

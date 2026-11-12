@@ -1,3 +1,5 @@
+@import "c/kioskUi";
+
 :host {
   display: block;
   color: var(--rt-text, #f2f5f7);
@@ -26,24 +28,7 @@ h1 {
   display: flex;
   gap: 10px;
 }
-.btn {
-  min-height: 48px;
-  padding: 0 18px;
-  border-radius: 10px;
-  border: 1px solid var(--rt-border, #2a3744);
-  background: var(--rt-surface-2, #1b2530);
-  color: inherit;
-  font-size: 15px;
-  font-weight: 600;
-}
-.btn.primary {
-  background: var(--rt-accent-2, #2e8fe6);
-  border-color: var(--rt-accent-2, #2e8fe6);
-  color: #fff;
-}
-.btn:disabled {
-  opacity: 0.45;
-}
+
 .msg {
   margin: 0 0 12px;
   padding: 10px 14px;

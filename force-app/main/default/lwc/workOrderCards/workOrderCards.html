@@ -52,7 +52,7 @@
             </template>
           </select>
           <button
-            class="icon-btn"
+            class="k-icon-btn"
             onclick={handleSortDirToggle}
             title={sortDirLabel}
             aria-label={sortDirLabel}
@@ -79,7 +79,7 @@
         <span class="filter-label">From</span>
         <div class="date-nav">
           <button
-            class="icon-btn"
+            class="k-icon-btn"
             onclick={handlePrevDay}
             title="Previous day"
             aria-label="Previous day"
@@ -95,7 +95,7 @@
             aria-label="From date"
           />
           <button
-            class="icon-btn"
+            class="k-icon-btn"
             onclick={handleNextDay}
             title="Next day"
             aria-label="Next day"
@@ -130,7 +130,7 @@
             />
           </div>
           <button
-            class="search-btn"
+            class="k-btn k-btn--nav k-btn--sm"
             onclick={handleSearchAll}
             title="Search all workpack work orders org-wide by wagon (at least 3 characters)"
           >
@@ -155,7 +155,9 @@
       <div class="wo-error">
         <span>⚠</span>
         <p>{errorMessage}</p>
-        <button class="btn-secondary" onclick={fetchForDateRange}>Retry</button>
+        <button class="k-btn k-btn--secondary" onclick={fetchForDateRange}>
+          Retry
+        </button>
       </div>
     </template>
 
@@ -163,7 +165,7 @@
       <div class="wo-empty">
         <span class="empty-icon">🔧</span>
         <p>{emptyMessage}</p>
-        <button class="btn-secondary" onclick={clearFilters}>
+        <button class="k-btn k-btn--secondary" onclick={clearFilters}>
           Reset Filters
         </button>
       </div>

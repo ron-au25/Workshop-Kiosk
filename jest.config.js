@@ -1,6 +1,10 @@
-const { jestConfig } = require('@salesforce/sfdx-lwc-jest/config');
+const { jestConfig } = require("@salesforce/sfdx-lwc-jest/config");
 
 module.exports = {
-    ...jestConfig,
-    modulePathIgnorePatterns: ['<rootDir>/.localdevserver']
+  ...jestConfig,
+  moduleNameMapper: {
+    ...(jestConfig.moduleNameMapper || {}),
+    "^c/kioskUi$": "<rootDir>/jest-mocks/kioskUi.js"
+  },
+  modulePathIgnorePatterns: ["<rootDir>/.localdevserver"]
 };

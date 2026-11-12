@@ -2,7 +2,11 @@
   <div class="wd-wrapper">
     <!-- Top bar -->
     <div class="wd-topbar">
-      <button class="back-btn" onclick={handleBack} aria-label={backLabel}>
+      <button
+        class="k-btn k-btn--secondary k-btn--sm back-btn"
+        onclick={handleBack}
+        aria-label={backLabel}
+      >
         ‹ {backLabel}
       </button>
       <template lwc:if={detail}>
@@ -31,7 +35,9 @@
       <div class="wd-center">
         <span>⚠</span>
         <p>{errorMessage}</p>
-        <button class="btn-secondary" onclick={loadDetail}>Retry</button>
+        <button class="k-btn k-btn--secondary" onclick={loadDetail}>
+          Retry
+        </button>
       </div>
     </template>
 
@@ -198,7 +204,7 @@
 
                 <div class="save-row">
                   <button
-                    class="btn-save"
+                    class="k-btn k-btn--primary"
                     onclick={handleSaveNotes}
                     disabled={isSaving}
                   >
@@ -289,7 +295,7 @@
                       <span>Clocked in since {activeClockDisplay}</span>
                     </div>
                     <button
-                      class="btn-clock-out"
+                      class="k-btn k-btn--danger k-btn--lg k-btn--block"
                       onclick={handleClockOut}
                       disabled={isClockingOut}
                     >
@@ -299,7 +305,7 @@
                 </template>
                 <template lwc:else>
                   <button
-                    class="btn-clock-in"
+                    class="k-btn k-btn--success k-btn--lg k-btn--block"
                     onclick={handleClockIn}
                     disabled={isClockingIn}
                   >
@@ -311,11 +317,10 @@
               <!-- Work Execution button -->
               <div class="wd-section">
                 <button
-                  class="btn-work-execution"
+                  class="k-btn k-btn--nav-ghost k-btn--lg k-btn--block"
                   onclick={handleOpenExecution}
                 >
-                  <span class="we-btn-icon">🔍</span>
-                  <span>Work Execution</span>
+                  <span>Work Execution →</span>
                 </button>
               </div>
 
@@ -414,7 +419,7 @@
 
                 <div class="save-row">
                   <button
-                    class="btn-save"
+                    class="k-btn k-btn--primary"
                     onclick={handleSaveNotes}
                     disabled={isSaving}
                   >

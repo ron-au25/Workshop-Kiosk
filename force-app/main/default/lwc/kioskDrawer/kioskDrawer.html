@@ -1,0 +1,34 @@
+<template>
+  <div class="scrim" onclick={handleClose}></div>
+  <section
+    class={panelClass}
+    role="dialog"
+    aria-modal="true"
+    aria-label={heading}
+    onkeydown={handleKeydown}
+  >
+    <header class="head">
+      <div class="titles">
+        <h2 class="title">{heading}</h2>
+        <template lwc:if={subheading}>
+          <p class="sub">{subheading}</p>
+        </template>
+      </div>
+      <button
+        type="button"
+        class="close"
+        aria-label="Close"
+        title="Close"
+        onclick={handleClose}
+      >
+        ✕
+      </button>
+    </header>
+    <div class="body">
+      <slot></slot>
+    </div>
+    <footer class={footClass}>
+      <slot name="footer" onslotchange={handleFooterSlotChange}></slot>
+    </footer>
+  </section>
+</template>

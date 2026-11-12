@@ -111,8 +111,10 @@ export default class WorkOrderDetail extends LightningElement {
 
   // Called by the parent (workshopPortal) after an auto clock-in so the clock
   // panel / time history reflect the new Time_Report without a full page refresh.
+  // Silent: keeps the current screen (e.g. Asset Review) in place instead of
+  // flashing the loading spinner above it, which shifted the layout.
   @api reload() {
-    if (this._workOrderId) this.loadDetail();
+    if (this._workOrderId) this.loadDetail(true);
   }
 
   @wire(MessageContext) messageContext;
@@ -187,8 +189,10 @@ export default class WorkOrderDetail extends LightningElement {
     });
   }
 
-  async loadDetail() {
-    this.isLoading = true;
+  async loadDetail(silent) {
+    // silent === true only from reload(); the Retry button passes an event.
+    const quiet = silent === true && !!this.detail;
+    if (!quiet) this.isLoading = true;
     this.hasError = false;
     try {
       const d = await getWorkOrderDetail({
@@ -222,8 +226,11 @@ export default class WorkOrderDetail extends LightningElement {
       const wpc = this.template.querySelector("c-kiosk-workpack");
       if (wpc) wpc.refresh();
     } catch {
-      this.hasError = true;
-      this.errorMessage = "Failed to load work order details.";
+      // A failed background refresh keeps the screen the worker is on.
+      if (!quiet) {
+        this.hasError = true;
+        this.errorMessage = "Failed to load work order details.";
+      }
     } finally {
       this.isLoading = false;
     }

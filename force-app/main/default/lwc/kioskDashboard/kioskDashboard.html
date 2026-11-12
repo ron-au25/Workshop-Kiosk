@@ -1,213 +1,274 @@
 <template>
-    <div class="dashboard-wrapper">
-
-        <div class="dashboard-topbar">
-            <h2 class="dashboard-title">Workshop Dashboard</h2>
-            <div class="topbar-actions">
-                <template lwc:if={isSupervisor}>
-                    <button class="gen-demo-btn" onclick={handleGenerateDemo} disabled={generatingDemo}>
-                        <span class={genDemoIconClass}>⚙</span>
-                        {genDemoLabel}
-                    </button>
-                </template>
-                <button class="refresh-btn" onclick={handleRefresh} aria-label="Refresh dashboard" disabled={isLoading}>
-                    <span class={refreshIconClass}>↻</span>
-                    Refresh
-                </button>
-            </div>
-        </div>
-        <template lwc:if={demoFeedback}>
-            <p class={demoFeedbackClass}>{demoFeedback}</p>
+  <div class="dashboard-wrapper">
+    <div class="dashboard-topbar">
+      <h2 class="dashboard-title">Workshop Dashboard</h2>
+      <div class="topbar-actions">
+        <template lwc:if={isSupervisor}>
+          <button
+            class="k-btn k-btn--primary"
+            onclick={handleGenerateDemo}
+            disabled={generatingDemo}
+          >
+            <span class={genDemoIconClass}>⚙</span>
+            {genDemoLabel}
+          </button>
         </template>
-
-        <!-- Date filter bar -->
-        <div class="date-bar">
-            <div class="preset-group">
-                <template for:each={datePresets} for:item="p">
-                    <button
-                        key={p.value}
-                        class={p.cls}
-                        data-preset={p.value}
-                        onclick={handlePresetSelect}
-                    >{p.label}</button>
-                </template>
-            </div>
-            <template lwc:if={showCustomPicker}>
-                <div class="custom-dates">
-                    <input
-                        type="date"
-                        class="date-input"
-                        value={dateFrom}
-                        onchange={handleDateFromChange}
-                        onkeydown={handleInputKeydown}
-                    />
-                    <span class="date-sep">–</span>
-                    <input
-                        type="date"
-                        class="date-input"
-                        value={dateTo}
-                        onchange={handleDateToChange}
-                        onkeydown={handleInputKeydown}
-                    />
-                </div>
-            </template>
-        </div>
-
-        <template lwc:if={isLoading}>
-            <div class="dashboard-loading">
-                <div class="spinner"></div>
-                <p>Loading dashboard…</p>
-            </div>
-        </template>
-
-        <template lwc:elseif={hasError}>
-            <div class="dashboard-error">
-                <span>⚠</span>
-                <p>{errorMessage}</p>
-                <button class="btn-secondary" onclick={loadMetrics}>Retry</button>
-            </div>
-        </template>
-
-        <template lwc:else>
-            <!-- Stat cards row -->
-            <div class="stat-cards">
-                <div class="stat-card open">
-                    <div class="stat-icon">📋</div>
-                    <div class="stat-body">
-                        <span class="stat-value">{metrics.openCount}</span>
-                        <span class="stat-label">Open</span>
-                    </div>
-                </div>
-                <div class="stat-card inprogress">
-                    <div class="stat-icon">⚡</div>
-                    <div class="stat-body">
-                        <span class="stat-value">{metrics.inProgressCount}</span>
-                        <span class="stat-label">In Progress</span>
-                    </div>
-                </div>
-                <div class="stat-card critical">
-                    <div class="stat-icon">🚨</div>
-                    <div class="stat-body">
-                        <span class="stat-value">{metrics.criticalCount}</span>
-                        <span class="stat-label">Critical</span>
-                    </div>
-                </div>
-                <div class="stat-card planned">
-                    <div class="stat-icon">⏱</div>
-                    <div class="stat-body">
-                        <span class="stat-value">{plannedHoursDisplay}</span>
-                        <span class="stat-label">Planned Hours</span>
-                    </div>
-                </div>
-                <div class="stat-card actual">
-                    <div class="stat-icon">🕐</div>
-                    <div class="stat-body">
-                        <span class="stat-value">{actualHoursDisplay}
-                            <template lwc:if={hoursVarianceDisplay}>
-                                <span class={hoursVarianceClass}>{hoursVarianceDisplay}</span>
-                            </template>
-                        </span>
-                        <span class="stat-label">Actual Hours</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Middle section: donut + critical jobs -->
-            <div class="dashboard-mid">
-
-                <!-- Work type donut -->
-                <div class="card donut-card">
-                    <h3 class="card-title">Work Types</h3>
-                    <template lwc:if={hasWorkTypes}>
-                        <div class="donut-wrapper">
-                            <svg viewBox="0 0 200 200" class="donut-svg" aria-label="Work type breakdown donut chart">
-                                <template for:each={donutSegments} for:item="seg">
-                                    <circle
-                                        key={seg.key}
-                                        class="donut-segment"
-                                        cx="100" cy="100" r="70"
-                                        fill="transparent"
-                                        stroke={seg.color}
-                                        stroke-width="36"
-                                        stroke-dasharray={seg.dash}
-                                        stroke-dashoffset={seg.offset}
-                                        transform="rotate(-90 100 100)"
-                                    ></circle>
-                                </template>
-                                <circle cx="100" cy="100" r="52" fill="var(--rt-surface, #131A22)"></circle>
-                                <text x="100" y="96" text-anchor="middle" class="donut-centre-value">{totalWorkOrders}</text>
-                                <text x="100" y="116" text-anchor="middle" class="donut-centre-label">Total</text>
-                            </svg>
-                            <ul class="donut-legend">
-                                <template for:each={donutSegments} for:item="seg">
-                                    <li key={seg.key} class="legend-item">
-                                        <span class="legend-dot" style={seg.dotStyle}></span>
-                                        <span class="legend-label">{seg.label}</span>
-                                        <span class="legend-count">{seg.count}</span>
-                                    </li>
-                                </template>
-                            </ul>
-                        </div>
-                    </template>
-                    <template lwc:else>
-                        <div class="empty-state">No work orders for this period</div>
-                    </template>
-                </div>
-
-                <!-- Critical jobs -->
-                <div class="card critical-card">
-                    <h3 class="card-title">🚨 Critical Jobs</h3>
-                    <template lwc:if={hasCriticalJobs}>
-                        <ul class="critical-list">
-                            <template for:each={metrics.topCriticalJobs} for:item="job">
-                                <li key={job.woNumber} class="critical-item">
-                                    <span class={job.statusIcon} title={job.statusTitle}></span>
-                                    <span class="critical-label">{job.displayLabel}</span>
-                                </li>
-                            </template>
-                        </ul>
-                    </template>
-                    <template lwc:else>
-                        <div class="empty-state">
-                            <span>✅</span>
-                            <p>No critical jobs</p>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <!-- Jobs per day -->
-            <div class="card jobsperday-card">
-                <h3 class="card-title">📊 Jobs per Day</h3>
-                <template lwc:if={hasJobsPerDay}>
-                    <svg viewBox={jpdViewBox} class="jpd-svg" preserveAspectRatio="xMidYMid meet"
-                         aria-label="Number of jobs scheduled per day">
-                        <template for:each={jpdBars} for:item="bar">
-                            <g key={bar.key}>
-                                <rect class="jpd-bar" x={bar.x} y={bar.y} width={bar.w} height={bar.h} rx="3"></rect>
-                                <template lwc:if={bar.showCount}>
-                                    <text x={bar.cx} y={bar.countY} text-anchor="middle" class="jpd-count">{bar.count}</text>
-                                </template>
-                                <template lwc:if={bar.axisLabel}>
-                                    <text x={bar.cx} y={bar.labelY} text-anchor="middle" class="jpd-axis">{bar.axisLabel}</text>
-                                </template>
-                            </g>
-                        </template>
-                    </svg>
-                </template>
-                <template lwc:else>
-                    <div class="empty-state">No jobs scheduled for this period</div>
-                </template>
-            </div>
-
-            <!-- Kiosk notes -->
-            <template lwc:if={metrics.kioskNotes}>
-                <div class="card notes-card">
-                    <h3 class="card-title">📌 Station Notes</h3>
-                    <p class="notes-text">{metrics.kioskNotes}</p>
-                </div>
-            </template>
-
-        </template>
+        <button
+          class="k-btn k-btn--secondary"
+          onclick={handleRefresh}
+          aria-label="Refresh dashboard"
+          disabled={isLoading}
+        >
+          <span class={refreshIconClass}>↻</span>
+          Refresh
+        </button>
+      </div>
     </div>
+    <template lwc:if={demoFeedback}>
+      <p class={demoFeedbackClass}>{demoFeedback}</p>
+    </template>
+
+    <!-- Date filter bar -->
+    <div class="date-bar">
+      <div class="preset-group">
+        <template for:each={datePresets} for:item="p">
+          <button
+            key={p.value}
+            class={p.cls}
+            data-preset={p.value}
+            onclick={handlePresetSelect}
+          >
+            {p.label}
+          </button>
+        </template>
+      </div>
+      <template lwc:if={showCustomPicker}>
+        <div class="custom-dates">
+          <input
+            type="date"
+            class="date-input"
+            value={dateFrom}
+            onchange={handleDateFromChange}
+            onkeydown={handleInputKeydown}
+          />
+          <span class="date-sep">–</span>
+          <input
+            type="date"
+            class="date-input"
+            value={dateTo}
+            onchange={handleDateToChange}
+            onkeydown={handleInputKeydown}
+          />
+        </div>
+      </template>
+    </div>
+
+    <template lwc:if={isLoading}>
+      <div class="dashboard-loading">
+        <div class="spinner"></div>
+        <p>Loading dashboard…</p>
+      </div>
+    </template>
+
+    <template lwc:elseif={hasError}>
+      <div class="dashboard-error">
+        <span>⚠</span>
+        <p>{errorMessage}</p>
+        <button class="k-btn k-btn--secondary" onclick={loadMetrics}>
+          Retry
+        </button>
+      </div>
+    </template>
+
+    <template lwc:else>
+      <!-- Stat cards row -->
+      <div class="stat-cards">
+        <div class="stat-card open">
+          <div class="stat-icon">📋</div>
+          <div class="stat-body">
+            <span class="stat-value">{metrics.openCount}</span>
+            <span class="stat-label">Open</span>
+          </div>
+        </div>
+        <div class="stat-card inprogress">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-body">
+            <span class="stat-value">{metrics.inProgressCount}</span>
+            <span class="stat-label">In Progress</span>
+          </div>
+        </div>
+        <div class="stat-card critical">
+          <div class="stat-icon">🚨</div>
+          <div class="stat-body">
+            <span class="stat-value">{metrics.criticalCount}</span>
+            <span class="stat-label">Critical</span>
+          </div>
+        </div>
+        <div class="stat-card planned">
+          <div class="stat-icon">⏱</div>
+          <div class="stat-body">
+            <span class="stat-value">{plannedHoursDisplay}</span>
+            <span class="stat-label">Planned Hours</span>
+          </div>
+        </div>
+        <div class="stat-card actual">
+          <div class="stat-icon">🕐</div>
+          <div class="stat-body">
+            <span class="stat-value"
+              >{actualHoursDisplay}
+              <template lwc:if={hoursVarianceDisplay}>
+                <span class={hoursVarianceClass}>{hoursVarianceDisplay}</span>
+              </template>
+            </span>
+            <span class="stat-label">Actual Hours</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Middle section: donut + critical jobs -->
+      <div class="dashboard-mid">
+        <!-- Work type donut -->
+        <div class="card donut-card">
+          <h3 class="card-title">Work Types</h3>
+          <template lwc:if={hasWorkTypes}>
+            <div class="donut-wrapper">
+              <svg
+                viewBox="0 0 200 200"
+                class="donut-svg"
+                aria-label="Work type breakdown donut chart"
+              >
+                <template for:each={donutSegments} for:item="seg">
+                  <circle
+                    key={seg.key}
+                    class="donut-segment"
+                    cx="100"
+                    cy="100"
+                    r="70"
+                    fill="transparent"
+                    stroke={seg.color}
+                    stroke-width="36"
+                    stroke-dasharray={seg.dash}
+                    stroke-dashoffset={seg.offset}
+                    transform="rotate(-90 100 100)"
+                  ></circle>
+                </template>
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="52"
+                  fill="var(--rt-surface, #131A22)"
+                ></circle>
+                <text
+                  x="100"
+                  y="96"
+                  text-anchor="middle"
+                  class="donut-centre-value"
+                >
+                  {totalWorkOrders}
+                </text>
+                <text
+                  x="100"
+                  y="116"
+                  text-anchor="middle"
+                  class="donut-centre-label"
+                >
+                  Total
+                </text>
+              </svg>
+              <ul class="donut-legend">
+                <template for:each={donutSegments} for:item="seg">
+                  <li key={seg.key} class="legend-item">
+                    <span class="legend-dot" style={seg.dotStyle}></span>
+                    <span class="legend-label">{seg.label}</span>
+                    <span class="legend-count">{seg.count}</span>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </template>
+          <template lwc:else>
+            <div class="empty-state">No work orders for this period</div>
+          </template>
+        </div>
+
+        <!-- Critical jobs -->
+        <div class="card critical-card">
+          <h3 class="card-title">🚨 Critical Jobs</h3>
+          <template lwc:if={hasCriticalJobs}>
+            <ul class="critical-list">
+              <template for:each={metrics.topCriticalJobs} for:item="job">
+                <li key={job.woNumber} class="critical-item">
+                  <span class={job.statusIcon} title={job.statusTitle}></span>
+                  <span class="critical-label">{job.displayLabel}</span>
+                </li>
+              </template>
+            </ul>
+          </template>
+          <template lwc:else>
+            <div class="empty-state">
+              <span>✅</span>
+              <p>No critical jobs</p>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Jobs per day -->
+      <div class="card jobsperday-card">
+        <h3 class="card-title">📊 Jobs per Day</h3>
+        <template lwc:if={hasJobsPerDay}>
+          <svg
+            viewBox={jpdViewBox}
+            class="jpd-svg"
+            preserveAspectRatio="xMidYMid meet"
+            aria-label="Number of jobs scheduled per day"
+          >
+            <template for:each={jpdBars} for:item="bar">
+              <g key={bar.key}>
+                <rect
+                  class="jpd-bar"
+                  x={bar.x}
+                  y={bar.y}
+                  width={bar.w}
+                  height={bar.h}
+                  rx="3"
+                ></rect>
+                <template lwc:if={bar.showCount}>
+                  <text
+                    x={bar.cx}
+                    y={bar.countY}
+                    text-anchor="middle"
+                    class="jpd-count"
+                  >
+                    {bar.count}
+                  </text>
+                </template>
+                <template lwc:if={bar.axisLabel}>
+                  <text
+                    x={bar.cx}
+                    y={bar.labelY}
+                    text-anchor="middle"
+                    class="jpd-axis"
+                  >
+                    {bar.axisLabel}
+                  </text>
+                </template>
+              </g>
+            </template>
+          </svg>
+        </template>
+        <template lwc:else>
+          <div class="empty-state">No jobs scheduled for this period</div>
+        </template>
+      </div>
+
+      <!-- Kiosk notes -->
+      <template lwc:if={metrics.kioskNotes}>
+        <div class="card notes-card">
+          <h3 class="card-title">📌 Station Notes</h3>
+          <p class="notes-text">{metrics.kioskNotes}</p>
+        </div>
+      </template>
+    </template>
+  </div>
 </template>

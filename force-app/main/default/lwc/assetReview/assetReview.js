@@ -154,6 +154,18 @@ const PAD_L = 48;
 const PAD_R = 16;
 const PAD_T = 24;
 const PAD_B = 36;
+// One formatter for every card date: toLocaleString(locale, options) builds a new
+// Intl formatter per call, which is slow on iPad with a few hundred measures.
+const DATE_FMT = new Intl.DateTimeFormat("en-AU", {
+  day: "2-digit",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
+// Same inputs as last time (by reference) -> reuse the cached result.
+const sameKey = (a, b) =>
+  !!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]);
 
 export default class AssetReview extends LightningElement {
   @api workOrderId;
@@ -1181,6 +1193,12 @@ export default class AssetReview extends LightningElement {
     }
   }
 
+  handleCloseAddPart() {
+    this.showAddPart = false;
+    this.selectedAddProductId = "";
+    this.partActionError = "";
+  }
+
   handleAddProductChange(evt) {
     this.selectedAddProductId = evt.target.value;
   }
@@ -1365,35 +1383,47 @@ export default class AssetReview extends LightningElement {
     if (!p) return;
     // Outcome and reading are independent: an outcome tap keeps the reading and
     // its value type, and typing a reading keeps the outcome already chosen.
+    const req = {
+      id: p.id,
+      componentName: p.componentName,
+      measureType: measureType || p.measureType || "Measure",
+      comments: p.comments,
+      reviewNotes: p.reviewNotes,
+      measureValue:
+        valueOverride !== undefined ? valueOverride : p.measureValue,
+      measureValueType: p.measureValueType || null,
+      defectLocation: p.defectLocation || null,
+      workOrderId: p.workOrderId || this.workOrderId,
+      assetId: p.assetId || null
+    };
+    // Show the change at once; the server round trip used to delay the tap.
+    // A per-point sequence drops replies that a newer tap has overtaken.
+    this._outcomeSeq = this._outcomeSeq || {};
+    const seq = (this._outcomeSeq[id] || 0) + 1;
+    this._outcomeSeq[id] = seq;
+    this._replacePoint({
+      ...p,
+      measureType: req.measureType,
+      measureValue: req.measureValue
+    });
     try {
-      const req = {
-        id: p.id,
-        componentName: p.componentName,
-        measureType: measureType || p.measureType || "Measure",
-        comments: p.comments,
-        reviewNotes: p.reviewNotes,
-        measureValue:
-          valueOverride !== undefined ? valueOverride : p.measureValue,
-        measureValueType: p.measureValueType || null,
-        defectLocation: p.defectLocation || null,
-        workOrderId: p.workOrderId || this.workOrderId,
-        assetId: p.assetId || null
-      };
       const saved = await saveMeasurePoint({
         token: this.sessionToken,
         reqJson: JSON.stringify(req)
       });
       this._notifyDataUpdate();
-      this.wheelsetPoints = this.wheelsetPoints.map((x) => {
-        return x.id === saved.id ? saved : x;
-      });
-      this.allPoints = this.allPoints.map((x) => {
-        return x.id === saved.id ? saved : x;
-      });
-      this._recomputeWheelsetStatus();
+      if (this._outcomeSeq[id] === seq) this._replacePoint(saved);
     } catch {
+      if (this._outcomeSeq[id] === seq) this._replacePoint(p);
       this._measureFb("Could not save outcome. Try again.", true);
     }
+  }
+
+  _replacePoint(pt) {
+    const swap = (x) => (x.id === pt.id ? pt : x);
+    this.wheelsetPoints = this.wheelsetPoints.map(swap);
+    this.allPoints = this.allPoints.map(swap);
+    this._recomputeWheelsetStatus();
   }
 
   // ─── Measure side panel (Document / Trend) ──────────────────────────────
@@ -1425,11 +1455,8 @@ export default class AssetReview extends LightningElement {
     const id = card.dataset.pointId;
     if (!id || id === this.sidePointId) return;
     this.sidePointId = id;
-    if (this.sideMode === "doc") {
-      // Pane already rendered: update it now instead of waiting for the next render.
-      if (this.template.querySelector("c-kiosk-pdf-pane")) this._showInPane();
-      else this._pendingShow = true;
-    }
+    // renderedCallback shows it once the pane is visible at its real width.
+    if (this.sideMode === "doc") this._pendingShow = true;
   }
 
   // Uses sidePoint (falls back to the first measure) so Document mode shows a page
@@ -1494,6 +1521,20 @@ export default class AssetReview extends LightningElement {
   }
   get sidePointHasDoc() {
     return !!(this.sidePoint && this.sidePoint.sourceDocumentId);
+  }
+  get sidePointNoDoc() {
+    return !this.sidePointHasDoc;
+  }
+  // File name of the PDF on screen (ContentDocument.Title from the DTO).
+  get sideDocTitle() {
+    const p = this.sidePoint;
+    if (!p || !p.sourceDocumentId) return "";
+    return p.sourceDocumentTitle || "Source document";
+  }
+  // The pane stays mounted while Document mode is on: destroying it reloaded
+  // the PDF viewer and re-downloaded the file on every no-document measure.
+  get sidePaneCls() {
+    return "mz-pane-slot" + (this.sidePointHasDoc ? "" : " mz-hidden");
   }
   get trendRows() {
     const p = this.sidePoint;
@@ -2340,6 +2381,22 @@ export default class AssetReview extends LightningElement {
   // Measures shown on the Measure tab. Many PDF-extracted points have no Asset__c,
   // so they are matched through their work order instead of the asset.
   get measureSource() {
+    const key = [
+      this.selectedFilterWoId,
+      this.workOrderId,
+      this.selectedChildId,
+      this.selectedWheelsetId,
+      this.allPoints,
+      this.wheelsetPoints,
+      this.woRows
+    ];
+    if (sameKey(key, this._msKey)) return this._msVal;
+    this._msKey = key;
+    this._msVal = this._computeMeasureSource();
+    return this._msVal;
+  }
+
+  _computeMeasureSource() {
     const wo = this.selectedFilterWoId;
     if (wo && wo !== this.workOrderId) {
       return this.allPoints.filter((p) => p.workOrderId === wo);
@@ -2367,7 +2424,10 @@ export default class AssetReview extends LightningElement {
   // ─── Derived: enriched measure point cards ───────────────────────────────
   get enrichedPoints() {
     const points = this.measureSource;
-    return points.map((p) => {
+    const key = [points, this.measureImages, this.sidePointId];
+    if (sameKey(key, this._epKey)) return this._epVal;
+    this._epKey = key;
+    this._epVal = points.map((p) => {
       let typeClass = "ok";
       if (p.measureType === "Attention Required") typeClass = "attention";
       else if (p.measureType === "Scrap") typeClass = "scrap";
@@ -2398,12 +2458,21 @@ export default class AssetReview extends LightningElement {
         hasImage: !!imageUri
       };
     });
+    return this._epVal;
   }
 
   get pointGroups() {
+    const pts = this.enrichedPoints;
+    if (pts === this._pgKey) return this._pgVal;
+    this._pgKey = pts;
+    this._pgVal = this._computePointGroups(pts);
+    return this._pgVal;
+  }
+
+  _computePointGroups(pts) {
     const groups = [];
     const byKey = {};
-    this.enrichedPoints.forEach((p) => {
+    pts.forEach((p) => {
       const parts = [];
       if (p.pageNumber) parts.push("Page " + p.pageNumber);
       if (p.tableName) parts.push(p.tableName);
@@ -2550,6 +2619,15 @@ export default class AssetReview extends LightningElement {
       : this.editId
         ? "Update Measure"
         : "Add Measure";
+  }
+  get measureDrawerTitle() {
+    return this.editId ? "Edit measure" : "New measure";
+  }
+  get taskDrawerTitle() {
+    return this.taskEditId ? "Edit task" : "New task";
+  }
+  get addPartSaveLabel() {
+    return this.consuming ? "Adding…" : "Add part";
   }
   get taskSaveLabel() {
     if (this.isSavingTask) return "Saving…";
@@ -2930,14 +3008,7 @@ export default class AssetReview extends LightningElement {
   _formatDate(isoStr) {
     if (!isoStr) return "";
     try {
-      const d = new Date(isoStr);
-      return d.toLocaleString("en-AU", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      });
+      return DATE_FMT.format(new Date(isoStr));
     } catch {
       return isoStr;
     }

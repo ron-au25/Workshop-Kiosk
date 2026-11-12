@@ -1,3 +1,5 @@
+@import "c/kioskUi";
+
 /* ─── Host / shell ───────────────────────────────────────────────────────── */
 :host {
   display: flex;
@@ -22,24 +24,6 @@
   gap: 16px;
   margin-bottom: 16px;
   flex-wrap: wrap;
-}
-
-.ar-back-btn {
-  background: var(--rt-surface-2, #1b2530);
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 10px;
-  color: var(--rt-accent-2, #2e8fe6);
-  font-size: 18px;
-  font-weight: 600;
-  min-height: 48px;
-  padding: 0 20px;
-  cursor: pointer;
-  transition: background 0.12s;
-  font-family: inherit;
-  white-space: nowrap;
-}
-.ar-back-btn:hover {
-  background: var(--rt-surface-3, #243040);
 }
 
 .ar-topbar-info {
@@ -403,35 +387,6 @@
   letter-spacing: 0.06em;
 }
 
-/* ─── Add button ─────────────────────────────────────────────────────────── */
-.btn-add-entry {
-  margin-left: auto;
-  background: var(--rt-accent, #e25822);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  height: 40px;
-  padding: 0 16px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  font-family: inherit;
-  white-space: nowrap;
-}
-.btn-add-entry:hover {
-  opacity: 0.88;
-}
-
-/* ─── Entry form (shared with workExecution patterns) ────────────────────── */
-.entry-form {
-  padding: 16px;
-  border-bottom: 1px solid var(--rt-border, #2a3744);
-  background: var(--rt-surface, #131a22);
-  display: flex;
-  flex-direction: column;
-}
-
 .form-group {
   display: flex;
   flex-direction: column;
@@ -628,43 +583,6 @@
   gap: 12px;
   margin-top: 4px;
 }
-.btn-cancel {
-  flex: 0 0 auto;
-  background: var(--rt-surface, #131a22);
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 10px;
-  color: var(--rt-text-muted, #a6b2bd);
-  font-size: 15px;
-  font-weight: 600;
-  height: 48px;
-  padding: 0 20px;
-  cursor: pointer;
-  transition: background 0.12s;
-  font-family: inherit;
-}
-.btn-cancel:hover {
-  background: var(--rt-surface-3, #243040);
-}
-.btn-save-entry {
-  flex: 1;
-  background: var(--rt-accent, #e25822);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  height: 48px;
-  cursor: pointer;
-  transition: opacity 0.15s;
-  font-family: inherit;
-}
-.btn-save-entry:hover:not(:disabled) {
-  opacity: 0.88;
-}
-.btn-save-entry:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
 
 .form-feedback {
   font-size: 14px;
@@ -738,23 +656,7 @@ span.ok .type-badge {
   gap: 6px;
   margin-left: auto;
 }
-.icon-btn {
-  background: none;
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background 0.12s;
-  font-family: inherit;
-}
-.icon-btn:hover {
-  background: var(--rt-surface-3, #243040);
-}
+
 .ok-btn {
   color: var(--rt-success, #21c07a);
   border-color: rgba(33, 192, 122, 0.3);
@@ -889,20 +791,6 @@ span.ok .type-badge {
 .wo-filter-text {
   font-size: 13px;
   color: var(--rt-text, #f2f5f7);
-}
-.wo-filter-clear {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid var(--rt-accent-2, #2e8fe6);
-  color: var(--rt-accent-2, #2e8fe6);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.wo-filter-clear:hover {
-  background: rgba(46, 143, 230, 0.14);
 }
 
 /* WO reference chips on measure cards + work plan headers */
@@ -1042,23 +930,6 @@ span.ok .type-badge {
 .ar-hint p {
   margin: 0;
   line-height: 1.5;
-}
-
-/* ─── Shared ─────────────────────────────────────────────────────────────── */
-.btn-secondary {
-  background: var(--rt-surface-2, #1b2530);
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 8px;
-  color: var(--rt-text, #f2f5f7);
-  font-size: 17px;
-  min-height: 52px;
-  padding: 0 28px;
-  cursor: pointer;
-  transition: background 0.15s;
-  font-family: inherit;
-}
-.btn-secondary:hover {
-  background: var(--rt-surface-3, #243040);
 }
 
 .spinner {
@@ -1277,41 +1148,6 @@ span.ok .type-badge {
   font-weight: 800;
 }
 
-/* Mark-step-complete button */
-.ar-step-complete-btn {
-  flex: 0 0 auto;
-  background: transparent;
-  border: 1px solid var(--rt-accent-2, #2e8fe6);
-  color: var(--rt-accent-2, #2e8fe6);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.ar-step-complete-btn:hover {
-  background: rgba(46, 143, 230, 0.12);
-  border-color: var(--rt-accent-2, #2e8fe6);
-}
-/* Action steps (linked flow) — solid accent to read as the primary tap target. */
-.ar-step-action-btn {
-  flex: 0 0 auto;
-  background: var(--rt-accent-2, #2e8fe6);
-  border: 1px solid var(--rt-accent-2, #2e8fe6);
-  color: #fff;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.ar-step-action-btn:hover {
-  filter: brightness(1.08);
-}
 .ar-plan-error {
   color: var(--rt-danger, #e5484d);
   font-size: 13px;
@@ -1360,53 +1196,8 @@ span.ok .type-badge {
   text-align: right;
 }
 
-.ar-consume-btn {
-  background: transparent;
-  border: 1px solid var(--rt-accent-2, #2e8fe6);
-  color: var(--rt-accent-2, #2e8fe6);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.ar-consume-btn:hover:not(:disabled) {
-  background: rgba(46, 143, 230, 0.12);
-}
-.ar-consume-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .ar-addpart {
   margin-top: 12px;
-}
-.ar-addpart-toggle {
-  background: transparent;
-  border: 1px dashed var(--rt-border, #2a3744);
-  color: var(--rt-text-muted, #a6b2bd);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  width: 100%;
-}
-.ar-addpart-toggle:hover {
-  border-color: var(--rt-accent-2, #2e8fe6);
-  color: var(--rt-accent-2, #2e8fe6);
-}
-.ar-addpart-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-  align-items: center;
-}
-.ar-addpart-row .form-select {
-  flex: 1;
 }
 
 /* ─── v6 workspace: WO list + tabs ─── */
@@ -1476,9 +1267,6 @@ span.ok .type-badge {
 }
 .wl-rail-btn.wp {
   color: #a78bfa;
-}
-.wl-rail-btn.raise {
-  color: var(--rt-accent, #e25822);
 }
 .wl-chips {
   display: flex;
@@ -1636,21 +1424,8 @@ span.ok .type-badge {
 }
 .aw-info {
   margin-left: auto;
-  min-height: 44px;
-  min-width: 44px;
-  border-radius: 22px;
-  border: 1px solid var(--rt-border, #2a3744);
-  background: transparent;
-  color: var(--rt-accent-2, #2e8fe6);
-  font-size: 18px;
-  cursor: pointer;
 }
-.aw-drawer {
-  background: var(--rt-surface, #131a22);
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 12px;
-  padding: 12px;
-}
+
 .aw-wo-title {
   display: flex;
   align-items: center;
@@ -1717,28 +1492,7 @@ span.ok .type-badge {
   max-height: 260px;
   overflow-y: auto;
 }
-.raise-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.raise-modal {
-  width: min(560px, 94vw);
-  max-height: 92vh;
-  overflow-y: auto;
-  background: var(--rt-surface, #131a22);
-  border: 1px solid var(--rt-border, #2a3744);
-  border-radius: 16px;
-  padding: 18px;
-}
-.raise-title {
-  margin: 0 0 12px;
-  color: var(--rt-text, #f2f5f7);
-}
+
 @media (max-width: 1100px) {
   .ar-split {
     grid-template-columns: 280px minmax(0, 1fr);
@@ -1980,12 +1734,7 @@ span.ok .type-badge {
   display: flex;
   gap: 6px;
 }
-.dr-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
+
 .dr-fb {
   font-size: 13px;
   color: #21c07a;
@@ -2065,14 +1814,7 @@ span.ok .type-badge {
   align-self: center;
   margin-right: 4px;
 }
-.wl-raise-top {
-  background: var(--rt-accent, #e25822);
-  color: #fff;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-weight: 700;
-  min-height: 40px;
-}
+
 .aw-tabs {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2164,14 +1906,6 @@ span.ok .type-badge {
   font-size: 15px;
   font-weight: 700;
   color: var(--rt-text, #f2f5f7);
-  white-space: nowrap;
-}
-.aw-info {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0 16px;
-  border-radius: 10px;
-  color: var(--rt-text-muted, #a6b2bd);
   white-space: nowrap;
 }
 
@@ -2376,12 +2110,7 @@ span.ok .type-badge {
   font-size: 17px;
   white-space: nowrap;
 }
-.wl-raise-top {
-  white-space: nowrap;
-  font-size: 14px;
-  border: 0;
-  cursor: pointer;
-}
+
 .wl-body {
   max-height: 120vh;
   padding: 10px;
@@ -2516,9 +2245,6 @@ span.ok .type-badge {
   font-weight: 700;
   color: var(--rt-text-muted, #a6b2bd);
 }
-.wl-rowwrap .edit-btn {
-  align-self: center;
-}
 
 /* WO header card + next step banner */
 .aw-wo {
@@ -2562,18 +2288,6 @@ span.ok .type-badge {
 .aw-next-v {
   font-size: 18px;
   font-weight: 700;
-}
-.aw-next-btn {
-  min-height: 48px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--rt-accent, #e25822);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
 }
 
 /* Tab cards with icon + subtitle */
@@ -2750,59 +2464,50 @@ span.ok .type-badge {
   outline: 2px solid var(--rt-accent, #e25822);
   outline-offset: -1px;
 }
-.mz-side c-kiosk-pdf-pane {
-  display: block;
-  height: 72vh;
+/* List and side panel share one fixed height so their edges line up; each
+   scrolls inside itself. */
+.mz-wrap.with-side {
+  height: calc(72vh + 48px);
+  align-items: stretch;
 }
-.aw-scrim {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 9000;
-}
-.aw-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 500px;
-  max-width: 92vw;
-  z-index: 9001;
-  background: var(--rt-surface, #131a22);
-  border: 0;
-  border-left: 1px solid var(--rt-border, #2a3744);
-  border-radius: 0;
-  padding: 22px;
-  overflow: auto;
+.mz-wrap.with-side > .points-list {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
   box-sizing: border-box;
 }
-.aw-drawer-h {
+.mz-wrap.with-side > .mz-side {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 6px;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  position: static;
+  overflow-y: auto;
 }
-.aw-drawer-t {
+.mz-wrap.with-side > .mz-side-doc {
+  overflow: hidden;
+}
+.mz-side-doc-name {
+  margin: -2px 0 6px;
+  font-size: 13px;
+  color: var(--rt-text-muted, #8a97a6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mz-pane-slot {
   flex: 1;
-  min-width: 0;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--rt-text, #f2f5f7);
+  min-height: 0;
 }
-.aw-drawer-x {
-  min-width: 44px;
-  min-height: 44px;
-  background: transparent;
-  border: 0;
-  font-size: 22px;
-  color: var(--rt-text-muted, #a6b2bd);
-  cursor: pointer;
+.mz-pane-slot c-kiosk-pdf-pane {
+  display: block;
+  height: 100%;
 }
-.aw-drawer-sub {
-  color: var(--rt-text-muted, #a6b2bd);
-  font-size: 14px;
-  margin-bottom: 16px;
+.mz-hidden {
+  display: none;
 }
+
 .aw-drawer .overview-grid {
   display: flex;
   flex-direction: column;
@@ -2832,33 +2537,10 @@ span.ok .type-badge {
   width: 100%;
   box-sizing: border-box;
 }
-.aw-drawer-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
 
 /* v3.7: long WO list must scroll, not squash cards */
 .wl-body > * {
   flex-shrink: 0;
-}
-
-/* v3.8: measure/task forms open as a right-side drawer */
-.entry-form.aw-form-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 540px;
-  max-width: 94vw;
-  z-index: 9001;
-  padding: 22px;
-  overflow-y: auto;
-  box-sizing: border-box;
-  border: 0;
-  border-left: 1px solid var(--rt-border, #2a3744);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
 }
 
 /* WO card: edit pencil lives inside the card, left of the progress ring */
@@ -2868,16 +2550,11 @@ span.ok .type-badge {
 .wl-rowwrap .edit-btn {
   position: absolute;
   top: 4px;
-  right: 62px;
-  width: 30px;
-  height: 30px;
-  min-width: 0;
-  min-height: 0;
-  padding: 0;
-  font-size: 14px;
-  background: transparent;
-  border: 0;
-  align-self: auto;
+  right: 58px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  font-size: 16px;
 }
 
 /* Selected WO header: single top line only */

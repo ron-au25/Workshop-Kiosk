@@ -2,5 +2,5 @@
 <StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
     <cacheControl>Public</cacheControl>
     <contentType>application/zip</contentType>
-    <description>Workshop Kiosk: PDF.js iframe host (index.html + imagetext.js) used by kioskPdfPane. Vendored from the Digital Checklist project; kiosk-owned name.</description>
+    <description>Workshop Kiosk: PDF.js iframe host (index.html) used by kioskPdfPane. Vendored from the Digital Checklist project; kiosk-owned name.</description>
 </StaticResource>

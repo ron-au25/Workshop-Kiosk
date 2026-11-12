@@ -38,7 +38,7 @@
         +
       </button>
     </div>
-    <div class="pane-scroll">
+    <div class="pane-scroll" onscroll={handleUserScroll}>
       <div class="stage" style={stageStyle}>
         <iframe class="frame" src={iframeSrc} title="Workpack PDF"></iframe>
         <div if:true={showBox} class="hl" style={boxStyle}></div>

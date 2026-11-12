@@ -149,7 +149,7 @@
   min-height: 36px;
   padding: 0 14px;
   border-radius: 16px;
-  background: var(--rt-accent, #e25822);
+  background: var(--rt-btn-primary, #a9502d);
   color: #fff;
   font-size: 15px;
   font-weight: 700;

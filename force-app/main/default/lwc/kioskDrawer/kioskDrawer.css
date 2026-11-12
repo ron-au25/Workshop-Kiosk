@@ -1,0 +1,87 @@
+/* No open/close animation on purpose: headless Chrome in the screenshot
+   harness (.sfdx/arh) freezes keyframes, so drawers would never appear. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9101;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 540px;
+  max-width: 94vw;
+  background: var(--rt-surface, #131a22);
+  color: var(--rt-text, #f2f5f7);
+  border-left: 1px solid var(--rt-border, #2a3744);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+}
+.panel-lg {
+  width: 720px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 16px 14px 22px;
+  border-bottom: 1px solid var(--rt-border, #2a3744);
+}
+.titles {
+  flex: 1;
+  min-width: 0;
+}
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--rt-text, #f2f5f7);
+  overflow-wrap: anywhere;
+}
+.sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--rt-text-muted, #a6b2bd);
+}
+.close {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rt-text-muted, #a6b2bd);
+  font-family: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+.close:hover {
+  background: var(--rt-surface-2, #1b2530);
+  color: var(--rt-text, #f2f5f7);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 22px;
+}
+
+.foot {
+  display: flex;
+  padding: 14px 22px;
+  border-top: 1px solid var(--rt-border, #2a3744);
+  background: var(--rt-surface, #131a22);
+}
+.foot-empty {
+  display: none;
+}

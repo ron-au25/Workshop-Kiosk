@@ -1,269 +1,321 @@
 <template>
-    <div class="we-wrapper">
+  <div class="we-wrapper">
+    <!-- Top bar -->
+    <div class="we-topbar">
+      <button
+        class="k-btn k-btn--secondary k-btn--sm we-back-btn"
+        onclick={handleBack}
+        aria-label="Back to work order"
+      >
+        ‹ Work Order
+      </button>
+      <h2 class="we-title">Work Execution</h2>
+    </div>
 
-        <!-- Top bar -->
-        <div class="we-topbar">
-            <button class="we-back-btn" onclick={handleBack} aria-label="Back to work order">
-                ‹ Work Order
-            </button>
-            <h2 class="we-title">Work Execution</h2>
+    <!-- Loading -->
+    <template lwc:if={isLoading}>
+      <div class="we-center">
+        <div class="spinner"></div>
+        <p>Loading…</p>
+      </div>
+    </template>
+
+    <!-- Error -->
+    <template lwc:elseif={hasError}>
+      <div class="we-center">
+        <span class="we-error-icon">⚠</span>
+        <p>Failed to load data. Check your connection.</p>
+        <button class="k-btn k-btn--secondary" onclick={loadAll}>Retry</button>
+      </div>
+    </template>
+
+    <!-- Main body -->
+    <template lwc:else>
+      <div class="we-body" data-id="weBody">
+        <!-- ─── LEFT: PDF annotator ─── -->
+        <div class="we-left" style={leftStyle}>
+          <div class="we-panel we-panel-left">
+            <!-- Document tabs header -->
+            <div class="we-panel-header">
+              <span class="we-panel-title">Documents</span>
+              <template lwc:if={hasMultipleAttachments}>
+                <div class="att-tabs">
+                  <template for:each={enrichedAttachments} for:item="att">
+                    <button
+                      key={att.contentDocumentId}
+                      class={att.btnClass}
+                      data-idx={att.idx}
+                      onclick={handleSelectAttachment}
+                      title={att.title}
+                    >
+                      {att.title}
+                    </button>
+                  </template>
+                </div>
+              </template>
+              <template lwc:elseif={hasAttachments}>
+                <span class="att-single-name">{selectedAttachment.title}</span>
+              </template>
+            </div>
+
+            <template lwc:if={hasSelectedAttachmentContent}>
+              <div class="pdf-annotator-container">
+                <c-pdf-annotator
+                  pdf-url={selectedAttachmentUrl}
+                  work-order-id={attachmentOwnerWorkOrderId}
+                  session-token={sessionToken}
+                  file-name={selectedAttachment.title}
+                  onsaved={handleAnnotationSaved}
+                ></c-pdf-annotator>
+              </div>
+            </template>
+            <template lwc:elseif={contentLoading}>
+              <div class="we-center">
+                <div class="spinner"></div>
+                <p>Loading document…</p>
+              </div>
+            </template>
+            <template lwc:elseif={isSelectedTooLarge}>
+              <div class="we-center">
+                <span class="we-empty-icon">📄</span>
+                <p>This document is too large to annotate here.</p>
+                <button
+                  class="k-btn k-btn--nav"
+                  onclick={handleOpenFullDocument}
+                >
+                  Open full document ↗
+                </button>
+              </div>
+            </template>
+            <template lwc:elseif={hasContentError}>
+              <div class="we-center">
+                <span class="we-error-icon">⚠</span>
+                <p>{contentErrorMsg}</p>
+              </div>
+            </template>
+            <template lwc:else>
+              <div class="we-empty">
+                <span class="we-empty-icon">📄</span>
+                <p>No documents attached to this work order</p>
+              </div>
+            </template>
+          </div>
         </div>
 
-        <!-- Loading -->
-        <template lwc:if={isLoading}>
-            <div class="we-center">
-                <div class="spinner"></div>
-                <p>Loading…</p>
-            </div>
-        </template>
+        <!-- ─── Drag divider ─── -->
+        <div
+          class="we-divider"
+          data-id="divider"
+          onmousedown={handleDividerMouseDown}
+          ontouchstart={handleDividerTouchStart}
+        >
+          <div class="divider-handle"></div>
+        </div>
 
-        <!-- Error -->
-        <template lwc:elseif={hasError}>
-            <div class="we-center">
-                <span class="we-error-icon">⚠</span>
-                <p>Failed to load data. Check your connection.</p>
-                <button class="btn-secondary" onclick={loadAll}>Retry</button>
-            </div>
-        </template>
+        <!-- ─── RIGHT: Inspection entries ─── -->
+        <div class="we-right" style={rightStyle}>
+          <!-- Collapse toggle tab on left edge of right panel -->
+          <button
+            class="panel-collapse-btn"
+            onclick={handleToggleRight}
+            title={collapseTitle}
+          >
+            {collapseIcon}
+          </button>
 
-        <!-- Main body -->
-        <template lwc:else>
-            <div class="we-body" data-id="weBody">
+          <template lwc:if={rightVisible}>
+            <div class="we-panel we-panel-right">
+              <div class="we-panel-header">
+                <span class="we-panel-title">Inspection Entries</span>
+                <button
+                  class="k-btn k-btn--form k-btn--sm"
+                  onclick={handleAddEntry}
+                >
+                  ＋ Add entry
+                </button>
+              </div>
 
-                <!-- ─── LEFT: PDF annotator ─── -->
-                <div class="we-left" style={leftStyle}>
-                    <div class="we-panel we-panel-left">
+              <!-- Add / Edit Form -->
+              <template lwc:if={showForm}>
+                <c-kiosk-drawer heading={formTitle} onclose={handleFormCancel}>
+                  <div class="form-group">
+                    <label class="form-label">Component Name</label>
+                    <input
+                      type="text"
+                      class="form-input large"
+                      placeholder="e.g. Brake Pad, Wheel Bearing…"
+                      value={editComponentName}
+                      oninput={handleComponentNameChange}
+                      onkeydown={handleInputKeydown}
+                    />
+                  </div>
 
-                        <!-- Document tabs header -->
-                        <div class="we-panel-header">
-                            <span class="we-panel-title">Documents</span>
-                            <template lwc:if={hasMultipleAttachments}>
-                                <div class="att-tabs">
-                                    <template for:each={enrichedAttachments} for:item="att">
-                                        <button
-                                            key={att.contentDocumentId}
-                                            class={att.btnClass}
-                                            data-idx={att.idx}
-                                            onclick={handleSelectAttachment}
-                                            title={att.title}
-                                        >{att.title}</button>
-                                    </template>
-                                </div>
-                            </template>
-                            <template lwc:elseif={hasAttachments}>
-                                <span class="att-single-name">{selectedAttachment.title}</span>
-                            </template>
-                        </div>
-
-                        <template lwc:if={hasSelectedAttachmentContent}>
-                            <div class="pdf-annotator-container">
-                                <c-pdf-annotator
-                                    pdf-url={selectedAttachmentUrl}
-                                    work-order-id={attachmentOwnerWorkOrderId}
-                                    session-token={sessionToken}
-                                    file-name={selectedAttachment.title}
-                                    onsaved={handleAnnotationSaved}
-                                ></c-pdf-annotator>
-                            </div>
-                        </template>
-                        <template lwc:elseif={contentLoading}>
-                            <div class="we-center">
-                                <div class="spinner"></div>
-                                <p>Loading document…</p>
-                            </div>
-                        </template>
-                        <template lwc:elseif={isSelectedTooLarge}>
-                            <div class="we-center">
-                                <span class="we-empty-icon">📄</span>
-                                <p>This document is too large to annotate here.</p>
-                                <button class="btn-secondary" onclick={handleOpenFullDocument}>
-                                    Open full document
-                                </button>
-                            </div>
-                        </template>
-                        <template lwc:elseif={hasContentError}>
-                            <div class="we-center">
-                                <span class="we-error-icon">⚠</span>
-                                <p>{contentErrorMsg}</p>
-                            </div>
-                        </template>
-                        <template lwc:else>
-                            <div class="we-empty">
-                                <span class="we-empty-icon">📄</span>
-                                <p>No documents attached to this work order</p>
-                            </div>
-                        </template>
-
+                  <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <div class="seg-control">
+                      <template for:each={measureTypeOptions} for:item="opt">
+                        <button
+                          key={opt.value}
+                          class="seg-btn"
+                          data-type={opt.value}
+                          data-selected={opt.isSelected}
+                          onclick={handleMeasureTypeSelect}
+                        >
+                          {opt.label}
+                        </button>
+                      </template>
                     </div>
-                </div>
+                  </div>
 
-                <!-- ─── Drag divider ─── -->
-                <div class="we-divider"
-                    data-id="divider"
-                    onmousedown={handleDividerMouseDown}
-                    ontouchstart={handleDividerTouchStart}>
-                    <div class="divider-handle"></div>
-                </div>
+                  <template lwc:if={showValueFields}>
+                    <div class="form-row-2">
+                      <div class="form-group">
+                        <label class="form-label">Value</label>
+                        <input
+                          type="number"
+                          class="form-input"
+                          placeholder="0.0"
+                          value={editMeasureValue}
+                          oninput={handleMeasureValueChange}
+                          onkeydown={handleInputKeydown}
+                          step="any"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label">Value Type</label>
+                        <select
+                          class="form-select"
+                          onchange={handleMeasureValueTypeChange}
+                          onkeydown={handleInputKeydown}
+                        >
+                          <template for:each={valueTypeOptions} for:item="vt">
+                            <option
+                              key={vt.value}
+                              value={vt.value}
+                              selected={vt.isSelected}
+                            >
+                              {vt.label}
+                            </option>
+                          </template>
+                        </select>
+                      </div>
+                    </div>
+                  </template>
 
-                <!-- ─── RIGHT: Inspection entries ─── -->
-                <div class="we-right" style={rightStyle}>
+                  <div class="form-group">
+                    <label class="form-label">Comments</label>
+                    <textarea
+                      class="form-textarea"
+                      rows="3"
+                      placeholder="Observations, findings…"
+                      value={editComments}
+                      oninput={handleCommentsChange}
+                      onkeydown={handleInputKeydown}
+                    ></textarea>
+                  </div>
 
-                    <!-- Collapse toggle tab on left edge of right panel -->
-                    <button class="panel-collapse-btn" onclick={handleToggleRight} title={collapseTitle}>
-                        {collapseIcon}
+                  <div class="form-group">
+                    <label class="form-label"
+                      >Review Notes
+                      <span class="optional">(optional)</span></label
+                    >
+                    <textarea
+                      class="form-textarea"
+                      rows="2"
+                      placeholder="Notes for supervisor review…"
+                      value={editReviewNotes}
+                      oninput={handleReviewNotesChange}
+                      onkeydown={handleInputKeydown}
+                    ></textarea>
+                  </div>
+
+                  <template lwc:if={saveFeedback}>
+                    <p class={saveFeedbackClass}>{saveFeedback}</p>
+                  </template>
+
+                  <div slot="footer" class="k-drawer-actions">
+                    <button
+                      class="k-btn k-btn--secondary"
+                      onclick={handleFormCancel}
+                    >
+                      Cancel
                     </button>
+                    <button
+                      class="k-btn k-btn--primary"
+                      onclick={handleFormSave}
+                      disabled={isSaving}
+                    >
+                      {saveBtnLabel}
+                    </button>
+                  </div>
+                </c-kiosk-drawer>
+              </template>
 
-                    <template lwc:if={rightVisible}>
-                        <div class="we-panel we-panel-right">
-                            <div class="we-panel-header">
-                                <span class="we-panel-title">Inspection Entries</span>
-                                <button class="btn-add-entry" onclick={handleAddEntry}>+ Add Entry</button>
-                            </div>
-
-                            <!-- Add / Edit Form -->
-                            <template lwc:if={showForm}>
-                                <div class="entry-form">
-
-                                    <div class="form-group">
-                                        <label class="form-label">Component Name</label>
-                                        <input
-                                            type="text"
-                                            class="form-input large"
-                                            placeholder="e.g. Brake Pad, Wheel Bearing…"
-                                            value={editComponentName}
-                                            oninput={handleComponentNameChange}
-                                            onkeydown={handleInputKeydown}
-                                        />
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Type</label>
-                                        <div class="seg-control">
-                                            <template for:each={measureTypeOptions} for:item="opt">
-                                                <button
-                                                    key={opt.value}
-                                                    class="seg-btn"
-                                                    data-type={opt.value}
-                                                    data-selected={opt.isSelected}
-                                                    onclick={handleMeasureTypeSelect}
-                                                >{opt.label}</button>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <template lwc:if={showValueFields}>
-                                        <div class="form-row-2">
-                                            <div class="form-group">
-                                                <label class="form-label">Value</label>
-                                                <input
-                                                    type="number"
-                                                    class="form-input"
-                                                    placeholder="0.0"
-                                                    value={editMeasureValue}
-                                                    oninput={handleMeasureValueChange}
-                                                    onkeydown={handleInputKeydown}
-                                                    step="any"
-                                                />
-                                            </div>
-                                            <div class="form-group">
-                                                <label class="form-label">Value Type</label>
-                                                <select
-                                                    class="form-select"
-                                                    onchange={handleMeasureValueTypeChange}
-                                                    onkeydown={handleInputKeydown}
-                                                >
-                                                    <template for:each={valueTypeOptions} for:item="vt">
-                                                        <option key={vt.value} value={vt.value} selected={vt.isSelected}>{vt.label}</option>
-                                                    </template>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </template>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Comments</label>
-                                        <textarea
-                                            class="form-textarea"
-                                            rows="3"
-                                            placeholder="Observations, findings…"
-                                            value={editComments}
-                                            oninput={handleCommentsChange}
-                                            onkeydown={handleInputKeydown}
-                                        ></textarea>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Review Notes <span class="optional">(optional)</span></label>
-                                        <textarea
-                                            class="form-textarea"
-                                            rows="2"
-                                            placeholder="Notes for supervisor review…"
-                                            value={editReviewNotes}
-                                            oninput={handleReviewNotesChange}
-                                            onkeydown={handleInputKeydown}
-                                        ></textarea>
-                                    </div>
-
-                                    <template lwc:if={saveFeedback}>
-                                        <p class={saveFeedbackClass}>{saveFeedback}</p>
-                                    </template>
-
-                                    <div class="form-actions">
-                                        <button class="btn-cancel" onclick={handleFormCancel}>Cancel</button>
-                                        <button class="btn-save-entry" onclick={handleFormSave} disabled={isSaving}>{saveBtnLabel}</button>
-                                    </div>
-
-                                </div>
-                            </template>
-
-                            <!-- Points list -->
-                            <div class="points-list">
-                                <template lwc:if={hasPoints}>
-                                    <template for:each={enrichedPoints} for:item="pt">
-                                        <div key={pt.id} class="point-card">
-                                            <div class="point-card-header">
-                                                <span class={pt.typeClass}>
-                                                    <span class="type-badge">{pt.measureType}</span>
-                                                </span>
-                                                <div class="point-actions">
-                                                    <template lwc:if={pt.showOkBtn}>
-                                                        <button class="icon-btn ok-btn" data-point-id={pt.id} onclick={handleMarkOk} title="Mark as OK">✓</button>
-                                                    </template>
-                                                    <button class="icon-btn edit-btn" data-point-id={pt.id} onclick={handleEditPoint} title="Edit">✏️</button>
-                                                </div>
-                                            </div>
-                                            <div class="point-component">{pt.componentName}</div>
-                                            <template lwc:if={pt.showMeasure}>
-                                                <div class="point-measure">
-                                                    <span class="measure-value">{pt.measureValue}</span>
-                                                    <span class="measure-unit">{pt.measureValueType}</span>
-                                                </div>
-                                            </template>
-                                            <template lwc:if={pt.comments}>
-                                                <p class="point-comments">{pt.comments}</p>
-                                            </template>
-                                            <span class="point-date">{pt.formattedDate}</span>
-                                        </div>
-                                    </template>
-                                </template>
-                                <template lwc:else>
-                                    <template lwc:if={showForm}></template>
-                                    <template lwc:else>
-                                        <div class="we-empty">
-                                            <span class="we-empty-icon">🔍</span>
-                                            <p>No inspection entries yet.<br/>Tap "+ Add Entry" to start.</p>
-                                        </div>
-                                    </template>
-                                </template>
-                            </div>
-
+              <!-- Points list -->
+              <div class="points-list">
+                <template lwc:if={hasPoints}>
+                  <template for:each={enrichedPoints} for:item="pt">
+                    <div key={pt.id} class="point-card">
+                      <div class="point-card-header">
+                        <span class={pt.typeClass}>
+                          <span class="type-badge">{pt.measureType}</span>
+                        </span>
+                        <div class="point-actions">
+                          <template lwc:if={pt.showOkBtn}>
+                            <button
+                              class="k-icon-btn ok-btn"
+                              data-point-id={pt.id}
+                              onclick={handleMarkOk}
+                              title="Mark as OK"
+                              aria-label="Mark as OK"
+                            >
+                              ✓
+                            </button>
+                          </template>
+                          <button
+                            class="k-icon-btn edit-btn"
+                            data-point-id={pt.id}
+                            onclick={handleEditPoint}
+                            title="Edit"
+                            aria-label="Edit"
+                          >
+                            ✎
+                          </button>
                         </div>
-                    </template>
-
-                </div>
-
+                      </div>
+                      <div class="point-component">{pt.componentName}</div>
+                      <template lwc:if={pt.showMeasure}>
+                        <div class="point-measure">
+                          <span class="measure-value">{pt.measureValue}</span>
+                          <span class="measure-unit"
+                            >{pt.measureValueType}</span
+                          >
+                        </div>
+                      </template>
+                      <template lwc:if={pt.comments}>
+                        <p class="point-comments">{pt.comments}</p>
+                      </template>
+                      <span class="point-date">{pt.formattedDate}</span>
+                    </div>
+                  </template>
+                </template>
+                <template lwc:else>
+                  <template lwc:if={showForm}></template>
+                  <template lwc:else>
+                    <div class="we-empty">
+                      <span class="we-empty-icon">🔍</span>
+                      <p>
+                        No inspection entries yet.<br />Tap "＋ Add entry" to
+                        start.
+                      </p>
+                    </div>
+                  </template>
+                </template>
+              </div>
             </div>
-        </template>
-
-    </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
 </template>

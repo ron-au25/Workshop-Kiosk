@@ -1,0 +1,188 @@
+/*
+ * kioskUi: shared button system for the kiosk.
+ * Import at the top of a component stylesheet:  @import "c/kioskUi";
+ * Colours come from the --rt-* tokens set on workshopPortal (dark + .theme-light).
+ *
+ * Roles (one meaning each):
+ *   k-btn--primary    orange  save / commit. Max one per screen or drawer.
+ *   k-btn--nav        blue    go somewhere / open a screen or document. Trailing →
+ *   k-btn--nav-ghost  blue outline, smaller navigation
+ *   k-btn--form       orange tint, opens a form drawer. Leading ＋ ✎ ⚑
+ *   k-btn--secondary  grey    cancel, reset, back, retry
+ *   k-btn--danger     red     clock out, reject, destructive
+ *   k-btn--success    green   clock in, approve
+ *   k-btn--link       text only (Clear, Show all)
+ *   k-icon-btn        square icon-only button (✎ ✕ ↻ zoom/page)
+ * Sizes: k-btn--sm (40px, in rows) · default 48px · k-btn--lg (64px, hero)
+ * Never below 44px tap target on the iPad.
+ */
+
+.k-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    opacity 0.12s;
+}
+.k-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.k-btn:focus-visible,
+.k-icon-btn:focus-visible {
+  outline: 2px solid var(--rt-accent-2, #2e8fe6);
+  outline-offset: 2px;
+}
+
+/* ── Roles ─────────────────────────────────────────────────────────────── */
+.k-btn--primary {
+  background: var(--rt-btn-primary, #a9502d);
+  color: #fff;
+}
+.k-btn--primary:hover:not(:disabled) {
+  background: var(--rt-btn-primary-hover, #b95a33);
+}
+
+.k-btn--nav {
+  background: var(--rt-accent-2, #2e8fe6);
+  color: #fff;
+}
+.k-btn--nav:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.k-btn--nav-ghost {
+  background: transparent;
+  border-color: var(--rt-accent-2, #2e8fe6);
+  color: var(--rt-accent-2, #2e8fe6);
+}
+.k-btn--nav-ghost:hover:not(:disabled) {
+  background: rgba(46, 143, 230, 0.12);
+}
+
+.k-btn--form {
+  background: var(--rt-surface-2, #1b2530);
+  border-color: var(--rt-btn-form-border, #4a3a33);
+  color: var(--rt-btn-form-text, #e7a383);
+}
+.k-btn--form:hover:not(:disabled) {
+  background: var(--rt-surface-3, #243040);
+}
+
+.k-btn--secondary {
+  background: var(--rt-surface-2, #1b2530);
+  border-color: var(--rt-border, #2a3744);
+  color: var(--rt-text, #f2f5f7);
+  font-weight: 600;
+}
+.k-btn--secondary:hover:not(:disabled) {
+  background: var(--rt-surface-3, #243040);
+}
+
+.k-btn--danger {
+  background: var(--rt-danger, #e84b4b);
+  color: #fff;
+}
+.k-btn--danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.k-btn--success {
+  background: var(--rt-success, #21c07a);
+  color: #04210f;
+}
+.k-btn--success:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.k-btn--link {
+  background: transparent;
+  border-color: transparent;
+  color: var(--rt-accent-2, #2e8fe6);
+  min-height: 44px;
+  padding: 0 10px;
+  font-weight: 600;
+}
+.k-btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* ── Sizes / layout ────────────────────────────────────────────────────── */
+.k-btn--sm {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.k-btn--lg {
+  min-height: 64px;
+  padding: 0 28px;
+  font-size: 18px;
+  border-radius: 12px;
+}
+.k-btn--block {
+  display: flex;
+  width: 100%;
+}
+.k-btn--grow {
+  flex: 1;
+}
+
+/* ── Icon-only button ──────────────────────────────────────────────────── */
+.k-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 1px solid var(--rt-border, #2a3744);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rt-text-muted, #a6b2bd);
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.k-icon-btn:hover:not(:disabled) {
+  background: var(--rt-surface-2, #1b2530);
+  color: var(--rt-text, #f2f5f7);
+}
+.k-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.k-icon-btn--plain {
+  border-color: transparent;
+}
+
+/* ── Drawer footer layout (content slotted into c-kiosk-drawer) ────────── */
+.k-drawer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+.k-drawer-actions .k-spacer {
+  flex: 1;
+}
